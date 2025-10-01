@@ -120,4 +120,5 @@ flyway {
     url = 'jdbc:postgresql://localhost:5432/usersdb'
     user = 'user'
     password = 'password'
+    cleanDisabled = true // Revertido: impedir uso de flywayClean em ambientes normais
 }

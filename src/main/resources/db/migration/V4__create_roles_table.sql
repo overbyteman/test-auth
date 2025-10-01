@@ -10,11 +10,13 @@ DROP TABLE IF EXISTS roles CASCADE;
 -- Create roles table for RBAC system
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT UNIQUE NOT NULL,
+    -- Removido UNIQUE direto para evitar duplicidade; unicidade garantida via índice em LOWER(name)
+    name TEXT NOT NULL,
     description TEXT
 );
 
 -- Create high-performance indexes
+-- Índice único case-insensitive garante unicidade lógica do nome
 CREATE UNIQUE INDEX IF NOT EXISTS uq_roles_name ON roles USING btree (LOWER(name));
 CREATE INDEX IF NOT EXISTS idx_roles_name_text ON roles USING btree (name text_pattern_ops);
 
@@ -32,5 +34,5 @@ END $$;
 -- Add table and column comments for documentation
 COMMENT ON TABLE roles IS 'User roles for Role-Based Access Control (RBAC)';
 COMMENT ON COLUMN roles.id IS 'UUID primary key for distributed systems compatibility';
-COMMENT ON COLUMN roles.name IS 'Role name, must be unique and minimum 2 characters';
+COMMENT ON COLUMN roles.name IS 'Role name, case-insensitive unique via index uq_roles_name, minimum 2 characters';
 COMMENT ON COLUMN roles.description IS 'Optional role description for documentation';

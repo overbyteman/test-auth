@@ -3,7 +3,16 @@ spring:
     name: user-service
   profiles:
     active: dev
-  
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    baseline-description: Baseline existing schema before applying versioned migrations
+    validate-on-migrate: true
+    clean-disabled: true
+
   # Cache configuration
   cache:
     type: simple
@@ -87,5 +96,3 @@ info:
     encoding: UTF-8
     java:
       version: ${java.version}
-
-

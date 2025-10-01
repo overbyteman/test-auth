@@ -1,6 +1,6 @@
 -- ===========================================
 -- Flyway Migration: High-Performance Query Functions and Usage Examples
--- Version: V10
+-- Version: V9
 -- Description: High-performance query functions and usage examples for UUID-based system
 -- ===========================================
 
@@ -97,7 +97,6 @@ BEGIN
         pol.effect,
         CASE
             WHEN pol.conditions IS NULL THEN TRUE
-            -- Simple context matching - can be extended for complex ABAC rules
             WHEN pol.conditions @> p_context THEN TRUE
             ELSE FALSE
         END as conditions_match
@@ -138,18 +137,33 @@ DECLARE
     update_users_perm_id UUID;
     delete_users_perm_id UUID;
 BEGIN
-    -- Insert sample roles
+    -- Insert sample roles (case-insensitive uniqueness em LOWER(name))
     INSERT INTO roles (name, description)
-    VALUES ('ADMIN', 'Administrator with full access')
-    ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description
+    SELECT 'ADMIN', 'Administrator with full access'
+    WHERE NOT EXISTS (
+        SELECT 1 FROM roles WHERE LOWER(name) = LOWER('ADMIN')
+    )
     RETURNING id INTO admin_role_id;
 
+    IF admin_role_id IS NULL THEN
+        SELECT id INTO admin_role_id FROM roles WHERE LOWER(name) = 'admin';
+        -- Atualiza descrição se quiser manter consistência
+        UPDATE roles SET description = 'Administrator with full access' WHERE id = admin_role_id;
+    END IF;
+
     INSERT INTO roles (name, description)
-    VALUES ('USER', 'Regular user with limited access')
-    ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description
+    SELECT 'USER', 'Regular user with limited access'
+    WHERE NOT EXISTS (
+        SELECT 1 FROM roles WHERE LOWER(name) = LOWER('USER')
+    )
     RETURNING id INTO user_role_id;
 
-    -- Insert sample permissions
+    IF user_role_id IS NULL THEN
+        SELECT id INTO user_role_id FROM roles WHERE LOWER(name) = 'user';
+        UPDATE roles SET description = 'Regular user with limited access' WHERE id = user_role_id;
+    END IF;
+
+    -- Permissions (possui UNIQUE constraint (action, resource), então ON CONFLICT é válido)
     INSERT INTO permissions (action, resource)
     VALUES ('create', 'users')
     ON CONFLICT (action, resource) DO NOTHING
@@ -170,23 +184,15 @@ BEGIN
     ON CONFLICT (action, resource) DO NOTHING
     RETURNING id INTO delete_users_perm_id;
 
-    -- Get IDs if they already existed
-    IF admin_role_id IS NULL THEN
-        SELECT id INTO admin_role_id FROM roles WHERE name = 'ADMIN';
-    END IF;
+    -- Garantir IDs caso já existissem
+    SELECT id INTO create_users_perm_id FROM permissions WHERE action='create' AND resource='users';
+    SELECT id INTO read_users_perm_id FROM permissions WHERE action='read' AND resource='users';
+    SELECT id INTO update_users_perm_id FROM permissions WHERE action='update' AND resource='users';
+    SELECT id INTO delete_users_perm_id FROM permissions WHERE action='delete' AND resource='users';
 
-    IF user_role_id IS NULL THEN
-        SELECT id INTO user_role_id FROM roles WHERE name = 'USER';
-    END IF;
-
-    -- Get permission IDs
-    SELECT id INTO create_users_perm_id FROM permissions WHERE action = 'create' AND resource = 'users';
-    SELECT id INTO read_users_perm_id FROM permissions WHERE action = 'read' AND resource = 'users';
-    SELECT id INTO update_users_perm_id FROM permissions WHERE action = 'update' AND resource = 'users';
-    SELECT id INTO delete_users_perm_id FROM permissions WHERE action = 'delete' AND resource = 'users';
-
-    -- Assign permissions to roles
-    INSERT INTO roles_permissions (role_id, permission_id) VALUES
+    -- Relacionamentos role -> permissions
+    INSERT INTO roles_permissions (role_id, permission_id)
+    VALUES
         (admin_role_id, create_users_perm_id),
         (admin_role_id, read_users_perm_id),
         (admin_role_id, update_users_perm_id),
@@ -194,7 +200,7 @@ BEGIN
         (user_role_id, read_users_perm_id)
     ON CONFLICT (role_id, permission_id) DO NOTHING;
 
-    RAISE NOTICE 'Sample roles and permissions created successfully';
+    RAISE NOTICE 'Sample roles and permissions created successfully (idempotent).';
 END $$;
 
 -- Add comments for all functions

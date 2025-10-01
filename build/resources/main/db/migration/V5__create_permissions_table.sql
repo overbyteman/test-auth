@@ -14,11 +14,11 @@ CREATE TABLE permissions (
     resource TEXT NOT NULL -- e.g., articles, users
 );
 
--- Add unique constraint for action+resource combination
+-- Add unique constraint for action+resource combination (já cria índice interno, não precisamos de outro)
 ALTER TABLE permissions ADD CONSTRAINT uq_permissions_action_resource UNIQUE (action, resource);
 
--- Create high-performance indexes
-CREATE UNIQUE INDEX IF NOT EXISTS uq_permissions_action_resource_idx ON permissions USING btree (action, resource);
+-- Create high-performance supporting (non-redundant) indexes
+-- Removido índice único duplicado (uq_permissions_action_resource_idx) para evitar redundância
 CREATE INDEX IF NOT EXISTS idx_permissions_action ON permissions USING btree (action);
 CREATE INDEX IF NOT EXISTS idx_permissions_resource ON permissions USING btree (resource);
 

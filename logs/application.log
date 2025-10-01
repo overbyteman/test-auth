@@ -11542,3 +11542,534 @@ Caused by: java.lang.IllegalStateException: Ambiguous @ExceptionHandler method m
 2025-10-01 16:55:28 [XNIO-1 task-2] WARN  o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - Resolved [java.lang.RuntimeException: Erro ao buscar tenants: PreparedStatementCallback; bad SQL grammar [SELECT * FROM tenants WHERE LOWER(name) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?) OR LOWER(domain) LIKE LOWER(?)]]
 2025-10-01 16:55:53 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
 2025-10-01 16:55:53 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-01 17:39:23 [restartedMain] INFO  com.seccreto.service.auth.Main - Starting Main using Java 21.0.8 with PID 64060 (/Users/tiuka/www/pasta sem título/build/classes/java/main started by tiuka in /Users/tiuka/www/pasta sem título)
+2025-10-01 17:39:23 [restartedMain] INFO  com.seccreto.service.auth.Main - The following 1 profile is active: "dev"
+2025-10-01 17:39:23 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-10-01 17:39:23 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-10-01 17:39:26 [restartedMain] WARN  io.undertow.websockets.jsr - UT026010: Buffer pool was not set on WebSocketDeploymentInfo, the default pool will be used
+2025-10-01 17:39:27 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3227 ms
+2025-10-01 17:39:27 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-01 17:39:28 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@6f3f4ea3
+2025-10-01 17:39:28 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-01 17:39:28 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+2025-10-01 17:39:28 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - See release notes here: https://rd.gt/416ObMi
+2025-10-01 17:39:28 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - 
+2025-10-01 17:39:28 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - 1 SQL migrations were detected but not run because they did not follow the filename convention.
+2025-10-01 17:39:28 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - Set 'validateMigrationNaming' to true to fail fast and see a list of the invalid file names.
+2025-10-01 17:39:28 [restartedMain] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5432/usersdb (PostgreSQL 15.14)
+2025-10-01 17:39:28 [restartedMain] INFO  o.f.c.i.s.JdbcTableSchemaHistory - Schema history table "public"."flyway_schema_history" does not exist yet
+2025-10-01 17:39:28 [restartedMain] INFO  o.f.core.internal.command.DbValidate - Successfully validated 10 migrations (execution time 00:00.039s)
+2025-10-01 17:39:28 [restartedMain] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'authController' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/controller/auth/AuthController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'authServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/auth/AuthServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Found non-empty schema(s) "public" but no schema history table. Use baseline() or set baselineOnMigrate to true to initialize the schema history table.
+2025-10-01 17:39:28 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-01 17:39:28 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-01 17:39:28 [restartedMain] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-10-01 17:39:28 [restartedMain] ERROR o.s.boot.SpringApplication - Application run failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'authController' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/controller/auth/AuthController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'authServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/auth/AuthServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Found non-empty schema(s) "public" but no schema history table. Use baseline() or set baselineOnMigrate to true to initialize the schema history table.
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:973)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:946)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:616)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:753)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:455)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:323)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.seccreto.service.auth.Main.main(Main.java:19)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.devtools.restart.RestartLauncher.run(RestartLauncher.java:50)
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'authServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/auth/AuthServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Found non-empty schema(s) "public" but no schema history table. Use baseline() or set baselineOnMigrate to true to initialize the schema history table.
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 22 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Found non-empty schema(s) "public" but no schema history table. Use baseline() or set baselineOnMigrate to true to initialize the schema history table.
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 36 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Found non-empty schema(s) "public" but no schema history table. Use baseline() or set baselineOnMigrate to true to initialize the schema history table.
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 50 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Found non-empty schema(s) "public" but no schema history table. Use baseline() or set baselineOnMigrate to true to initialize the schema history table.
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1775)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:601)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:312)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 64 common frames omitted
+Caused by: org.flywaydb.core.api.FlywayException: Found non-empty schema(s) "public" but no schema history table. Use baseline() or set baselineOnMigrate to true to initialize the schema history table.
+	at org.flywaydb.core.Flyway.lambda$migrate$0(Flyway.java:178)
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:213)
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:140)
+	at org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:66)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1822)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1771)
+	... 77 common frames omitted
+2025-10-01 17:42:09 [restartedMain] INFO  com.seccreto.service.auth.Main - Starting Main using Java 21.0.8 with PID 64776 (/Users/tiuka/www/pasta sem título/build/classes/java/main started by tiuka in /Users/tiuka/www/pasta sem título)
+2025-10-01 17:42:09 [restartedMain] INFO  com.seccreto.service.auth.Main - The following 1 profile is active: "dev"
+2025-10-01 17:42:09 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-10-01 17:42:09 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-10-01 17:42:12 [restartedMain] WARN  io.undertow.websockets.jsr - UT026010: Buffer pool was not set on WebSocketDeploymentInfo, the default pool will be used
+2025-10-01 17:42:12 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2686 ms
+2025-10-01 17:42:12 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-01 17:42:13 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@249f761f
+2025-10-01 17:42:13 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - See release notes here: https://rd.gt/416ObMi
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - 
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - 1 SQL migrations were detected but not run because they did not follow the filename convention.
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - Set 'validateMigrationNaming' to true to fail fast and see a list of the invalid file names.
+2025-10-01 17:42:13 [restartedMain] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5432/usersdb (PostgreSQL 15.14)
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.JdbcTableSchemaHistory - Schema history table "public"."flyway_schema_history" does not exist yet
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbValidate - Successfully validated 10 migrations (execution time 00:00.033s)
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "public"."flyway_schema_history" with baseline ...
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbBaseline - Successfully baselined schema with version: 0
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 0
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "1 - create users table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "users" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: trigger "update_users_updated_at" for relation "users" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "2 - create tenants table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "tenants" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: trigger "update_tenants_updated_at" for relation "tenants" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "3 - create sessions table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "sessions" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "4 - create roles table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "roles" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "5 - create permissions table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "permissions" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "6 - create roles permissions table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "roles_permissions" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "7 - create users tenants roles table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "users_tenants_roles" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "8 - create policies table"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: type "policy_effect" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: table "policies" does not exist, skipping
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "9 - create acid daily usage functions"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Migrating schema "public" to version "10 - create application usage examples"
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.c.i.s.DefaultSqlScriptExecutor - DB: Sample roles and permissions created successfully
+2025-10-01 17:42:13 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Successfully applied 10 migrations to schema "public", now at version v10 (execution time 00:00.179s)
+2025-10-01 17:42:15 [restartedMain] INFO  o.s.b.d.a.OptionalLiveReloadServer - LiveReload server is running on port 35729
+2025-10-01 17:42:15 [restartedMain] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 6 endpoint(s) beneath base path '/actuator'
+2025-10-01 17:42:15 [restartedMain] INFO  org.xnio - XNIO version 3.8.8.Final
+2025-10-01 17:42:15 [restartedMain] INFO  org.xnio.nio - XNIO NIO Implementation Version 3.8.8.Final
+2025-10-01 17:42:15 [restartedMain] INFO  org.jboss.threads - JBoss Threads version 3.5.0.Final
+2025-10-01 17:42:15 [restartedMain] INFO  o.s.b.w.e.undertow.UndertowWebServer - Undertow started on port 8080 (http)
+2025-10-01 17:42:15 [restartedMain] INFO  com.seccreto.service.auth.Main - Started Main in 7.456 seconds (process running for 8.516)
+2025-10-01 17:42:24 [restartedMain] INFO  com.seccreto.service.auth.Main - Starting Main using Java 21.0.8 with PID 64879 (/Users/tiuka/www/pasta sem título/build/classes/java/main started by tiuka in /Users/tiuka/www/pasta sem título)
+2025-10-01 17:42:24 [restartedMain] INFO  com.seccreto.service.auth.Main - The following 1 profile is active: "dev"
+2025-10-01 17:42:24 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-10-01 17:42:24 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-10-01 17:42:25 [restartedMain] WARN  io.undertow.websockets.jsr - UT026010: Buffer pool was not set on WebSocketDeploymentInfo, the default pool will be used
+2025-10-01 17:42:25 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 672 ms
+2025-10-01 17:42:25 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-01 17:42:25 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@15b8e047
+2025-10-01 17:42:25 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - See release notes here: https://rd.gt/416ObMi
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - 
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - 1 SQL migrations were detected but not run because they did not follow the filename convention.
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - Set 'validateMigrationNaming' to true to fail fast and see a list of the invalid file names.
+2025-10-01 17:42:25 [restartedMain] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5432/usersdb (PostgreSQL 15.14)
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.core.internal.command.DbValidate - Successfully validated 11 migrations (execution time 00:00.014s)
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 10
+2025-10-01 17:42:25 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-01 17:42:26 [restartedMain] WARN  o.s.b.d.a.OptionalLiveReloadServer - Unable to start LiveReload server
+2025-10-01 17:42:26 [restartedMain] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 6 endpoint(s) beneath base path '/actuator'
+2025-10-01 17:42:26 [restartedMain] INFO  org.xnio - XNIO version 3.8.8.Final
+2025-10-01 17:42:26 [restartedMain] INFO  org.xnio.nio - XNIO NIO Implementation Version 3.8.8.Final
+2025-10-01 17:42:26 [restartedMain] INFO  org.jboss.threads - JBoss Threads version 3.5.0.Final
+2025-10-01 17:42:26 [restartedMain] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2025-10-01 17:42:26 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-01 17:42:26 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-01 17:42:26 [restartedMain] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-10-01 17:42:26 [restartedMain] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+2025-10-01 17:52:45 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-01 17:52:45 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-01 17:52:47 [restartedMain] INFO  com.seccreto.service.auth.Main - Starting Main using Java 21.0.8 with PID 67496 (/Users/tiuka/www/pasta sem título/build/classes/java/main started by tiuka in /Users/tiuka/www/pasta sem título)
+2025-10-01 17:52:47 [restartedMain] INFO  com.seccreto.service.auth.Main - The following 1 profile is active: "dev"
+2025-10-01 17:52:47 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-10-01 17:52:47 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-10-01 17:52:48 [restartedMain] WARN  io.undertow.websockets.jsr - UT026010: Buffer pool was not set on WebSocketDeploymentInfo, the default pool will be used
+2025-10-01 17:52:48 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 636 ms
+2025-10-01 17:52:48 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-01 17:52:48 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7dfeac58
+2025-10-01 17:52:48 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - See release notes here: https://rd.gt/416ObMi
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - 
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - 1 SQL migrations were detected but not run because they did not follow the filename convention.
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.c.i.r.ResourceNameValidator - Set 'validateMigrationNaming' to true to fail fast and see a list of the invalid file names.
+2025-10-01 17:52:48 [restartedMain] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5432/usersdb (PostgreSQL 15.14)
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.core.internal.command.DbValidate - Successfully validated 11 migrations (execution time 00:00.012s)
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 10
+2025-10-01 17:52:48 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-01 17:52:49 [restartedMain] INFO  o.s.b.d.a.OptionalLiveReloadServer - LiveReload server is running on port 35729
+2025-10-01 17:52:49 [restartedMain] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 6 endpoint(s) beneath base path '/actuator'
+2025-10-01 17:52:49 [restartedMain] INFO  org.xnio - XNIO version 3.8.8.Final
+2025-10-01 17:52:49 [restartedMain] INFO  org.xnio.nio - XNIO NIO Implementation Version 3.8.8.Final
+2025-10-01 17:52:49 [restartedMain] INFO  org.jboss.threads - JBoss Threads version 3.5.0.Final
+2025-10-01 17:52:49 [restartedMain] INFO  o.s.b.w.e.undertow.UndertowWebServer - Undertow started on port 8080 (http)
+2025-10-01 17:52:49 [restartedMain] INFO  com.seccreto.service.auth.Main - Started Main in 1.725 seconds (process running for 1.873)
+2025-10-01 17:52:53 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-01 17:52:53 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-01 18:29:26 [restartedMain] INFO  com.seccreto.service.auth.Main - Starting Main using Java 21.0.8 with PID 76754 (/Users/tiuka/www/pasta sem título/build/classes/java/main started by tiuka in /Users/tiuka/www/pasta sem título)
+2025-10-01 18:29:26 [restartedMain] INFO  com.seccreto.service.auth.Main - The following 1 profile is active: "dev"
+2025-10-01 18:29:26 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-10-01 18:29:26 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-10-01 18:29:26 [restartedMain] WARN  io.undertow.websockets.jsr - UT026010: Buffer pool was not set on WebSocketDeploymentInfo, the default pool will be used
+2025-10-01 18:29:26 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 668 ms
+2025-10-01 18:29:26 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-01 18:29:26 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@32ca7230
+2025-10-01 18:29:26 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-01 18:29:26 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+2025-10-01 18:29:26 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - See release notes here: https://rd.gt/416ObMi
+2025-10-01 18:29:26 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - 
+2025-10-01 18:29:26 [restartedMain] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5432/usersdb (PostgreSQL 15.14)
+2025-10-01 18:29:27 [restartedMain] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'authController' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/controller/auth/AuthController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'authServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/auth/AuthServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : -314881733
+-> Resolved locally    : -1827781761
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 5
+-> Applied to database : -1623589997
+-> Resolved locally    : 1342209826
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 9
+-> Applied to database : 0
+-> Resolved locally    : -81765575
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 10
+-> Applied to database : -81765575
+-> Resolved locally    : -1992678238
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+2025-10-01 18:29:27 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-01 18:29:27 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-01 18:29:27 [restartedMain] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-10-01 18:29:27 [restartedMain] ERROR o.s.boot.SpringApplication - Application run failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'authController' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/controller/auth/AuthController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'authServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/auth/AuthServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : -314881733
+-> Resolved locally    : -1827781761
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 5
+-> Applied to database : -1623589997
+-> Resolved locally    : 1342209826
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 9
+-> Applied to database : 0
+-> Resolved locally    : -81765575
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 10
+-> Applied to database : -81765575
+-> Resolved locally    : -1992678238
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:973)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:946)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:616)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:753)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:455)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:323)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1342)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1331)
+	at com.seccreto.service.auth.Main.main(Main.java:19)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.boot.devtools.restart.RestartLauncher.run(RestartLauncher.java:50)
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'authServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/auth/AuthServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : -314881733
+-> Resolved locally    : -1827781761
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 5
+-> Applied to database : -1623589997
+-> Resolved locally    : 1342209826
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 9
+-> Applied to database : 0
+-> Resolved locally    : -81765575
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 10
+-> Applied to database : -81765575
+-> Resolved locally    : -1992678238
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 22 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'userServiceImpl' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/service/users/UserServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : -314881733
+-> Resolved locally    : -1827781761
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 5
+-> Applied to database : -1623589997
+-> Resolved locally    : 1342209826
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 9
+-> Applied to database : 0
+-> Resolved locally    : -81765575
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 10
+-> Applied to database : -81765575
+-> Resolved locally    : -1992678238
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 36 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'jdbcUserRepository' defined in file [/Users/tiuka/www/pasta sem título/build/classes/java/main/com/seccreto/service/auth/repository/users/JdbcUserRepository.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : -314881733
+-> Resolved locally    : -1827781761
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 5
+-> Applied to database : -1623589997
+-> Resolved locally    : 1342209826
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 9
+-> Applied to database : 0
+-> Resolved locally    : -81765575
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 10
+-> Applied to database : -81765575
+-> Resolved locally    : -1992678238
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:802)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:241)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1356)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1193)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 50 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : -314881733
+-> Resolved locally    : -1827781761
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 5
+-> Applied to database : -1623589997
+-> Resolved locally    : 1342209826
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 9
+-> Applied to database : 0
+-> Resolved locally    : -81765575
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 10
+-> Applied to database : -81765575
+-> Resolved locally    : -1992678238
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1775)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:601)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:325)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:323)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:312)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1441)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1348)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:911)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:789)
+	... 64 common frames omitted
+Caused by: org.flywaydb.core.api.exception.FlywayValidateException: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : -314881733
+-> Resolved locally    : -1827781761
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 5
+-> Applied to database : -1623589997
+-> Resolved locally    : 1342209826
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 9
+-> Applied to database : 0
+-> Resolved locally    : -81765575
+Either revert the changes to the migration, or run repair to update the schema history.
+Migration checksum mismatch for migration version 10
+-> Applied to database : -81765575
+-> Resolved locally    : -1992678238
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.flywaydb.core.Flyway.lambda$migrate$0(Flyway.java:146)
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:213)
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:140)
+	at org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:66)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1822)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1771)
+	... 77 common frames omitted
+2025-10-01 18:35:11 [restartedMain] INFO  com.seccreto.service.auth.Main - Starting Main using Java 21.0.8 with PID 78397 (/Users/tiuka/www/pasta sem título/build/classes/java/main started by tiuka in /Users/tiuka/www/pasta sem título)
+2025-10-01 18:35:11 [restartedMain] INFO  com.seccreto.service.auth.Main - The following 1 profile is active: "dev"
+2025-10-01 18:35:11 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-10-01 18:35:11 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-10-01 18:35:12 [restartedMain] WARN  io.undertow.websockets.jsr - UT026010: Buffer pool was not set on WebSocketDeploymentInfo, the default pool will be used
+2025-10-01 18:35:12 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 708 ms
+2025-10-01 18:35:12 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-01 18:35:12 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@27a3945b
+2025-10-01 18:35:12 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-01 18:35:12 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+2025-10-01 18:35:12 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - See release notes here: https://rd.gt/416ObMi
+2025-10-01 18:35:12 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - 
+2025-10-01 18:35:12 [restartedMain] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5432/usersdb (PostgreSQL 15.14)
+2025-10-01 18:35:12 [restartedMain] INFO  o.f.core.internal.command.DbValidate - Successfully validated 10 migrations (execution time 00:00.013s)
+2025-10-01 18:35:12 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 10
+2025-10-01 18:35:12 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-01 18:35:13 [restartedMain] INFO  o.s.b.d.a.OptionalLiveReloadServer - LiveReload server is running on port 35729
+2025-10-01 18:35:13 [restartedMain] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 6 endpoint(s) beneath base path '/actuator'
+2025-10-01 18:35:13 [restartedMain] INFO  org.xnio - XNIO version 3.8.8.Final
+2025-10-01 18:35:13 [restartedMain] INFO  org.xnio.nio - XNIO NIO Implementation Version 3.8.8.Final
+2025-10-01 18:35:13 [restartedMain] INFO  org.jboss.threads - JBoss Threads version 3.5.0.Final
+2025-10-01 18:35:13 [restartedMain] INFO  o.s.b.w.e.undertow.UndertowWebServer - Undertow started on port 8080 (http)
+2025-10-01 18:35:13 [restartedMain] INFO  com.seccreto.service.auth.Main - Started Main in 1.833 seconds (process running for 1.999)
+2025-10-01 18:35:24 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-10-01 18:35:24 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-10-01 18:35:40 [restartedMain] INFO  com.seccreto.service.auth.Main - Starting Main using Java 21.0.8 with PID 78487 (/Users/tiuka/www/pasta sem título/build/classes/java/main started by tiuka in /Users/tiuka/www/pasta sem título)
+2025-10-01 18:35:40 [restartedMain] INFO  com.seccreto.service.auth.Main - The following 1 profile is active: "dev"
+2025-10-01 18:35:40 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-10-01 18:35:40 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-10-01 18:35:40 [restartedMain] WARN  io.undertow.websockets.jsr - UT026010: Buffer pool was not set on WebSocketDeploymentInfo, the default pool will be used
+2025-10-01 18:35:40 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 632 ms
+2025-10-01 18:35:40 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-10-01 18:35:40 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1e5140bc
+2025-10-01 18:35:40 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-10-01 18:35:40 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - Flyway Community Edition 9.22.3 by Redgate
+2025-10-01 18:35:40 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - See release notes here: https://rd.gt/416ObMi
+2025-10-01 18:35:40 [restartedMain] INFO  o.f.c.i.license.VersionPrinter - 
+2025-10-01 18:35:40 [restartedMain] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5432/usersdb (PostgreSQL 15.14)
+2025-10-01 18:35:40 [restartedMain] INFO  o.f.core.internal.command.DbValidate - Successfully validated 10 migrations (execution time 00:00.012s)
+2025-10-01 18:35:41 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 10
+2025-10-01 18:35:41 [restartedMain] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2025-10-01 18:35:41 [restartedMain] INFO  o.s.b.d.a.OptionalLiveReloadServer - LiveReload server is running on port 35729
+2025-10-01 18:35:41 [restartedMain] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 6 endpoint(s) beneath base path '/actuator'
+2025-10-01 18:35:41 [restartedMain] INFO  org.xnio - XNIO version 3.8.8.Final
+2025-10-01 18:35:41 [restartedMain] INFO  org.xnio.nio - XNIO NIO Implementation Version 3.8.8.Final
+2025-10-01 18:35:41 [restartedMain] INFO  org.jboss.threads - JBoss Threads version 3.5.0.Final
+2025-10-01 18:35:41 [restartedMain] INFO  o.s.b.w.e.undertow.UndertowWebServer - Undertow started on port 8080 (http)
+2025-10-01 18:35:41 [restartedMain] INFO  com.seccreto.service.auth.Main - Started Main in 1.692 seconds (process running for 1.849)
