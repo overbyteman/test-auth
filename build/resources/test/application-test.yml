@@ -29,7 +29,13 @@ spring:
         maintainTimeStats: false
   
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    baseline-description: Baseline existing schema before applying versioned migrations (test)
+    validate-on-migrate: true
+    clean-disabled: false  # Em testes podemos permitir clean se necessário
 
 # Undertow configuration for tests
 server:
@@ -53,4 +59,3 @@ logging:
     org.flywaydb: INFO
     org.testcontainers: INFO
     io.undertow: WARN
-

@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação de TenantRepository usando JDBC + PostgreSQL.
@@ -31,6 +32,7 @@ import java.util.Optional;
  * - Tratamento de exceções específicas
  * - Queries otimizadas com índices
  * - Suporte a configuração JSON flexível
+ * - Suporte a UUIDs para alta performance
  */
 @Repository
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -54,11 +56,8 @@ public class JdbcTenantRepository implements TenantRepository {
         return (ResultSet rs, int rowNum) -> {
             try {
                 Tenant tenant = new Tenant();
-                tenant.setId(rs.getLong("id"));
+                tenant.setId(rs.getObject("id", UUID.class));
                 tenant.setName(rs.getString("name"));
-                tenant.setDescription(rs.getString("description"));
-                tenant.setDomain(rs.getString("domain"));
-                tenant.setActive(rs.getBoolean("active"));
 
                 // Tratamento seguro de JSON
                 String configJson = rs.getString("config");
@@ -78,7 +77,6 @@ public class JdbcTenantRepository implements TenantRepository {
                     tenant.setUpdatedAt(updatedAt.toLocalDateTime());
                 }
 
-                tenant.setVersion(rs.getInt("version"));
                 return tenant;
             } catch (Exception e) {
                 throw new RuntimeException("Erro ao mapear tenant: " + e.getMessage(), e);
@@ -93,28 +91,20 @@ public class JdbcTenantRepository implements TenantRepository {
             LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             tenant.setCreatedAt(now);
             tenant.setUpdatedAt(now);
-            tenant.setVersion(1);
 
             String sql = """
-                INSERT INTO tenants (name, description, domain, active, config, created_at, updated_at, version) 
-                VALUES (:name, :description, :domain, :active, :config, :createdAt, :updatedAt, :version) 
+                INSERT INTO tenants (name, config, created_at, updated_at) 
+                VALUES (:name, :config, :createdAt, :updatedAt) 
                 RETURNING id
                 """;
 
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("name", tenant.getName())
-                    .addValue("description", tenant.getDescription())
-                    .addValue("domain", tenant.getDomain())
-                    .addValue("active", tenant.getActive())
                     .addValue("config", tenant.getConfig() != null ? objectMapper.writeValueAsString(tenant.getConfig()) : null)
                     .addValue("createdAt", tenant.getCreatedAt())
-                    .addValue("updatedAt", tenant.getUpdatedAt())
-                    .addValue("version", tenant.getVersion());
+                    .addValue("updatedAt", tenant.getUpdatedAt());
 
-            KeyHolder keyHolder = new GeneratedKeyHolder();
-            namedParameterJdbcTemplate.update(sql, params, keyHolder, new String[]{"id"});
-            
-            Long id = keyHolder.getKey().longValue();
+            UUID id = namedParameterJdbcTemplate.queryForObject(sql, params, UUID.class);
             tenant.setId(id);
             return tenant;
         } catch (DataAccessException e) {
@@ -125,7 +115,7 @@ public class JdbcTenantRepository implements TenantRepository {
     }
 
     @Override
-    public Optional<Tenant> findById(Long id) {
+    public Optional<Tenant> findById(UUID id) {
         try {
             String sql = "SELECT * FROM tenants WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -181,27 +171,21 @@ public class JdbcTenantRepository implements TenantRepository {
         try {
             String sql = """
                 UPDATE tenants 
-                SET name = :name, description = :description, domain = :domain, active = :active, config = :config, updated_at = :updatedAt, version = :version
-                WHERE id = :id AND version = :currentVersion
+                SET name = :name, config = :config, updated_at = :updatedAt
+                WHERE id = :id
                 """;
             
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("name", tenant.getName())
-                    .addValue("description", tenant.getDescription())
-                    .addValue("domain", tenant.getDomain())
-                    .addValue("active", tenant.getActive())
                     .addValue("config", tenant.getConfig() != null ? objectMapper.writeValueAsString(tenant.getConfig()) : null)
                     .addValue("updatedAt", LocalDateTime.now(ZoneOffset.UTC))
-                    .addValue("version", tenant.getVersion() + 1)
-                    .addValue("currentVersion", tenant.getVersion())
                     .addValue("id", tenant.getId());
 
             int rows = namedParameterJdbcTemplate.update(sql, params);
             if (rows == 0) {
-                throw new IllegalArgumentException("Tenant não encontrado para atualização ou versão incorreta");
+                throw new IllegalArgumentException("Tenant não encontrado para atualização");
             }
             
-            tenant.setVersion(tenant.getVersion() + 1);
             tenant.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
             return tenant;
         } catch (DataAccessException e) {
@@ -213,7 +197,7 @@ public class JdbcTenantRepository implements TenantRepository {
 
     @Override
     @Transactional
-    public boolean deleteById(Long id) {
+    public boolean deleteById(UUID id) {
         try {
             String sql = "DELETE FROM tenants WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -226,7 +210,7 @@ public class JdbcTenantRepository implements TenantRepository {
     }
 
     @Override
-    public boolean existsById(Long id) {
+    public boolean existsById(UUID id) {
         try {
             String sql = "SELECT COUNT(1) FROM tenants WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -268,18 +252,6 @@ public class JdbcTenantRepository implements TenantRepository {
             jdbcTemplate.update(sql);
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao limpar tenants: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public long countByActive(Boolean active) {
-        try {
-            String sql = "SELECT COUNT(1) FROM tenants WHERE active = :active";
-            MapSqlParameterSource params = new MapSqlParameterSource("active", active);
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0;
-        } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao contar tenants por status: " + e.getMessage(), e);
         }
     }
 
@@ -333,7 +305,7 @@ public class JdbcTenantRepository implements TenantRepository {
     @Override
     public List<Tenant> search(String query) {
         try {
-            String sql = "SELECT * FROM tenants WHERE LOWER(name) LIKE LOWER(:query) OR LOWER(description) LIKE LOWER(:query) OR LOWER(domain) LIKE LOWER(:query)";
+            String sql = "SELECT * FROM tenants WHERE LOWER(name) LIKE LOWER(:query)";
             MapSqlParameterSource params = new MapSqlParameterSource("query", "%" + query + "%");
             return namedParameterJdbcTemplate.query(sql, params, getRowMapper());
         } catch (DataAccessException e) {

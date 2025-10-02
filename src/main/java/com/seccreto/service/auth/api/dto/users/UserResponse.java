@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Schema(description = "Resposta de usuário")
 @Data
@@ -14,8 +15,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
-    @Schema(description = "ID do usuário", example = "1")
-    private Long id;
+    @Schema(description = "ID do usuário", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID id;
     @Schema(description = "Nome do usuário")
     private String name;
     @Schema(description = "Email do usuário")

@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -116,7 +117,7 @@ public class RolePermissionController {
     })
     @GetMapping("/roles/{id}")
     public ResponseEntity<RoleResponse> getRoleDetails(
-            @Parameter(description = "ID do role") @PathVariable Long id) {
+            @Parameter(description = "ID do role") @PathVariable UUID id) {
         return roleService.findRoleById(id)
                 .map(RoleMapper::toResponse)
                 .map(ResponseEntity::ok)
@@ -186,7 +187,7 @@ public class RolePermissionController {
     })
     @PostMapping("/roles/{roleId}/permissions")
     public ResponseEntity<RolesPermissionsResponse> assignPermissionToRole(
-            @Parameter(description = "ID do role") @PathVariable Long roleId,
+            @Parameter(description = "ID do role") @PathVariable UUID roleId,
             @Valid @RequestBody RolesPermissionsRequest request) {
         RolesPermissions association = rolesPermissionsService.createAssociation(roleId, request.getPermissionId());
         return ResponseEntity.status(HttpStatus.CREATED).body(RolesPermissionsMapper.toResponse(association));
@@ -207,8 +208,8 @@ public class RolePermissionController {
     })
     @DeleteMapping("/roles/{roleId}/permissions/{permissionId}")
     public ResponseEntity<Void> removePermissionFromRole(
-            @Parameter(description = "ID do role") @PathVariable Long roleId,
-            @Parameter(description = "ID da permissão") @PathVariable Long permissionId) {
+            @Parameter(description = "ID do role") @PathVariable UUID roleId,
+            @Parameter(description = "ID da permissão") @PathVariable UUID permissionId) {
         rolesPermissionsService.removeAssociation(roleId, permissionId);
         return ResponseEntity.noContent().build();
     }
@@ -229,7 +230,7 @@ public class RolePermissionController {
     })
     @GetMapping("/roles/{roleId}/permissions")
     public ResponseEntity<List<PermissionResponse>> getRolePermissions(
-            @Parameter(description = "ID do role") @PathVariable Long roleId) {
+            @Parameter(description = "ID do role") @PathVariable UUID roleId) {
         List<PermissionResponse> permissions = rolesPermissionsService.findPermissionsByRole(roleId).stream()
                 .map(rolePermission -> permissionService.findPermissionById(rolePermission.getPermissionId()))
                 .filter(Optional::isPresent)
@@ -257,8 +258,8 @@ public class RolePermissionController {
     })
     @PostMapping("/users/{userId}/tenants/{tenantId}/roles")
     public ResponseEntity<Void> assignRoleToUser(
-            @Parameter(description = "ID do usuário") @PathVariable Long userId,
-            @Parameter(description = "ID do tenant") @PathVariable Long tenantId,
+            @Parameter(description = "ID do usuário") @PathVariable UUID userId,
+            @Parameter(description = "ID do tenant") @PathVariable UUID tenantId,
             @Valid @RequestBody AssignRoleRequest request) {
         usersTenantsRolesService.createAssociation(userId, tenantId, request.getRoleId());
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -279,9 +280,9 @@ public class RolePermissionController {
     })
     @DeleteMapping("/users/{userId}/tenants/{tenantId}/roles/{roleId}")
     public ResponseEntity<Void> removeRoleFromUser(
-            @Parameter(description = "ID do usuário") @PathVariable Long userId,
-            @Parameter(description = "ID do tenant") @PathVariable Long tenantId,
-            @Parameter(description = "ID do role") @PathVariable Long roleId) {
+            @Parameter(description = "ID do usuário") @PathVariable UUID userId,
+            @Parameter(description = "ID do tenant") @PathVariable UUID tenantId,
+            @Parameter(description = "ID do role") @PathVariable UUID roleId) {
         usersTenantsRolesService.removeAssociation(userId, tenantId, roleId);
         return ResponseEntity.noContent().build();
     }
@@ -301,10 +302,10 @@ public class RolePermissionController {
     })
     @GetMapping("/users/{userId}/permissions")
     public ResponseEntity<Object> getUserPermissions(
-            @Parameter(description = "ID do usuário") @PathVariable Long userId) {
-        final Long userIdFinal = userId;
+            @Parameter(description = "ID do usuário") @PathVariable UUID userId) {
+        final UUID userIdFinal = userId;
         return ResponseEntity.ok(new Object() {
-            public final Long userId = userIdFinal;
+            public final UUID userId = userIdFinal;
             public final List<String> roles = usersTenantsRolesService.findRoleNamesByUser(userIdFinal);
             public final List<String> permissions = usersTenantsRolesService.findPermissionNamesByUser(userIdFinal);
             public final Long totalRoles = usersTenantsRolesService.countRolesByUser(userIdFinal);
@@ -337,9 +338,9 @@ public class RolePermissionController {
     // ===== DTO INTERNO =====
     
     public static class AssignRoleRequest {
-        private Long roleId;
+        private UUID roleId;
         
-        public Long getRoleId() { return roleId; }
-        public void setRoleId(Long roleId) { this.roleId = roleId; }
+        public UUID getRoleId() { return roleId; }
+        public void setRoleId(UUID roleId) { this.roleId = roleId; }
     }
 }

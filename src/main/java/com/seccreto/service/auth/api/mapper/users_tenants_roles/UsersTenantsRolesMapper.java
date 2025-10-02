@@ -41,7 +41,6 @@ public final class UsersTenantsRolesMapper {
                 .userId(usersTenantsRoles.getUserId())
                 .tenantId(usersTenantsRoles.getTenantId())
                 .roleId(usersTenantsRoles.getRoleId())
-                .createdAt(usersTenantsRoles.getCreatedAt())
                 .build();
     }
 

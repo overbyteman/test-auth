@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO para respostas de relacionamento role-permissão.
@@ -18,13 +19,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RolesPermissionsResponse {
-    @Schema(description = "ID do role", example = "1")
-    private Long roleId;
+    @Schema(description = "ID do role", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID roleId;
     
-    @Schema(description = "ID da permissão", example = "1")
-    private Long permissionId;
+    @Schema(description = "ID da permissão", example = "550e8400-e29b-41d4-a716-446655440001")
+    private UUID permissionId;
     
-    @Schema(description = "Data e hora de criação da relação")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime createdAt;
 }

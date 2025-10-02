@@ -39,7 +39,6 @@ public final class RolesPermissionsMapper {
         return RolesPermissionsResponse.builder()
                 .roleId(rolesPermissions.getRoleId())
                 .permissionId(rolesPermissions.getPermissionId())
-                .createdAt(rolesPermissions.getCreatedAt())
                 .build();
     }
 

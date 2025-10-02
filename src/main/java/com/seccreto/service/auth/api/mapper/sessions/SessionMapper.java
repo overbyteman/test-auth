@@ -6,6 +6,7 @@ import com.seccreto.service.auth.model.sessions.Session;
 
 import java.net.InetAddress;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**

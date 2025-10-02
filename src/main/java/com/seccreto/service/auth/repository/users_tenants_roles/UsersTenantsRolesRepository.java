@@ -4,33 +4,30 @@ import com.seccreto.service.auth.model.users_tenants_roles.UsersTenantsRoles;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Abstração de repositório para a entidade UsersTenantsRoles, permitindo trocar implementação (in-memory, JPA, etc.).
+ * Baseado na migração V7.
  */
 public interface UsersTenantsRolesRepository {
     UsersTenantsRoles save(UsersTenantsRoles usersTenantsRoles);
-    Optional<UsersTenantsRoles> findByUserIdAndTenantIdAndRoleId(Long userId, Long tenantId, Long roleId);
-    List<UsersTenantsRoles> findByUserId(Long userId);
-    List<UsersTenantsRoles> findByTenantId(Long tenantId);
-    List<UsersTenantsRoles> findByRoleId(Long roleId);
-    List<UsersTenantsRoles> findByUserIdAndTenantId(Long userId, Long tenantId);
-    List<UsersTenantsRoles> findByTenantIdAndRoleId(Long tenantId, Long roleId);
+    Optional<UsersTenantsRoles> findByUserIdAndTenantIdAndRoleId(UUID userId, UUID tenantId, UUID roleId);
+    List<UsersTenantsRoles> findByUserIdAndTenantId(UUID userId, UUID tenantId);
+    List<UsersTenantsRoles> findByTenantIdAndRoleId(UUID tenantId, UUID roleId);
+    List<UsersTenantsRoles> findByUserIdAndRoleId(UUID userId, UUID roleId);
     List<UsersTenantsRoles> findAll();
-    boolean deleteByUserIdAndTenantIdAndRoleId(Long userId, Long tenantId, Long roleId);
-    boolean deleteByUserId(Long userId);
-    boolean deleteByTenantId(Long tenantId);
-    boolean deleteByRoleId(Long roleId);
-    boolean deleteByUserIdAndTenantId(Long userId, Long tenantId);
-    boolean existsByUserIdAndTenantIdAndRoleId(Long userId, Long tenantId, Long roleId);
-    boolean existsByUserId(Long userId);
-    boolean existsByTenantId(Long tenantId);
-    boolean existsByRoleId(Long roleId);
-    boolean existsByUserIdAndTenantId(Long userId, Long tenantId);
+    boolean deleteByUserIdAndTenantIdAndRoleId(UUID userId, UUID tenantId, UUID roleId);
+    boolean deleteByUserIdAndTenantId(UUID userId, UUID tenantId);
+    boolean deleteByTenantIdAndRoleId(UUID tenantId, UUID roleId);
+    boolean deleteByUserIdAndRoleId(UUID userId, UUID roleId);
+    boolean existsByUserIdAndTenantIdAndRoleId(UUID userId, UUID tenantId, UUID roleId);
+    boolean existsByUserIdAndTenantId(UUID userId, UUID tenantId);
+    boolean existsByTenantIdAndRoleId(UUID tenantId, UUID roleId);
+    boolean existsByUserIdAndRoleId(UUID userId, UUID roleId);
     long count();
-    long countByUserId(Long userId);
-    long countByTenantId(Long tenantId);
-    long countByRoleId(Long roleId);
-    long countByUserIdAndTenantId(Long userId, Long tenantId);
+    long countByUserIdAndTenantId(UUID userId, UUID tenantId);
+    long countByTenantIdAndRoleId(UUID tenantId, UUID roleId);
+    long countByUserIdAndRoleId(UUID userId, UUID roleId);
     void clear();
 }

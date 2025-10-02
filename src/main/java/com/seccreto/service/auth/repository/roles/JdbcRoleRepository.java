@@ -13,24 +13,22 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação de RoleRepository usando JDBC + PostgreSQL.
  * 
  * Características de implementação sênior:
  * - Uso de NamedParameterJdbcTemplate para queries mais seguras
- * - RowMapper otimizado com tratamento de timezone
+ * - RowMapper otimizado
  * - Transações declarativas
  * - Tratamento de exceções específicas
  * - Queries otimizadas com índices
- * - Suporte a versioning para optimistic locking
+ * - Suporte a UUIDs para alta performance
  */
 @Repository
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -46,26 +44,13 @@ public class JdbcRoleRepository implements RoleRepository {
     }
 
     /**
-     * RowMapper otimizado com tratamento de timezone
+     * RowMapper otimizado
      */
     private static final RowMapper<Role> ROW_MAPPER = (ResultSet rs, int rowNum) -> {
         Role role = new Role();
-        role.setId(rs.getLong("id"));
+        role.setId(rs.getObject("id", UUID.class));
         role.setName(rs.getString("name"));
         role.setDescription(rs.getString("description"));
-        
-        // Tratamento seguro de timestamps com timezone
-        Timestamp createdAt = rs.getTimestamp("created_at");
-        Timestamp updatedAt = rs.getTimestamp("updated_at");
-        
-        if (createdAt != null) {
-            role.setCreatedAt(createdAt.toLocalDateTime());
-        }
-        if (updatedAt != null) {
-            role.setUpdatedAt(updatedAt.toLocalDateTime());
-        }
-        
-        role.setVersion(rs.getInt("version"));
         return role;
     };
 
@@ -73,28 +58,17 @@ public class JdbcRoleRepository implements RoleRepository {
     @Transactional
     public Role save(Role role) {
         try {
-            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-            role.setCreatedAt(now);
-            role.setUpdatedAt(now);
-            role.setVersion(1);
-
             String sql = """
-                INSERT INTO roles (name, description, created_at, updated_at, version) 
-                VALUES (:name, :description, :createdAt, :updatedAt, :version) 
+                INSERT INTO roles (name, description) 
+                VALUES (:name, :description) 
                 RETURNING id
                 """;
 
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("name", role.getName())
-                    .addValue("description", role.getDescription())
-                    .addValue("createdAt", role.getCreatedAt())
-                    .addValue("updatedAt", role.getUpdatedAt())
-                    .addValue("version", role.getVersion());
+                    .addValue("description", role.getDescription());
 
-            KeyHolder keyHolder = new GeneratedKeyHolder();
-            namedParameterJdbcTemplate.update(sql, params, keyHolder, new String[]{"id"});
-            
-            Long id = keyHolder.getKey().longValue();
+            UUID id = namedParameterJdbcTemplate.queryForObject(sql, params, UUID.class);
             role.setId(id);
             return role;
         } catch (DataAccessException e) {
@@ -103,7 +77,7 @@ public class JdbcRoleRepository implements RoleRepository {
     }
 
     @Override
-    public Optional<Role> findById(Long id) {
+    public Optional<Role> findById(UUID id) {
         try {
             String sql = "SELECT * FROM roles WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -118,7 +92,7 @@ public class JdbcRoleRepository implements RoleRepository {
     @Override
     public List<Role> findAll() {
         try {
-            String sql = "SELECT * FROM roles ORDER BY created_at DESC";
+            String sql = "SELECT * FROM roles ORDER BY name";
             return jdbcTemplate.query(sql, ROW_MAPPER);
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao buscar todos os roles: " + e.getMessage(), e);
@@ -159,25 +133,20 @@ public class JdbcRoleRepository implements RoleRepository {
         try {
             String sql = """
                 UPDATE roles 
-                SET name = :name, description = :description, updated_at = :updatedAt, version = :version
-                WHERE id = :id AND version = :currentVersion
+                SET name = :name, description = :description
+                WHERE id = :id
                 """;
             
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("name", role.getName())
                     .addValue("description", role.getDescription())
-                    .addValue("updatedAt", LocalDateTime.now(ZoneOffset.UTC))
-                    .addValue("version", role.getVersion() + 1)
-                    .addValue("currentVersion", role.getVersion())
                     .addValue("id", role.getId());
 
             int rows = namedParameterJdbcTemplate.update(sql, params);
             if (rows == 0) {
-                throw new IllegalArgumentException("Role não encontrado para atualização ou versão incorreta");
+                throw new IllegalArgumentException("Role não encontrado para atualização");
             }
             
-            role.setVersion(role.getVersion() + 1);
-            role.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
             return role;
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao atualizar role: " + e.getMessage(), e);
@@ -186,7 +155,7 @@ public class JdbcRoleRepository implements RoleRepository {
 
     @Override
     @Transactional
-    public boolean deleteById(Long id) {
+    public boolean deleteById(UUID id) {
         try {
             String sql = "DELETE FROM roles WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -199,7 +168,7 @@ public class JdbcRoleRepository implements RoleRepository {
     }
 
     @Override
-    public boolean existsById(Long id) {
+    public boolean existsById(UUID id) {
         try {
             String sql = "SELECT COUNT(1) FROM roles WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -248,8 +217,7 @@ public class JdbcRoleRepository implements RoleRepository {
     public List<Role> search(String query) {
         try {
             String sql = """
-                SELECT id, name, description, created_at, updated_at, version
-                FROM roles 
+                SELECT * FROM roles 
                 WHERE LOWER(name) LIKE LOWER(:query) 
                    OR LOWER(description) LIKE LOWER(:query)
                 ORDER BY name

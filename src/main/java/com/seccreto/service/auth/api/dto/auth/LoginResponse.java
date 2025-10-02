@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO para resposta de login.
@@ -30,8 +31,8 @@ public class LoginResponse {
     @Schema(description = "Tempo de expiração em segundos", example = "3600")
     private Long expiresIn;
     
-    @Schema(description = "ID do usuário", example = "123")
-    private Long userId;
+    @Schema(description = "ID do usuário", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID userId;
     
     @Schema(description = "Nome do usuário", example = "João Silva")
     private String userName;

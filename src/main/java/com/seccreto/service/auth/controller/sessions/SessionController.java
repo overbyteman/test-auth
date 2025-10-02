@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -72,7 +73,7 @@ public class SessionController {
     })
     @GetMapping("/users/{userId}/sessions")
     public ResponseEntity<List<SessionResponse>> getUserSessions(
-            @Parameter(description = "ID do usuário") @PathVariable Long userId) {
+            @Parameter(description = "ID do usuário") @PathVariable UUID userId) {
         List<SessionResponse> sessions = sessionService.findActiveSessionsByUser(userId).stream()
                 .map(SessionMapper::toResponse)
                 .collect(Collectors.toList());
@@ -95,7 +96,7 @@ public class SessionController {
     })
     @GetMapping("/sessions/{id}")
     public ResponseEntity<SessionResponse> getSessionDetails(
-            @Parameter(description = "ID da sessão") @PathVariable Long id) {
+            @Parameter(description = "ID da sessão") @PathVariable UUID id) {
         return sessionService.findSessionById(id)
                 .map(SessionMapper::toResponse)
                 .map(ResponseEntity::ok)
@@ -117,7 +118,7 @@ public class SessionController {
     })
     @DeleteMapping("/sessions/{id}")
     public ResponseEntity<Void> terminateSession(
-            @Parameter(description = "ID da sessão") @PathVariable Long id) {
+            @Parameter(description = "ID da sessão") @PathVariable UUID id) {
         sessionService.terminateSession(id);
         return ResponseEntity.noContent().build();
     }
@@ -137,7 +138,7 @@ public class SessionController {
     })
     @DeleteMapping("/users/{userId}/sessions")
     public ResponseEntity<Void> terminateAllUserSessions(
-            @Parameter(description = "ID do usuário") @PathVariable Long userId) {
+            @Parameter(description = "ID do usuário") @PathVariable UUID userId) {
         sessionService.invalidateAllUserSessions(userId);
         return ResponseEntity.noContent().build();
     }
@@ -156,10 +157,10 @@ public class SessionController {
     })
     @PostMapping("/sessions/cleanup")
     public ResponseEntity<Object> cleanupExpiredSessions() {
-        Long cleanedCount = sessionService.cleanupExpiredSessions();
+        int cleanedCount = sessionService.cleanupExpiredSessions();
         return ResponseEntity.ok(new Object() {
             public final String message = "Limpeza de sessões concluída";
-            public final Long cleanedSessions = cleanedCount;
+            public final int cleanedSessions = cleanedCount;
         });
     }
 
@@ -203,7 +204,7 @@ public class SessionController {
     public ResponseEntity<List<SessionResponse>> searchSessions(
             @Parameter(description = "IP address") @RequestParam(required = false) String ipAddress,
             @Parameter(description = "User agent") @RequestParam(required = false) String userAgent,
-            @Parameter(description = "User ID") @RequestParam(required = false) Long userId) {
+            @Parameter(description = "User ID") @RequestParam(required = false) UUID userId) {
         List<SessionResponse> sessions = sessionService.searchSessions(ipAddress, userAgent, userId).stream()
                 .map(SessionMapper::toResponse)
                 .collect(Collectors.toList());

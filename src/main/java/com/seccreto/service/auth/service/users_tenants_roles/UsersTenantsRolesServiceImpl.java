@@ -2,73 +2,76 @@ package com.seccreto.service.auth.service.users_tenants_roles;
 
 import com.seccreto.service.auth.model.users_tenants_roles.UsersTenantsRoles;
 import com.seccreto.service.auth.repository.users_tenants_roles.UsersTenantsRolesRepository;
+import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
+import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Implementação da camada de serviço contendo regras de negócio para relacionamentos user-tenant-role.
+ * Implementação da camada de serviço contendo regras de negócio para users_tenants_roles.
  * Aplica SRP e DIP com transações declarativas.
- * 
- * Características de implementação sênior:
- * - Métricas de negócio
- * - Timing automático
- * - Tratamento de exceções específicas
- * - Transações otimizadas
- * - Suporte a multi-tenancy
- * - Relacionamentos many-to-many complexos
- * - Operações em lote
+ * Baseado na migração V7.
  */
 @Service
+@Profile({"postgres", "test", "dev", "stage", "prod"})
 @Transactional(readOnly = true)
 public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
 
     private final UsersTenantsRolesRepository usersTenantsRolesRepository;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
-    public UsersTenantsRolesServiceImpl(UsersTenantsRolesRepository usersTenantsRolesRepository) {
+    public UsersTenantsRolesServiceImpl(UsersTenantsRolesRepository usersTenantsRolesRepository, 
+                                       NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.usersTenantsRolesRepository = usersTenantsRolesRepository;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "users_tenants_roles.assign", description = "Time taken to assign role to user in tenant")
-    public UsersTenantsRoles assignRoleToUserInTenant(Long userId, Long tenantId, Long roleId) {
+    @Timed(value = "users_tenants_roles.create", description = "Time taken to create a user tenant role")
+    public UsersTenantsRoles createUserTenantRole(UUID userId, UUID tenantId, UUID roleId) {
         validateUserId(userId);
         validateTenantId(tenantId);
         validateRoleId(roleId);
-        
-        // Verificar se já existe o relacionamento (idempotência)
-        Optional<UsersTenantsRoles> existing = usersTenantsRolesRepository.findByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId);
-        if (existing.isPresent()) {
-            return existing.get(); // Retorna o relacionamento existente (idempotência)
+
+        // Verificar se já existe a relação (idempotência)
+        Optional<UsersTenantsRoles> existingRelation = usersTenantsRolesRepository.findByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId);
+        if (existingRelation.isPresent()) {
+            return existingRelation.get(); // Retorna a relação existente (idempotência)
         }
-        
-        UsersTenantsRoles usersTenantsRoles = UsersTenantsRoles.createNew(userId, tenantId, roleId);
-        UsersTenantsRoles savedRelation = usersTenantsRolesRepository.save(usersTenantsRoles);
-        return savedRelation;
+
+        UsersTenantsRoles usersTenantsRoles = new UsersTenantsRoles();
+        usersTenantsRoles.setUserId(userId);
+        usersTenantsRoles.setTenantId(tenantId);
+        usersTenantsRoles.setRoleId(roleId);
+
+        return usersTenantsRolesRepository.save(usersTenantsRoles);
     }
 
     @Override
-    public UsersTenantsRoles createAssociation(Long userId, Long tenantId, Long roleId) {
-        return assignRoleToUserInTenant(userId, tenantId, roleId);
+    @Transactional(rollbackFor = Exception.class)
+    @Timed(value = "users_tenants_roles.create", description = "Time taken to create a user tenant role association")
+    public UsersTenantsRoles createAssociation(UUID userId, UUID tenantId, UUID roleId) {
+        return createUserTenantRole(userId, tenantId, roleId);
     }
 
     @Override
-    public boolean removeAssociation(Long userId, Long tenantId, Long roleId) {
-        return removeRoleFromUserInTenant(userId, tenantId, roleId);
-    }
-
-    @Override
+    @Timed(value = "users_tenants_roles.list", description = "Time taken to list user tenant roles")
     public List<UsersTenantsRoles> listAllUserTenantRoles() {
         return usersTenantsRolesRepository.findAll();
     }
 
     @Override
-    public Optional<UsersTenantsRoles> findUserTenantRole(Long userId, Long tenantId, Long roleId) {
+    @Timed(value = "users_tenants_roles.find", description = "Time taken to find user tenant role")
+    public Optional<UsersTenantsRoles> findUserTenantRole(UUID userId, UUID tenantId, UUID roleId) {
         validateUserId(userId);
         validateTenantId(tenantId);
         validateRoleId(roleId);
@@ -76,117 +79,72 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     }
 
     @Override
-    public List<UsersTenantsRoles> findRolesByUser(Long userId) {
-        validateUserId(userId);
-        return usersTenantsRolesRepository.findByUserId(userId);
-    }
-
-    @Override
-    public List<UsersTenantsRoles> findUsersByTenant(Long tenantId) {
-        validateTenantId(tenantId);
-        return usersTenantsRolesRepository.findByTenantId(tenantId);
-    }
-
-    @Override
-    public List<UsersTenantsRoles> findUsersByRole(Long roleId) {
-        validateRoleId(roleId);
-        return usersTenantsRolesRepository.findByRoleId(roleId);
-    }
-
-    @Override
-    public List<UsersTenantsRoles> findRolesByUserAndTenant(Long userId, Long tenantId) {
+    @Timed(value = "users_tenants_roles.find", description = "Time taken to find roles by user and tenant")
+    public List<UsersTenantsRoles> findRolesByUserAndTenant(UUID userId, UUID tenantId) {
         validateUserId(userId);
         validateTenantId(tenantId);
         return usersTenantsRolesRepository.findByUserIdAndTenantId(userId, tenantId);
     }
 
     @Override
-    public List<UsersTenantsRoles> findUsersByTenantAndRole(Long tenantId, Long roleId) {
+    @Timed(value = "users_tenants_roles.find", description = "Time taken to find users by tenant and role")
+    public List<UsersTenantsRoles> findUsersByTenantAndRole(UUID tenantId, UUID roleId) {
         validateTenantId(tenantId);
         validateRoleId(roleId);
         return usersTenantsRolesRepository.findByTenantIdAndRoleId(tenantId, roleId);
     }
 
     @Override
+    @Timed(value = "users_tenants_roles.find", description = "Time taken to find tenants by user and role")
+    public List<UsersTenantsRoles> findTenantsByUserAndRole(UUID userId, UUID roleId) {
+        validateUserId(userId);
+        validateRoleId(roleId);
+        return usersTenantsRolesRepository.findByUserIdAndRoleId(userId, roleId);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "users_tenants_roles.remove", description = "Time taken to remove role from user in tenant")
-    public boolean removeRoleFromUserInTenant(Long userId, Long tenantId, Long roleId) {
+    @Timed(value = "users_tenants_roles.delete", description = "Time taken to delete user tenant role")
+    public boolean deleteUserTenantRole(UUID userId, UUID tenantId, UUID roleId) {
         validateUserId(userId);
         validateTenantId(tenantId);
         validateRoleId(roleId);
-        
-        // Verificar se o relacionamento existe antes de tentar remover (idempotência)
-        if (!usersTenantsRolesRepository.existsByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId)) {
-            return false; // Relacionamento já não existe (idempotência)
-        }
-        
-        boolean removed = usersTenantsRolesRepository.deleteByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId);
-        return removed;
+        return usersTenantsRolesRepository.deleteByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "users_tenants_roles.removeAllFromUser", description = "Time taken to remove all roles from user")
-    public boolean removeAllRolesFromUser(Long userId) {
+    @Timed(value = "users_tenants_roles.delete", description = "Time taken to remove user tenant role association")
+    public boolean removeAssociation(UUID userId, UUID tenantId, UUID roleId) {
+        return deleteUserTenantRole(userId, tenantId, roleId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteAllRolesByUserAndTenant(UUID userId, UUID tenantId) {
         validateUserId(userId);
-        
-        // Verificar se existem roles para o usuário antes de tentar remover (idempotência)
-        if (!usersTenantsRolesRepository.existsByUserId(userId)) {
-            return false; // Não existem roles para o usuário (idempotência)
-        }
-        
-        boolean removed = usersTenantsRolesRepository.deleteByUserId(userId);
-        return removed;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "users_tenants_roles.removeAllFromTenant", description = "Time taken to remove all users from tenant")
-    public boolean removeAllUsersFromTenant(Long tenantId) {
         validateTenantId(tenantId);
-        
-        // Verificar se existem usuários para o tenant antes de tentar remover (idempotência)
-        if (!usersTenantsRolesRepository.existsByTenantId(tenantId)) {
-            return false; // Não existem usuários para o tenant (idempotência)
-        }
-        
-        boolean removed = usersTenantsRolesRepository.deleteByTenantId(tenantId);
-        return removed;
+        return usersTenantsRolesRepository.deleteByUserIdAndTenantId(userId, tenantId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "users_tenants_roles.removeAllFromRole", description = "Time taken to remove all users from role")
-    public boolean removeAllUsersFromRole(Long roleId) {
+    public boolean deleteAllUsersByTenantAndRole(UUID tenantId, UUID roleId) {
+        validateTenantId(tenantId);
         validateRoleId(roleId);
-        
-        // Verificar se existem usuários para o role antes de tentar remover (idempotência)
-        if (!usersTenantsRolesRepository.existsByRoleId(roleId)) {
-            return false; // Não existem usuários para o role (idempotência)
-        }
-        
-        boolean removed = usersTenantsRolesRepository.deleteByRoleId(roleId);
-        return removed;
+        return usersTenantsRolesRepository.deleteByTenantIdAndRoleId(tenantId, roleId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "users_tenants_roles.removeAllFromUserInTenant", description = "Time taken to remove all roles from user in tenant")
-    public boolean removeAllRolesFromUserInTenant(Long userId, Long tenantId) {
+    public boolean deleteAllTenantsByUserAndRole(UUID userId, UUID roleId) {
         validateUserId(userId);
-        validateTenantId(tenantId);
-        
-        // Verificar se existem roles para o usuário no tenant antes de tentar remover (idempotência)
-        if (!usersTenantsRolesRepository.existsByUserIdAndTenantId(userId, tenantId)) {
-            return false; // Não existem roles para o usuário no tenant (idempotência)
-        }
-        
-        boolean removed = usersTenantsRolesRepository.deleteByUserIdAndTenantId(userId, tenantId);
-        return removed;
+        validateRoleId(roleId);
+        return usersTenantsRolesRepository.deleteByUserIdAndRoleId(userId, roleId);
     }
 
     @Override
-    public boolean existsUserTenantRole(Long userId, Long tenantId, Long roleId) {
+    public boolean existsUserTenantRole(UUID userId, UUID tenantId, UUID roleId) {
         validateUserId(userId);
         validateTenantId(tenantId);
         validateRoleId(roleId);
@@ -194,121 +152,256 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     }
 
     @Override
-    public boolean existsRolesForUser(Long userId) {
-        validateUserId(userId);
-        return usersTenantsRolesRepository.existsByUserId(userId);
-    }
-
-    @Override
-    public boolean existsUsersForTenant(Long tenantId) {
-        validateTenantId(tenantId);
-        return usersTenantsRolesRepository.existsByTenantId(tenantId);
-    }
-
-    @Override
-    public boolean existsUsersForRole(Long roleId) {
-        validateRoleId(roleId);
-        return usersTenantsRolesRepository.existsByRoleId(roleId);
-    }
-
-    @Override
-    public boolean existsRolesForUserInTenant(Long userId, Long tenantId) {
+    public boolean existsRolesByUserAndTenant(UUID userId, UUID tenantId) {
         validateUserId(userId);
         validateTenantId(tenantId);
         return usersTenantsRolesRepository.existsByUserIdAndTenantId(userId, tenantId);
     }
 
     @Override
+    public boolean existsUsersByTenantAndRole(UUID tenantId, UUID roleId) {
+        validateTenantId(tenantId);
+        validateRoleId(roleId);
+        return usersTenantsRolesRepository.existsByTenantIdAndRoleId(tenantId, roleId);
+    }
+
+    @Override
+    public boolean existsTenantsByUserAndRole(UUID userId, UUID roleId) {
+        validateUserId(userId);
+        validateRoleId(roleId);
+        return usersTenantsRolesRepository.existsByUserIdAndRoleId(userId, roleId);
+    }
+
+    @Override
+    @Timed(value = "users_tenants_roles.count", description = "Time taken to count user tenant roles")
     public long countUserTenantRoles() {
         return usersTenantsRolesRepository.count();
     }
 
     @Override
-    public long countRolesByUser(Long userId) {
-        validateUserId(userId);
-        return usersTenantsRolesRepository.countByUserId(userId);
+    @Timed(value = "users_tenants_roles.count", description = "Time taken to count associations")
+    public long countAssociations() {
+        return usersTenantsRolesRepository.count();
     }
 
     @Override
-    public long countUsersByTenant(Long tenantId) {
-        validateTenantId(tenantId);
-        return usersTenantsRolesRepository.countByTenantId(tenantId);
-    }
-
-    @Override
-    public long countUsersByRole(Long roleId) {
-        validateRoleId(roleId);
-        return usersTenantsRolesRepository.countByRoleId(roleId);
-    }
-
-    @Override
-    public long countRolesByUserAndTenant(Long userId, Long tenantId) {
+    public long countRolesByUserAndTenant(UUID userId, UUID tenantId) {
         validateUserId(userId);
         validateTenantId(tenantId);
         return usersTenantsRolesRepository.countByUserIdAndTenantId(userId, tenantId);
     }
 
     @Override
-    public long countAssociations() {
-        return usersTenantsRolesRepository.count();
+    public long countUsersByTenantAndRole(UUID tenantId, UUID roleId) {
+        validateTenantId(tenantId);
+        validateRoleId(roleId);
+        return usersTenantsRolesRepository.countByTenantIdAndRoleId(tenantId, roleId);
     }
 
     @Override
-    public List<String> findRoleNamesByUser(Long userId) {
+    public long countTenantsByUserAndRole(UUID userId, UUID roleId) {
         validateUserId(userId);
-        return usersTenantsRolesRepository.findByUserId(userId)
-                .stream()
-                .map(utr -> "Role_" + utr.getRoleId()) // Placeholder - seria melhor fazer join com roles
-                .distinct()
-                .toList();
+        validateRoleId(roleId);
+        return usersTenantsRolesRepository.countByUserIdAndRoleId(userId, roleId);
     }
 
     @Override
-    public List<String> findPermissionsByUser(Long userId) {
+    public boolean userHasRoleInTenant(UUID userId, UUID tenantId, UUID roleId) {
         validateUserId(userId);
-        // Implementação básica - retorna lista vazia por enquanto
-        return List.of();
+        validateTenantId(tenantId);
+        validateRoleId(roleId);
+        return usersTenantsRolesRepository.existsByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId);
     }
 
     @Override
-    public List<String> findPermissionNamesByUser(Long userId) {
-        validateUserId(userId);
-        // Implementação básica - retorna lista vazia por enquanto
-        // Em uma implementação completa, faria join com roles_permissions e permissions
-        return List.of();
+    public boolean userHasRoleInTenantByRoleName(UUID userId, UUID tenantId, String roleName) {
+        try {
+            String sql = """
+                SELECT COUNT(1)
+                FROM users_tenants_roles utr
+                JOIN roles r ON utr.role_id = r.id
+                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId AND r.name = :roleName
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("tenantId", tenantId)
+                    .addValue("roleName", roleName);
+            
+            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
+            return count != null && count > 0;
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao verificar role do usuário no tenant: " + e.getMessage(), e);
+        }
     }
 
     @Override
-    public long countPermissionsByUser(Long userId) {
-        validateUserId(userId);
-        // Implementação básica - retorna 0 por enquanto
-        return 0;
+    public List<Object> getUserTenantRolesDetails(UUID userId, UUID tenantId) {
+        try {
+            String sql = """
+                SELECT r.id, r.name, r.description
+                FROM roles r
+                JOIN users_tenants_roles utr ON r.id = utr.role_id
+                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId
+                ORDER BY r.name
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("tenantId", tenantId);
+            
+            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
+                java.util.Map.of(
+                    "id", rs.getObject("id", UUID.class),
+                    "name", rs.getString("name"),
+                    "description", rs.getString("description")
+                )
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao obter detalhes dos roles do usuário no tenant: " + e.getMessage(), e);
+        }
     }
 
-    private void validateUserId(Long userId) {
+    @Override
+    public List<Object> getTenantRoleUsersDetails(UUID tenantId, UUID roleId) {
+        try {
+            String sql = """
+                SELECT u.id, u.name, u.email, u.is_active
+                FROM users u
+                JOIN users_tenants_roles utr ON u.id = utr.user_id
+                WHERE utr.tenant_id = :tenantId AND utr.role_id = :roleId
+                ORDER BY u.name
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("tenantId", tenantId)
+                    .addValue("roleId", roleId);
+            
+            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
+                java.util.Map.of(
+                    "id", rs.getObject("id", UUID.class),
+                    "name", rs.getString("name"),
+                    "email", rs.getString("email"),
+                    "isActive", rs.getBoolean("is_active")
+                )
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao obter detalhes dos usuários do tenant com role: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<Object> getUserRoleTenantsDetails(UUID userId, UUID roleId) {
+        try {
+            String sql = """
+                SELECT t.id, t.name, t.config
+                FROM tenants t
+                JOIN users_tenants_roles utr ON t.id = utr.tenant_id
+                WHERE utr.user_id = :userId AND utr.role_id = :roleId
+                ORDER BY t.name
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("roleId", roleId);
+            
+            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
+                java.util.Map.of(
+                    "id", rs.getObject("id", UUID.class),
+                    "name", rs.getString("name"),
+                    "config", rs.getString("config")
+                )
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao obter detalhes dos tenants do usuário com role: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<String> findRoleNamesByUser(UUID userId) {
+        try {
+            String sql = """
+                SELECT DISTINCT r.name
+                FROM roles r
+                JOIN users_tenants_roles utr ON r.id = utr.role_id
+                WHERE utr.user_id = :userId
+                ORDER BY r.name
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
+            
+            return namedParameterJdbcTemplate.queryForList(sql, params, String.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao obter nomes dos roles do usuário: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<String> findPermissionNamesByUser(UUID userId) {
+        try {
+            String sql = """
+                SELECT DISTINCT p.action || ':' || p.resource as permission
+                FROM permissions p
+                JOIN roles_permissions rp ON p.id = rp.permission_id
+                JOIN users_tenants_roles utr ON rp.role_id = utr.role_id
+                WHERE utr.user_id = :userId
+                ORDER BY permission
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
+            
+            return namedParameterJdbcTemplate.queryForList(sql, params, String.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao obter nomes das permissões do usuário: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public long countRolesByUser(UUID userId) {
+        try {
+            String sql = """
+                SELECT COUNT(DISTINCT utr.role_id)
+                FROM users_tenants_roles utr
+                WHERE utr.user_id = :userId
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
+            
+            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
+            return count != null ? count : 0L;
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao contar roles do usuário: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public long countPermissionsByUser(UUID userId) {
+        try {
+            String sql = """
+                SELECT COUNT(DISTINCT p.id)
+                FROM permissions p
+                JOIN roles_permissions rp ON p.id = rp.permission_id
+                JOIN users_tenants_roles utr ON rp.role_id = utr.role_id
+                WHERE utr.user_id = :userId
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
+            
+            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
+            return count != null ? count : 0L;
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao contar permissões do usuário: " + e.getMessage(), e);
+        }
+    }
+
+    // Métodos de validação privados
+    private void validateUserId(UUID userId) {
         if (userId == null) {
             throw new ValidationException("ID do usuário não pode ser nulo");
         }
-        if (userId <= 0) {
-            throw new ValidationException("ID do usuário deve ser maior que zero");
-        }
     }
 
-    private void validateTenantId(Long tenantId) {
+    private void validateTenantId(UUID tenantId) {
         if (tenantId == null) {
             throw new ValidationException("ID do tenant não pode ser nulo");
         }
-        if (tenantId <= 0) {
-            throw new ValidationException("ID do tenant deve ser maior que zero");
-        }
     }
 
-    private void validateRoleId(Long roleId) {
+    private void validateRoleId(UUID roleId) {
         if (roleId == null) {
             throw new ValidationException("ID do role não pode ser nulo");
-        }
-        if (roleId <= 0) {
-            throw new ValidationException("ID do role deve ser maior que zero");
         }
     }
 }

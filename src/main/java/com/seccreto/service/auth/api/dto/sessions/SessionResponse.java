@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO para respostas de sessão.
@@ -18,11 +19,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SessionResponse {
-    @Schema(description = "Identificador único da sessão", example = "1")
-    private Long id;
+    @Schema(description = "Identificador único da sessão", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID id;
     
-    @Schema(description = "ID do usuário proprietário da sessão", example = "1")
-    private Long userId;
+    @Schema(description = "ID do usuário proprietário da sessão", example = "550e8400-e29b-41d4-a716-446655440001")
+    private UUID userId;
     
     @Schema(description = "User agent do cliente", example = "Mozilla/5.0...")
     private String userAgent;

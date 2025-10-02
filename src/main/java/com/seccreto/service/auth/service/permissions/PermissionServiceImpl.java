@@ -6,33 +6,32 @@ import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
+import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Implementação da camada de serviço contendo regras de negócio para permissões.
+ * Implementação da camada de serviço contendo regras de negócio para permissions.
  * Aplica SRP e DIP com transações declarativas.
- * 
- * Características de implementação sênior:
- * - Métricas de negócio
- * - Timing automático
- * - Tratamento de exceções específicas
- * - Transações otimizadas
- * - Suporte a RBAC (Role-Based Access Control)
- * - Validação de unicidade action+resource
- * - Versioning para optimistic locking
+ * Baseado na migração V5.
  */
 @Service
+@Profile({"postgres", "test", "dev", "stage", "prod"})
 @Transactional(readOnly = true)
 public class PermissionServiceImpl implements PermissionService {
 
     private final PermissionRepository permissionRepository;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
-    public PermissionServiceImpl(PermissionRepository permissionRepository) {
+    public PermissionServiceImpl(PermissionRepository permissionRepository, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.permissionRepository = permissionRepository;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -41,101 +40,91 @@ public class PermissionServiceImpl implements PermissionService {
     public Permission createPermission(String action, String resource) {
         validateAction(action);
         validateResource(resource);
-        
-        // Verificar se já existe uma permissão com esta combinação (idempotência)
-        Optional<Permission> existingPermission = permissionRepository.findByActionAndResourceExact(action.trim(), resource.trim());
+
+        // Verificar se já existe uma permissão com esta ação e recurso (idempotência)
+        Optional<Permission> existingPermission = permissionRepository.findByActionAndResource(action.trim(), resource.trim());
         if (existingPermission.isPresent()) {
             return existingPermission.get(); // Retorna a permissão existente (idempotência)
         }
-        
+
         Permission permission = Permission.createNew(action.trim(), resource.trim());
-        Permission savedPermission = permissionRepository.save(permission);
-        return savedPermission;
+        return permissionRepository.save(permission);
     }
 
     @Override
+    @Timed(value = "permissions.list", description = "Time taken to list permissions")
     public List<Permission> listAllPermissions() {
         return permissionRepository.findAll();
     }
 
     @Override
-    public Optional<Permission> findPermissionById(Long id) {
+    @Timed(value = "permissions.find", description = "Time taken to find permission by id")
+    public Optional<Permission> findPermissionById(UUID id) {
         validateId(id);
         return permissionRepository.findById(id);
     }
 
     @Override
+    @Timed(value = "permissions.find", description = "Time taken to find permissions by action")
     public List<Permission> findPermissionsByAction(String action) {
         validateAction(action);
-        return permissionRepository.findByAction(action.trim());
+        return permissionRepository.findByAction(action);
     }
 
     @Override
+    @Timed(value = "permissions.find", description = "Time taken to find permissions by resource")
     public List<Permission> findPermissionsByResource(String resource) {
         validateResource(resource);
-        return permissionRepository.findByResource(resource.trim());
+        return permissionRepository.findByResource(resource);
     }
 
     @Override
-    public List<Permission> findPermissionsByActionAndResource(String action, String resource) {
+    @Timed(value = "permissions.find", description = "Time taken to find permission by action and resource")
+    public Optional<Permission> findPermissionByActionAndResource(String action, String resource) {
         validateAction(action);
         validateResource(resource);
-        return permissionRepository.findByActionAndResource(action.trim(), resource.trim());
-    }
-
-    @Override
-    public Optional<Permission> findPermissionByActionAndResourceExact(String action, String resource) {
-        validateAction(action);
-        validateResource(resource);
-        return permissionRepository.findByActionAndResourceExact(action.trim(), resource.trim());
+        return permissionRepository.findByActionAndResource(action, resource);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "permissions.update", description = "Time taken to update a permission")
-    public Permission updatePermission(Long id, String action, String resource) {
+    @Timed(value = "permissions.update", description = "Time taken to update permission")
+    public Permission updatePermission(UUID id, String action, String resource) {
         validateId(id);
         validateAction(action);
         validateResource(resource);
-        
-        Permission existing = permissionRepository.findById(id)
+
+        Permission permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada com ID: " + id));
-        
-        // Verificar se os dados são diferentes (idempotência)
-        if (existing.getAction().equals(action.trim()) && existing.getResource().equals(resource.trim())) {
-            return existing; // Retorna a permissão sem alterações (idempotência)
+
+        // Verificar se ação e recurso já existem em outra permissão
+        Optional<Permission> existingPermission = permissionRepository.findByActionAndResource(action.trim(), resource.trim());
+        if (existingPermission.isPresent() && !existingPermission.get().getId().equals(id)) {
+            throw new ConflictException("Ação e recurso já estão em uso por outra permissão");
         }
-        
-        // Verificar se a combinação action+resource já está em uso por outra permissão
-        permissionRepository.findByActionAndResourceExact(action.trim(), resource.trim()).ifPresent(p -> {
-            if (!p.getId().equals(id)) {
-                throw new ConflictException("Já existe uma permissão com esta combinação de ação e recurso");
-            }
-        });
-        
-        existing.setAction(action.trim());
-        existing.setResource(resource.trim());
-        Permission updatedPermission = permissionRepository.update(existing);
-        return updatedPermission;
+
+        permission.setAction(action.trim());
+        permission.setResource(resource.trim());
+        permission.updateTimestamp();
+
+        return permissionRepository.update(permission);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "permissions.delete", description = "Time taken to delete a permission")
-    public boolean deletePermission(Long id) {
+    @Timed(value = "permissions.delete", description = "Time taken to delete permission")
+    public boolean deletePermission(UUID id) {
         validateId(id);
         
-        // Verificar se a permissão existe antes de tentar deletar (idempotência)
         if (!permissionRepository.existsById(id)) {
-            return false; // Permissão já não existe (idempotência)
+            throw new ResourceNotFoundException("Permissão não encontrada com ID: " + id);
         }
-        
-        boolean deleted = permissionRepository.deleteById(id);
-        return deleted;
+
+        return permissionRepository.deleteById(id);
     }
 
     @Override
-    public boolean existsPermissionById(Long id) {
+    public boolean existsPermissionById(UUID id) {
         validateId(id);
         return permissionRepository.existsById(id);
     }
@@ -144,46 +133,79 @@ public class PermissionServiceImpl implements PermissionService {
     public boolean existsPermissionByActionAndResource(String action, String resource) {
         validateAction(action);
         validateResource(resource);
-        return permissionRepository.existsByActionAndResource(action.trim(), resource.trim());
+        return permissionRepository.existsByActionAndResource(action, resource);
     }
 
     @Override
+    @Timed(value = "permissions.count", description = "Time taken to count permissions")
     public long countPermissions() {
         return permissionRepository.count();
     }
 
     @Override
     public List<Permission> searchPermissions(String query) {
-        if (query == null || query.trim().isEmpty()) {
-            return List.of(); // Retorna lista vazia para query inválida
+        return permissionRepository.search(query);
+    }
+
+    @Override
+    public List<Object> getPermissionRoles(UUID permissionId) {
+        try {
+            String sql = """
+                SELECT r.id, r.name, r.description
+                FROM roles r
+                JOIN roles_permissions rp ON r.id = rp.role_id
+                WHERE rp.permission_id = :permissionId
+                ORDER BY r.name
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
+            
+            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
+                java.util.Map.of(
+                    "id", rs.getObject("id", UUID.class),
+                    "name", rs.getString("name"),
+                    "description", rs.getString("description")
+                )
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao obter roles da permissão: " + e.getMessage(), e);
         }
-        return permissionRepository.search(query.trim());
+    }
+
+    @Override
+    public long countPermissionRoles(UUID permissionId) {
+        try {
+            String sql = "SELECT COUNT(1) FROM roles_permissions WHERE permission_id = :permissionId";
+            MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
+            
+            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao contar roles da permissão: " + e.getMessage(), e);
+        }
+    }
+
+    // Métodos de validação privados
+    private void validateId(UUID id) {
+        if (id == null) {
+            throw new ValidationException("ID da permissão não pode ser nulo");
+        }
     }
 
     private void validateAction(String action) {
         if (action == null || action.trim().isEmpty()) {
-            throw new ValidationException("Ação não pode ser vazia");
+            throw new ValidationException("Ação da permissão é obrigatória");
         }
         if (action.trim().length() < 2) {
-            throw new ValidationException("Ação deve ter pelo menos 2 caracteres");
+            throw new ValidationException("Ação da permissão deve ter pelo menos 2 caracteres");
         }
     }
 
     private void validateResource(String resource) {
         if (resource == null || resource.trim().isEmpty()) {
-            throw new ValidationException("Recurso não pode ser vazio");
+            throw new ValidationException("Recurso da permissão é obrigatório");
         }
         if (resource.trim().length() < 2) {
-            throw new ValidationException("Recurso deve ter pelo menos 2 caracteres");
-        }
-    }
-
-    private void validateId(Long id) {
-        if (id == null) {
-            throw new ValidationException("ID não pode ser nulo");
-        }
-        if (id <= 0) {
-            throw new ValidationException("ID deve ser maior que zero");
+            throw new ValidationException("Recurso da permissão deve ter pelo menos 2 caracteres");
         }
     }
 }

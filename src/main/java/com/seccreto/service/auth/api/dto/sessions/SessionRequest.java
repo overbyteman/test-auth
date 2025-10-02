@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO para requisições de criação/atualização de sessão.
@@ -21,10 +21,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SessionRequest {
-    @Schema(description = "ID do usuário proprietário da sessão", example = "1")
+    @Schema(description = "ID do usuário proprietário da sessão", example = "550e8400-e29b-41d4-a716-446655440000")
     @NotNull(message = "ID do usuário não pode ser nulo")
-    @Positive(message = "ID do usuário deve ser maior que zero")
-    private Long userId;
+    private UUID userId;
     
     @Schema(description = "Hash do refresh token")
     @NotBlank(message = "Hash do refresh token não pode ser vazio")

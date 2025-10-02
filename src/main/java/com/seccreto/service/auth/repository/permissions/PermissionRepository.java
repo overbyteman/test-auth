@@ -4,21 +4,22 @@ import com.seccreto.service.auth.model.permissions.Permission;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Abstração de repositório para a entidade Permission, permitindo trocar implementação (in-memory, JPA, etc.).
+ * Baseado na migração V5.
  */
 public interface PermissionRepository {
     Permission save(Permission permission);
-    Optional<Permission> findById(Long id);
+    Optional<Permission> findById(UUID id);
     List<Permission> findAll();
     List<Permission> findByAction(String action);
     List<Permission> findByResource(String resource);
-    List<Permission> findByActionAndResource(String action, String resource);
-    Optional<Permission> findByActionAndResourceExact(String action, String resource);
+    Optional<Permission> findByActionAndResource(String action, String resource);
     Permission update(Permission permission);
-    boolean deleteById(Long id);
-    boolean existsById(Long id);
+    boolean deleteById(UUID id);
+    boolean existsById(UUID id);
     boolean existsByActionAndResource(String action, String resource);
     long count();
     void clear();

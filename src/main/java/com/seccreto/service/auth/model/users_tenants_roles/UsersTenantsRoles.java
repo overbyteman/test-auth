@@ -1,24 +1,17 @@
 package com.seccreto.service.auth.model.users_tenants_roles;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
-import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Classe que representa a relação many-to-many entre users, tenants e roles (Model)
- * 
+ *
  * Características de implementação sênior:
  * - Tabela de junção para multi-tenancy
  * - Chave primária composta (userId, tenantId, roleId)
  * - Suporte a multi-tenancy com RBAC
- * - Timestamps com timezone
  * - Validações de negócio
  * - Documentação completa com Swagger
  * - Lombok para redução de boilerplate
@@ -31,31 +24,37 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString
 public class UsersTenantsRoles {
-    @Schema(description = "ID do usuário", example = "1")
+    @Schema(description = "ID do usuário (UUID)")
     @EqualsAndHashCode.Include
-    private Long userId;
+    private UUID userId;
     
-    @Schema(description = "ID do tenant", example = "1")
+    @Schema(description = "ID do tenant (UUID)")
     @EqualsAndHashCode.Include
-    private Long tenantId;
+    private UUID tenantId;
     
-    @Schema(description = "ID do role", example = "1")
+    @Schema(description = "ID do role (UUID)")
     @EqualsAndHashCode.Include
-    private Long roleId;
-    
-    @Schema(description = "Data e hora de criação da relação")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime createdAt;
+    private UUID roleId;
 
     /**
      * Construtor para criação de novas relações user-tenant-role
      */
-    public static UsersTenantsRoles createNew(Long userId, Long tenantId, Long roleId) {
+    public static UsersTenantsRoles createNew(UUID userId, UUID tenantId, UUID roleId) {
         return UsersTenantsRoles.builder()
                 .userId(userId)
                 .tenantId(tenantId)
                 .roleId(roleId)
-                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * Factory method for creating new relationships
+     */
+    public static UsersTenantsRoles of(UUID userId, UUID tenantId, UUID roleId) {
+        return UsersTenantsRoles.builder()
+                .userId(userId)
+                .tenantId(tenantId)
+                .roleId(roleId)
                 .build();
     }
 }

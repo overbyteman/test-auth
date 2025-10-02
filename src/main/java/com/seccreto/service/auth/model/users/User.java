@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Classe que representa um usuário no sistema (Model)
@@ -31,9 +32,9 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString(exclude = {"passwordHash", "emailVerificationToken"})
 public class User {
-    @Schema(description = "Identificador único do usuário", example = "1")
+    @Schema(description = "Identificador único do usuário (UUID)")
     @EqualsAndHashCode.Include
-    private Long id;
+    private UUID id;
     
     @Schema(description = "Nome completo do usuário", example = "João Silva")
     private String name;
@@ -63,13 +64,6 @@ public class User {
     @Schema(description = "Data e hora da última atualização do usuário")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime updatedAt;
-    
-    @Schema(description = "Versão para controle de concorrência otimista", example = "1")
-    private Integer version;
-    
-    @Schema(description = "Indica se o usuário está ativo (soft delete)", example = "true")
-    @JsonIgnore
-    private Boolean active;
 
     /**
      * Construtor para criação de novos usuários com valores padrão
@@ -82,8 +76,6 @@ public class User {
                 .isActive(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .version(1)
-                .active(true)
                 .build();
     }
     
@@ -92,5 +84,12 @@ public class User {
      */
     public void updateTimestamp() {
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    /**
+     * Verifica se o usuário está ativo
+     */
+    public boolean isActive() {
+        return Boolean.TRUE.equals(this.isActive);
     }
 }

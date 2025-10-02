@@ -5,6 +5,7 @@ import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.users.User;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**

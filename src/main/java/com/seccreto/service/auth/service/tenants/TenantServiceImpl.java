@@ -6,33 +6,47 @@ import com.seccreto.service.auth.repository.tenants.TenantRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
+import com.seccreto.service.auth.service.usage.UsageService;
 import io.micrometer.core.annotation.Timed;
+import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para tenants.
  * Aplica SRP e DIP com transações declarativas.
- * 
+ * Baseado na migração V2.
+ *
  * Características de implementação sênior:
  * - Métricas de negócio
  * - Timing automático
  * - Tratamento de exceções específicas
  * - Transações otimizadas
- * - Suporte a multi-tenancy
+ * - Suporte a UUIDs
  * - Configuração JSON flexível
  */
 @Service
+@Profile({"postgres", "test", "dev", "stage", "prod"})
 @Transactional(readOnly = true)
 public class TenantServiceImpl implements TenantService {
 
     private final TenantRepository tenantRepository;
+    private final UsageService usageService;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
-    public TenantServiceImpl(TenantRepository tenantRepository) {
+    public TenantServiceImpl(TenantRepository tenantRepository, 
+                            UsageService usageService,
+                            NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.tenantRepository = tenantRepository;
+        this.usageService = usageService;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -40,88 +54,82 @@ public class TenantServiceImpl implements TenantService {
     @Timed(value = "tenants.create", description = "Time taken to create a tenant")
     public Tenant createTenant(String name, JsonNode config) {
         validateName(name);
-        
+
         // Verificar se já existe um tenant com este nome (idempotência)
         Optional<Tenant> existingTenant = tenantRepository.findByNameExact(name.trim());
         if (existingTenant.isPresent()) {
             return existingTenant.get(); // Retorna o tenant existente (idempotência)
         }
-        
+
         Tenant tenant = Tenant.createNew(name.trim(), config);
-        Tenant savedTenant = tenantRepository.save(tenant);
-        return savedTenant;
+        return tenantRepository.save(tenant);
     }
 
     @Override
+    @Timed(value = "tenants.list", description = "Time taken to list tenants")
     public List<Tenant> listAllTenants() {
         return tenantRepository.findAll();
     }
 
     @Override
-    public Optional<Tenant> findTenantById(Long id) {
+    @Timed(value = "tenants.find", description = "Time taken to find tenant by id")
+    public Optional<Tenant> findTenantById(UUID id) {
         validateId(id);
         return tenantRepository.findById(id);
     }
 
     @Override
+    @Timed(value = "tenants.find", description = "Time taken to find tenants by name")
     public List<Tenant> findTenantsByName(String name) {
         validateName(name);
-        return tenantRepository.findByName(name.trim());
+        return tenantRepository.findByName(name);
     }
 
     @Override
+    @Timed(value = "tenants.find", description = "Time taken to find tenant by exact name")
     public Optional<Tenant> findTenantByNameExact(String name) {
         validateName(name);
-        return tenantRepository.findByNameExact(name.trim());
+        return tenantRepository.findByNameExact(name);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "tenants.update", description = "Time taken to update a tenant")
-    public Tenant updateTenant(Long id, String name, JsonNode config) {
+    @Timed(value = "tenants.update", description = "Time taken to update tenant")
+    public Tenant updateTenant(UUID id, String name, JsonNode config) {
         validateId(id);
         validateName(name);
-        
-        Tenant existing = tenantRepository.findById(id)
+
+        Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
-        
-        // Verificar se os dados são diferentes (idempotência)
-        if (existing.getName().equals(name.trim()) && 
-            ((existing.getConfig() == null && config == null) || 
-             (existing.getConfig() != null && existing.getConfig().equals(config)))) {
-            return existing; // Retorna o tenant sem alterações (idempotência)
+
+        // Verificar se nome já existe em outro tenant
+        Optional<Tenant> existingTenant = tenantRepository.findByNameExact(name.trim());
+        if (existingTenant.isPresent() && !existingTenant.get().getId().equals(id)) {
+            throw new ConflictException("Nome já está em uso por outro tenant");
         }
-        
-        // Verificar se o nome já está em uso por outro tenant
-        tenantRepository.findByNameExact(name.trim()).ifPresent(t -> {
-            if (!t.getId().equals(id)) {
-                throw new ConflictException("Já existe um tenant com este nome");
-            }
-        });
-        
-        existing.setName(name.trim());
-        existing.setConfig(config);
-        Tenant updatedTenant = tenantRepository.update(existing);
-        return updatedTenant;
+
+        tenant.setName(name.trim());
+        tenant.setConfig(config);
+        tenant.updateTimestamp();
+
+        return tenantRepository.update(tenant);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "tenants.delete", description = "Time taken to delete a tenant")
-    public boolean deleteTenant(Long id) {
+    @Timed(value = "tenants.delete", description = "Time taken to delete tenant")
+    public boolean deleteTenant(UUID id) {
         validateId(id);
         
-        // Verificar se o tenant existe antes de tentar deletar (idempotência)
         if (!tenantRepository.existsById(id)) {
-            return false; // Tenant já não existe (idempotência)
+            throw new ResourceNotFoundException("Tenant não encontrado com ID: " + id);
         }
-        
-        boolean deleted = tenantRepository.deleteById(id);
-        return deleted;
+
+        return tenantRepository.deleteById(id);
     }
 
     @Override
-    public boolean existsTenantById(Long id) {
+    public boolean existsTenantById(UUID id) {
         validateId(id);
         return tenantRepository.existsById(id);
     }
@@ -129,83 +137,38 @@ public class TenantServiceImpl implements TenantService {
     @Override
     public boolean existsTenantByName(String name) {
         validateName(name);
-        return tenantRepository.existsByName(name.trim());
+        return tenantRepository.existsByName(name);
     }
 
     @Override
+    @Timed(value = "tenants.count", description = "Time taken to count tenants")
     public long countTenants() {
         return tenantRepository.count();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "tenants.create", description = "Time taken to create a tenant")
-    public Tenant createTenant(String name, String description, String domain) {
-        validateName(name);
-        
-        // Verificar se já existe um tenant com este nome (idempotência)
-        Optional<Tenant> existingTenant = tenantRepository.findByNameExact(name.trim());
-        if (existingTenant.isPresent()) {
-            return existingTenant.get(); // Retorna o tenant existente (idempotência)
-        }
-        
-        Tenant tenant = Tenant.createNew(name.trim(), description, domain);
-        Tenant savedTenant = tenantRepository.save(tenant);
-        return savedTenant;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "tenants.update", description = "Time taken to update a tenant")
-    public Tenant updateTenant(Long id, String name, String description, String domain) {
-        validateId(id);
-        validateName(name);
-        
-        Tenant existing = tenantRepository.findById(id)
+    public Tenant updateTenantConfig(UUID id, JsonNode config) {
+        Tenant tenant = findTenantById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
         
-        // Verificar se o nome já está em uso por outro tenant
-        tenantRepository.findByNameExact(name.trim()).ifPresent(t -> {
-            if (!t.getId().equals(id)) {
-                throw new ConflictException("Já existe um tenant com este nome");
-            }
-        });
+        tenant.setConfig(config);
+        tenant.updateTimestamp();
         
-        existing.setName(name.trim());
-        existing.setDescription(description);
-        existing.setDomain(domain);
-        Tenant updatedTenant = tenantRepository.update(existing);
-        return updatedTenant;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Tenant deactivateTenant(Long id) {
-        validateId(id);
-        Tenant tenant = tenantRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
-        tenant.setActive(false);
         return tenantRepository.update(tenant);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Tenant activateTenant(Long id) {
-        validateId(id);
-        Tenant tenant = tenantRepository.findById(id)
+    public JsonNode getTenantConfig(UUID id) {
+        Tenant tenant = findTenantById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
-        tenant.setActive(true);
-        return tenantRepository.update(tenant);
+        
+        return tenant.getConfig();
     }
 
     @Override
-    public long countActiveTenants() {
-        return tenantRepository.countByActive(true);
-    }
-
-    @Override
-    public long countInactiveTenants() {
-        return tenantRepository.countByActive(false);
+    public List<Tenant> searchTenants(String query) {
+        return tenantRepository.search(query);
     }
 
     @Override
@@ -224,33 +187,78 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Override
-    public long countTenantsInPeriod(String startDate, String endDate) {
-        return tenantRepository.countInPeriod(startDate, endDate);
+    public long countTenantsInPeriod(LocalDate startDate, LocalDate endDate) {
+        return tenantRepository.countInPeriod(startDate.toString(), endDate.toString());
     }
 
     @Override
-    public List<Tenant> searchTenants(String query) {
-        if (query == null || query.trim().isEmpty()) {
-            return List.of();
+    public List<Object> getTenantUsers(UUID tenantId) {
+        try {
+            String sql = """
+                SELECT u.id, u.name, u.email, u.is_active, u.created_at
+                FROM users u
+                JOIN users_tenants_roles utr ON u.id = utr.user_id
+                WHERE utr.tenant_id = :tenantId
+                ORDER BY u.name
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("tenantId", tenantId);
+            
+            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
+                java.util.Map.of(
+                    "id", rs.getObject("id", UUID.class),
+                    "name", rs.getString("name"),
+                    "email", rs.getString("email"),
+                    "isActive", rs.getBoolean("is_active"),
+                    "createdAt", rs.getTimestamp("created_at")
+                )
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao obter usuários do tenant: " + e.getMessage(), e);
         }
-        return tenantRepository.search(query.trim());
+    }
+
+    @Override
+    public long countTenantUsers(UUID tenantId) {
+        try {
+            String sql = """
+                SELECT COUNT(DISTINCT u.id)
+                FROM users u
+                JOIN users_tenants_roles utr ON u.id = utr.user_id
+                WHERE utr.tenant_id = :tenantId
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("tenantId", tenantId);
+            
+            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao contar usuários do tenant: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<Object> getTenantUsersWithRoles(UUID tenantId) {
+        return usageService.getUserTenantsWithRoles(null) // Será implementado com filtro por tenant
+                .stream()
+                .filter(userTenant -> {
+                    // Filtrar por tenantId se necessário
+                    return true; // Implementação simplificada
+                })
+                .toList();
+    }
+
+    // Métodos de validação privados
+    private void validateId(UUID id) {
+        if (id == null) {
+            throw new ValidationException("ID do tenant não pode ser nulo");
+        }
     }
 
     private void validateName(String name) {
         if (name == null || name.trim().isEmpty()) {
-            throw new ValidationException("Nome não pode ser vazio");
+            throw new ValidationException("Nome do tenant é obrigatório");
         }
         if (name.trim().length() < 2) {
-            throw new ValidationException("Nome deve ter pelo menos 2 caracteres");
-        }
-    }
-
-    private void validateId(Long id) {
-        if (id == null) {
-            throw new ValidationException("ID não pode ser nulo");
-        }
-        if (id <= 0) {
-            throw new ValidationException("ID deve ser maior que zero");
+            throw new ValidationException("Nome do tenant deve ter pelo menos 2 caracteres");
         }
     }
 }

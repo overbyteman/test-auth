@@ -8,27 +8,21 @@ import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para policies.
  * Aplica SRP e DIP com transações declarativas.
- * 
- * Características de implementação sênior:
- * - Métricas de negócio
- * - Timing automático
- * - Tratamento de exceções específicas
- * - Transações otimizadas
- * - Suporte a ABAC (Attribute-Based Access Control)
- * - Condições JSON flexíveis
- * - Arrays de ações e recursos
- * - Versioning para optimistic locking
+ * Baseado na migração V8.
  */
 @Service
+@Profile({"postgres", "test", "dev", "stage", "prod"})
 @Transactional(readOnly = true)
 public class PolicyServiceImpl implements PolicyService {
 
@@ -46,213 +40,98 @@ public class PolicyServiceImpl implements PolicyService {
         validateEffect(effect);
         validateActions(actions);
         validateResources(resources);
-        
+        validateConditions(conditions);
+
         // Verificar se já existe uma policy com este nome (idempotência)
         Optional<Policy> existingPolicy = policyRepository.findByNameExact(name.trim());
         if (existingPolicy.isPresent()) {
             return existingPolicy.get(); // Retorna a policy existente (idempotência)
         }
-        
+
         Policy policy = Policy.createNew(name.trim(), description, effect, actions, resources, conditions);
-        Policy savedPolicy = policyRepository.save(policy);
-        return savedPolicy;
+        return policyRepository.save(policy);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "policies.create", description = "Time taken to create a policy")
-    public Policy createPolicy(String name, String description, String effect, JsonNode conditions) {
-        validateName(name);
-        if (effect == null || effect.trim().isEmpty()) {
-            throw new ValidationException("Efeito não pode ser vazio");
-        }
-
-        PolicyEffect policyEffect;
-        try {
-            policyEffect = PolicyEffect.valueOf(effect.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ValidationException("Efeito inválido: " + effect);
-        }
-
-        // Usar ações e recursos padrão
-        List<String> defaultActions = List.of("*");
-        List<String> defaultResources = List.of("*");
-
-        return createPolicy(name, description, policyEffect, defaultActions, defaultResources, conditions);
-    }
-
-    @Override
+    @Timed(value = "policies.list", description = "Time taken to list policies")
     public List<Policy> listAllPolicies() {
         return policyRepository.findAll();
     }
 
     @Override
-    public Optional<Policy> findPolicyById(Long id) {
+    @Timed(value = "policies.find", description = "Time taken to find policy by id")
+    public Optional<Policy> findPolicyById(UUID id) {
         validateId(id);
         return policyRepository.findById(id);
     }
 
     @Override
+    @Timed(value = "policies.find", description = "Time taken to find policies by name")
     public List<Policy> findPoliciesByName(String name) {
         validateName(name);
-        return policyRepository.findByName(name.trim());
+        return policyRepository.findByName(name);
     }
 
     @Override
+    @Timed(value = "policies.find", description = "Time taken to find policy by exact name")
     public Optional<Policy> findPolicyByNameExact(String name) {
         validateName(name);
-        return policyRepository.findByNameExact(name.trim());
+        return policyRepository.findByNameExact(name);
     }
 
     @Override
-    public List<Policy> findPoliciesByEffect(PolicyEffect effect) {
-        validateEffect(effect);
+    @Timed(value = "policies.find", description = "Time taken to find policies by effect")
+    public List<Policy> findPoliciesByEffect(String effect) {
+        validateEffectString(effect);
         return policyRepository.findByEffect(effect);
     }
 
     @Override
-    public List<Policy> findPoliciesByAction(String action) {
-        validateAction(action);
-        return policyRepository.findByAction(action.trim());
-    }
-
-    @Override
-    public List<Policy> findPoliciesByResource(String resource) {
-        validateResource(resource);
-        return policyRepository.findByResource(resource.trim());
-    }
-
-    @Override
-    public List<Policy> findPoliciesByActionAndResource(String action, String resource) {
-        validateAction(action);
-        validateResource(resource);
-        return policyRepository.findByActionAndResource(action.trim(), resource.trim());
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "policies.update", description = "Time taken to update a policy")
-    public Policy updatePolicy(Long id, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions) {
+    @Timed(value = "policies.update", description = "Time taken to update policy")
+    public Policy updatePolicy(UUID id, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions) {
         validateId(id);
         validateName(name);
         validateEffect(effect);
         validateActions(actions);
         validateResources(resources);
-        
-        Policy existing = policyRepository.findById(id)
+        validateConditions(conditions);
+
+        Policy policy = policyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Policy não encontrada com ID: " + id));
-        
-        // Verificar se os dados são diferentes (idempotência)
-        if (existing.getName().equals(name.trim()) && 
-            ((existing.getDescription() == null && description == null) || 
-             (existing.getDescription() != null && existing.getDescription().equals(description))) &&
-            existing.getEffect().equals(effect) &&
-            existing.getActions().equals(actions) &&
-            existing.getResources().equals(resources) &&
-            ((existing.getConditions() == null && conditions == null) || 
-             (existing.getConditions() != null && existing.getConditions().equals(conditions)))) {
-            return existing; // Retorna a policy sem alterações (idempotência)
+
+        // Verificar se nome já existe em outra policy
+        Optional<Policy> existingPolicy = policyRepository.findByNameExact(name.trim());
+        if (existingPolicy.isPresent() && !existingPolicy.get().getId().equals(id)) {
+            throw new ConflictException("Nome já está em uso por outra policy");
         }
-        
-        // Verificar se o nome já está em uso por outra policy
-        policyRepository.findByNameExact(name.trim()).ifPresent(p -> {
-            if (!p.getId().equals(id)) {
-                throw new ConflictException("Já existe uma policy com este nome");
-            }
-        });
-        
-        existing.setName(name.trim());
-        existing.setDescription(description);
-        existing.setEffect(effect);
-        existing.setActions(actions);
-        existing.setResources(resources);
-        existing.setConditions(conditions);
-        Policy updatedPolicy = policyRepository.update(existing);
-        return updatedPolicy;
+
+        policy.setName(name.trim());
+        policy.setDescription(description);
+        policy.setEffect(effect);
+        policy.setActions(actions);
+        policy.setResources(resources);
+        policy.setConditions(conditions);
+        policy.updateTimestamp();
+
+        return policyRepository.update(policy);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "policies.update", description = "Time taken to update a policy")
-    public Policy updatePolicy(Long id, String name, String description, String effect, JsonNode conditions) {
-        validateId(id);
-        validateName(name);
-        if (effect == null || effect.trim().isEmpty()) {
-            throw new ValidationException("Efeito não pode ser vazio");
-        }
-
-        PolicyEffect policyEffect;
-        try {
-            policyEffect = PolicyEffect.valueOf(effect.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ValidationException("Efeito inválido: " + effect);
-        }
-
-        Policy existing = policyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Policy não encontrada com ID: " + id));
-
-        // Usar ações e recursos existentes ou padrão
-        List<String> actions = existing.getActions() != null ? existing.getActions() : List.of("*");
-        List<String> resources = existing.getResources() != null ? existing.getResources() : List.of("*");
-
-        return updatePolicy(id, name, description, policyEffect, actions, resources, conditions);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "policies.delete", description = "Time taken to delete a policy")
-    public boolean deletePolicy(Long id) {
+    @Timed(value = "policies.delete", description = "Time taken to delete policy")
+    public boolean deletePolicy(UUID id) {
         validateId(id);
         
-        // Verificar se a policy existe antes de tentar deletar (idempotência)
         if (!policyRepository.existsById(id)) {
-            return false; // Policy já não existe (idempotência)
+            throw new ResourceNotFoundException("Policy não encontrada com ID: " + id);
         }
-        
-        boolean deleted = policyRepository.deleteById(id);
-        return deleted;
+
+        return policyRepository.deleteById(id);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "policies.deactivate", description = "Time taken to deactivate a policy")
-    public Policy deactivatePolicy(Long id) {
-        validateId(id);
-
-        // Since Policy doesn't have an active field, we'll use the DENY effect to simulate deactivation
-        Policy policy = policyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Policy não encontrada com ID: " + id));
-
-        if (policy.getEffect() == PolicyEffect.DENY) {
-            return policy; // Policy já está "inativa" (idempotência)
-        }
-
-        policy.setEffect(PolicyEffect.DENY);
-        policy.updateTimestamp();
-        return policyRepository.update(policy);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "policies.activate", description = "Time taken to activate a policy")
-    public Policy activatePolicy(Long id) {
-        validateId(id);
-
-        // Since Policy doesn't have an active field, we'll use the ALLOW effect to simulate activation
-        Policy policy = policyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Policy não encontrada com ID: " + id));
-
-        if (policy.getEffect() == PolicyEffect.ALLOW) {
-            return policy; // Policy já está "ativa" (idempotência)
-        }
-
-        policy.setEffect(PolicyEffect.ALLOW);
-        policy.updateTimestamp();
-        return policyRepository.update(policy);
-    }
-
-    @Override
-    public boolean existsPolicyById(Long id) {
+    public boolean existsPolicyById(UUID id) {
         validateId(id);
         return policyRepository.existsById(id);
     }
@@ -260,131 +139,130 @@ public class PolicyServiceImpl implements PolicyService {
     @Override
     public boolean existsPolicyByName(String name) {
         validateName(name);
-        return policyRepository.existsByName(name.trim());
+        return policyRepository.existsByName(name);
     }
 
     @Override
+    @Timed(value = "policies.count", description = "Time taken to count policies")
     public long countPolicies() {
         return policyRepository.count();
     }
 
     @Override
-    public long countActivePolicies() {
-        // Since Policy doesn't have an active field, count policies with ALLOW effect
-        return policyRepository.countByEffect(PolicyEffect.ALLOW);
+    public List<Policy> searchPolicies(String query) {
+        return policyRepository.search(query);
     }
 
     @Override
-    public long countPoliciesByEffect(PolicyEffect effect) {
-        validateEffect(effect);
-        return policyRepository.countByEffect(effect);
-    }
-
-    @Override
-    public long countPoliciesByEffect(String effect) {
-        if (effect == null || effect.trim().isEmpty()) {
-            throw new ValidationException("Efeito não pode ser vazio");
+    public boolean isPolicyValid(Policy policy) {
+        if (policy == null) {
+            return false;
         }
+        
         try {
-            PolicyEffect policyEffect = PolicyEffect.valueOf(effect.toUpperCase());
-            return policyRepository.countByEffect(policyEffect);
-        } catch (IllegalArgumentException e) {
-            throw new ValidationException("Efeito inválido: " + effect);
-        }
-    }
-
-    @Override
-    public Boolean evaluatePolicy(Long policyId, Long userId, Object context) {
-        validateId(policyId);
-        if (userId == null) {
-            throw new ValidationException("ID do usuário não pode ser nulo");
-        }
-
-        Optional<Policy> policyOpt = policyRepository.findById(policyId);
-        if (policyOpt.isEmpty()) {
-            return false; // Policy não encontrada, nega acesso
-        }
-
-        Policy policy = policyOpt.get();
-
-        // Implementação básica de avaliação de policy
-        // Em uma implementação real, seria mais complexa com avaliação de condições JSON
-        if (policy.getEffect() == PolicyEffect.ALLOW) {
+            validateName(policy.getName());
+            validateEffect(policy.getEffect());
+            validateActions(policy.getActions());
+            validateResources(policy.getResources());
+            validateConditions(policy.getConditions());
             return true;
-        } else {
+        } catch (ValidationException e) {
             return false;
         }
     }
 
     @Override
-    public List<Policy> searchPolicies(String query) {
-        if (query == null || query.trim().isEmpty()) {
-            return List.of(); // Retorna lista vazia para query inválida
+    public boolean policyMatchesConditions(Policy policy, String context) {
+        if (policy == null || context == null) {
+            return false;
         }
-        return policyRepository.search(query.trim());
+        
+        // Implementação simplificada - em produção seria mais complexa
+        JsonNode conditions = policy.getConditions();
+        if (conditions == null || conditions.isNull()) {
+            return true; // Policy sem condições sempre aplica
+        }
+        
+        // Verificação básica de contexto
+        String conditionsStr = conditions.toString();
+        return context.contains(conditionsStr) || conditionsStr.contains(context);
+    }
+
+    @Override
+    public String evaluatePolicyEffect(Policy policy, String context) {
+        if (policy == null) {
+            return "DENY"; // Default deny
+        }
+        
+        if (policyMatchesConditions(policy, context)) {
+            return policy.getEffect().name();
+        }
+        
+        return "DENY"; // Default deny se não aplicar
+    }
+
+    @Override
+    public List<Policy> findPoliciesByEffectAndConditions(String effect, String conditions) {
+        validateEffectString(effect);
+        validateConditionsString(conditions);
+        return policyRepository.findByEffectAndConditions(effect, conditions);
+    }
+
+    // Métodos de validação privados
+    private void validateId(UUID id) {
+        if (id == null) {
+            throw new ValidationException("ID da policy não pode ser nulo");
+        }
     }
 
     private void validateName(String name) {
         if (name == null || name.trim().isEmpty()) {
-            throw new ValidationException("Nome não pode ser vazio");
+            throw new ValidationException("Nome da policy é obrigatório");
         }
         if (name.trim().length() < 2) {
-            throw new ValidationException("Nome deve ter pelo menos 2 caracteres");
+            throw new ValidationException("Nome da policy deve ter pelo menos 2 caracteres");
         }
     }
 
     private void validateEffect(PolicyEffect effect) {
         if (effect == null) {
-            throw new ValidationException("Efeito da policy não pode ser nulo");
+            throw new ValidationException("Efeito da policy é obrigatório");
         }
     }
 
     private void validateActions(List<String> actions) {
         if (actions == null || actions.isEmpty()) {
-            throw new ValidationException("Ações não podem ser vazias");
-        }
-        for (String action : actions) {
-            if (action == null || action.trim().isEmpty()) {
-                throw new ValidationException("Ação não pode ser vazia");
-            }
-            if (action.trim().length() < 2) {
-                throw new ValidationException("Ação deve ter pelo menos 2 caracteres");
-            }
+            throw new ValidationException("Ações da policy são obrigatórias");
         }
     }
 
     private void validateResources(List<String> resources) {
         if (resources == null || resources.isEmpty()) {
-            throw new ValidationException("Recursos não podem ser vazios");
-        }
-        for (String resource : resources) {
-            if (resource == null || resource.trim().isEmpty()) {
-                throw new ValidationException("Recurso não pode ser vazio");
-            }
-            if (resource.trim().length() < 2) {
-                throw new ValidationException("Recurso deve ter pelo menos 2 caracteres");
-            }
+            throw new ValidationException("Recursos da policy são obrigatórios");
         }
     }
 
-    private void validateAction(String action) {
-        if (action == null || action.trim().isEmpty()) {
-            throw new ValidationException("Ação não pode ser vazia");
+    private void validateConditions(JsonNode conditions) {
+        if (conditions == null) {
+            throw new ValidationException("Condições da policy são obrigatórias");
         }
     }
 
-    private void validateResource(String resource) {
-        if (resource == null || resource.trim().isEmpty()) {
-            throw new ValidationException("Recurso não pode ser vazio");
+    private void validateEffectString(String effect) {
+        if (effect == null || effect.trim().isEmpty()) {
+            throw new ValidationException("Efeito da policy é obrigatório");
+        }
+        if (!effect.equals("allow") && !effect.equals("deny")) {
+            throw new ValidationException("Efeito da policy deve ser allow ou deny");
         }
     }
 
-    private void validateId(Long id) {
-        if (id == null) {
-            throw new ValidationException("ID não pode ser nulo");
+    private void validateConditionsString(String conditions) {
+        if (conditions == null || conditions.trim().isEmpty()) {
+            throw new ValidationException("Condições da policy são obrigatórias");
         }
-        if (id <= 0) {
-            throw new ValidationException("ID deve ser maior que zero");
+        if (conditions.trim().length() < 2) {
+            throw new ValidationException("Condições da policy devem ter pelo menos 2 caracteres");
         }
     }
 }

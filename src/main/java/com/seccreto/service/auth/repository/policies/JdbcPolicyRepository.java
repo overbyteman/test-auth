@@ -22,9 +22,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação de PolicyRepository usando JDBC + PostgreSQL.
+ * Baseado na migração V8.
  * 
  * Características de implementação sênior:
  * - Uso de NamedParameterJdbcTemplate para queries mais seguras
@@ -32,8 +34,8 @@ import java.util.Optional;
  * - Transações declarativas
  * - Tratamento de exceções específicas
  * - Queries otimizadas com índices GIN para arrays e JSON
- * - Suporte a versioning para optimistic locking
  * - Suporte a ABAC com condições JSON flexíveis
+ * - Suporte a UUIDs para alta performance
  */
 @Repository
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -57,7 +59,7 @@ public class JdbcPolicyRepository implements PolicyRepository {
         return (ResultSet rs, int rowNum) -> {
             try {
                 Policy policy = new Policy();
-                policy.setId(rs.getLong("id"));
+                policy.setId(rs.getObject("id", UUID.class));
                 policy.setName(rs.getString("name"));
                 policy.setDescription(rs.getString("description"));
 
@@ -87,16 +89,10 @@ public class JdbcPolicyRepository implements PolicyRepository {
 
                 // Tratamento seguro de timestamps com timezone
                 Timestamp createdAt = rs.getTimestamp("created_at");
-                Timestamp updatedAt = rs.getTimestamp("updated_at");
-
                 if (createdAt != null) {
                     policy.setCreatedAt(createdAt.toLocalDateTime());
                 }
-                if (updatedAt != null) {
-                    policy.setUpdatedAt(updatedAt.toLocalDateTime());
-                }
 
-                policy.setVersion(rs.getInt("version"));
                 return policy;
             } catch (Exception e) {
                 throw new RuntimeException("Erro ao mapear policy: " + e.getMessage(), e);
@@ -110,41 +106,34 @@ public class JdbcPolicyRepository implements PolicyRepository {
         try {
             LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             policy.setCreatedAt(now);
-            policy.setUpdatedAt(now);
-            policy.setVersion(1);
 
             String sql = """
-                INSERT INTO policies (name, description, effect, actions, resources, conditions, created_at, updated_at, version) 
-                VALUES (:name, :description, :effect, :actions, :resources, :conditions, :createdAt, :updatedAt, :version) 
+                INSERT INTO policies (name, description, effect, actions, resources, conditions, created_at) 
+                VALUES (:name, :description, :effect, :actions, :resources, :conditions, :createdAt) 
                 RETURNING id
                 """;
 
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("name", policy.getName())
                     .addValue("description", policy.getDescription())
-                    .addValue("effect", policy.getEffect() != null ? policy.getEffect().name().toLowerCase() : null)
-                    .addValue("actions", policy.getActions() != null ? policy.getActions().toArray(new String[0]) : null)
-                    .addValue("resources", policy.getResources() != null ? policy.getResources().toArray(new String[0]) : null)
+                    .addValue("effect", policy.getEffect().toString().toLowerCase())
+                    .addValue("actions", policy.getActions().toArray(new String[0]))
+                    .addValue("resources", policy.getResources().toArray(new String[0]))
                     .addValue("conditions", policy.getConditions() != null ? objectMapper.writeValueAsString(policy.getConditions()) : null)
-                    .addValue("createdAt", policy.getCreatedAt())
-                    .addValue("updatedAt", policy.getUpdatedAt())
-                    .addValue("version", policy.getVersion());
+                    .addValue("createdAt", policy.getCreatedAt());
 
-            KeyHolder keyHolder = new GeneratedKeyHolder();
-            namedParameterJdbcTemplate.update(sql, params, keyHolder, new String[]{"id"});
-            
-            Long id = keyHolder.getKey().longValue();
+            UUID id = namedParameterJdbcTemplate.queryForObject(sql, params, UUID.class);
             policy.setId(id);
             return policy;
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao salvar policy: " + e.getMessage(), e);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao processar dados da policy: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao processar policy: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public Optional<Policy> findById(Long id) {
+    public Optional<Policy> findById(UUID id) {
         try {
             String sql = "SELECT * FROM policies WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -195,10 +184,10 @@ public class JdbcPolicyRepository implements PolicyRepository {
     }
 
     @Override
-    public List<Policy> findByEffect(PolicyEffect effect) {
+    public List<Policy> findByEffect(String effect) {
         try {
             String sql = "SELECT * FROM policies WHERE effect = :effect ORDER BY created_at DESC";
-            MapSqlParameterSource params = new MapSqlParameterSource("effect", effect.name().toLowerCase());
+            MapSqlParameterSource params = new MapSqlParameterSource("effect", effect);
             return namedParameterJdbcTemplate.query(sql, params, getRowMapper());
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao buscar policies por efeito: " + e.getMessage(), e);
@@ -206,37 +195,19 @@ public class JdbcPolicyRepository implements PolicyRepository {
     }
 
     @Override
-    public List<Policy> findByAction(String action) {
+    public List<Policy> findByEffectAndConditions(String effect, String conditions) {
         try {
-            String sql = "SELECT * FROM policies WHERE :action = ANY(actions) ORDER BY created_at DESC";
-            MapSqlParameterSource params = new MapSqlParameterSource("action", action);
-            return namedParameterJdbcTemplate.query(sql, params, getRowMapper());
-        } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao buscar policies por ação: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public List<Policy> findByResource(String resource) {
-        try {
-            String sql = "SELECT * FROM policies WHERE :resource = ANY(resources) ORDER BY created_at DESC";
-            MapSqlParameterSource params = new MapSqlParameterSource("resource", resource);
-            return namedParameterJdbcTemplate.query(sql, params, getRowMapper());
-        } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao buscar policies por recurso: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public List<Policy> findByActionAndResource(String action, String resource) {
-        try {
-            String sql = "SELECT * FROM policies WHERE :action = ANY(actions) AND :resource = ANY(resources) ORDER BY created_at DESC";
+            String sql = """
+                SELECT * FROM policies 
+                WHERE effect = :effect AND conditions::text LIKE :conditions 
+                ORDER BY created_at DESC
+                """;
             MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("action", action)
-                    .addValue("resource", resource);
+                    .addValue("effect", effect)
+                    .addValue("conditions", "%" + conditions + "%");
             return namedParameterJdbcTemplate.query(sql, params, getRowMapper());
         } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao buscar policies por ação e recurso: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao buscar policies por efeito e condições: " + e.getMessage(), e);
         }
     }
 
@@ -247,61 +218,54 @@ public class JdbcPolicyRepository implements PolicyRepository {
             String sql = """
                 UPDATE policies 
                 SET name = :name, description = :description, effect = :effect, 
-                    actions = :actions, resources = :resources, conditions = :conditions, 
-                    updated_at = :updatedAt, version = :version
-                WHERE id = :id AND version = :currentVersion
+                    actions = :actions, resources = :resources, conditions = :conditions
+                WHERE id = :id
                 """;
-            
+
             MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("id", policy.getId())
                     .addValue("name", policy.getName())
                     .addValue("description", policy.getDescription())
-                    .addValue("effect", policy.getEffect() != null ? policy.getEffect().name().toLowerCase() : null)
-                    .addValue("actions", policy.getActions() != null ? policy.getActions().toArray(new String[0]) : null)
-                    .addValue("resources", policy.getResources() != null ? policy.getResources().toArray(new String[0]) : null)
-                    .addValue("conditions", policy.getConditions() != null ? objectMapper.writeValueAsString(policy.getConditions()) : null)
-                    .addValue("updatedAt", LocalDateTime.now(ZoneOffset.UTC))
-                    .addValue("version", policy.getVersion() + 1)
-                    .addValue("currentVersion", policy.getVersion())
-                    .addValue("id", policy.getId());
+                    .addValue("effect", policy.getEffect().toString().toLowerCase())
+                    .addValue("actions", policy.getActions().toArray(new String[0]))
+                    .addValue("resources", policy.getResources().toArray(new String[0]))
+                    .addValue("conditions", policy.getConditions() != null ? objectMapper.writeValueAsString(policy.getConditions()) : null);
 
-            int rows = namedParameterJdbcTemplate.update(sql, params);
-            if (rows == 0) {
-                throw new IllegalArgumentException("Policy não encontrada para atualização ou versão incorreta");
+            int rowsAffected = namedParameterJdbcTemplate.update(sql, params);
+            if (rowsAffected == 0) {
+                throw new RuntimeException("Policy não encontrada para atualização");
             }
-            
-            policy.setVersion(policy.getVersion() + 1);
-            policy.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
             return policy;
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao atualizar policy: " + e.getMessage(), e);
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao processar dados da policy: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao processar atualização de policy: " + e.getMessage(), e);
         }
     }
 
     @Override
     @Transactional
-    public boolean deleteById(Long id) {
+    public boolean deleteById(UUID id) {
         try {
             String sql = "DELETE FROM policies WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
             
-            int rows = namedParameterJdbcTemplate.update(sql, params);
-            return rows > 0;
+            int rowsAffected = namedParameterJdbcTemplate.update(sql, params);
+            return rowsAffected > 0;
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao deletar policy: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public boolean existsById(Long id) {
+    public boolean existsById(UUID id) {
         try {
             String sql = "SELECT COUNT(1) FROM policies WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
             Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
             return count != null && count > 0;
         } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao verificar existência da policy: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao verificar existência de policy: " + e.getMessage(), e);
         }
     }
 
@@ -313,7 +277,7 @@ public class JdbcPolicyRepository implements PolicyRepository {
             Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
             return count != null && count > 0;
         } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao verificar existência da policy por nome: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao verificar existência de policy por nome: " + e.getMessage(), e);
         }
     }
 
@@ -329,14 +293,18 @@ public class JdbcPolicyRepository implements PolicyRepository {
     }
 
     @Override
-    public long countByEffect(PolicyEffect effect) {
+    public List<Policy> search(String query) {
         try {
-            String sql = "SELECT COUNT(1) FROM policies WHERE effect = :effect";
-            MapSqlParameterSource params = new MapSqlParameterSource("effect", effect.name().toLowerCase());
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0;
+            String sql = """
+                SELECT * FROM policies 
+                WHERE LOWER(name) LIKE LOWER(:query) 
+                   OR LOWER(description) LIKE LOWER(:query)
+                ORDER BY name
+                """;
+            MapSqlParameterSource params = new MapSqlParameterSource("query", "%" + query + "%");
+            return namedParameterJdbcTemplate.query(sql, params, getRowMapper());
         } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao contar policies por efeito: " + e.getMessage(), e);
+            throw new RuntimeException("Erro ao buscar policies: " + e.getMessage(), e);
         }
     }
 
@@ -348,23 +316,6 @@ public class JdbcPolicyRepository implements PolicyRepository {
             jdbcTemplate.update(sql);
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao limpar policies: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public List<Policy> search(String query) {
-        try {
-            String sql = """
-                SELECT id, name, description, effect, actions, resources, conditions, created_at, updated_at, version
-                FROM policies 
-                WHERE LOWER(name) LIKE LOWER(:query) 
-                   OR LOWER(description) LIKE LOWER(:query)
-                ORDER BY name
-            """;
-            MapSqlParameterSource params = new MapSqlParameterSource("query", "%" + query + "%");
-            return namedParameterJdbcTemplate.query(sql, params, getRowMapper());
-        } catch (DataAccessException e) {
-            throw new RuntimeException("Erro ao buscar policies: " + e.getMessage(), e);
         }
     }
 }

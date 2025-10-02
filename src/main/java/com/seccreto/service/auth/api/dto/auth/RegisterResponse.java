@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO para resposta de registro.
@@ -18,8 +19,8 @@ import java.time.LocalDateTime;
 @Schema(description = "Resposta de registro de usuário")
 public class RegisterResponse {
     
-    @Schema(description = "ID do usuário criado", example = "123")
-    private Long userId;
+    @Schema(description = "ID do usuário criado", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID userId;
     
     @Schema(description = "Nome do usuário", example = "João Silva")
     private String name;

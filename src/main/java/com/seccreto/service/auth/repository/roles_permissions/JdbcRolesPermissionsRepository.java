@@ -11,22 +11,21 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação de RolesPermissionsRepository usando JDBC + PostgreSQL.
  * 
  * Características de implementação sênior:
  * - Uso de NamedParameterJdbcTemplate para queries mais seguras
- * - RowMapper otimizado com tratamento de timezone
+ * - RowMapper otimizado
  * - Transações declarativas
  * - Tratamento de exceções específicas
  * - Queries otimizadas com índices
  * - Suporte a relacionamentos many-to-many
+ * - Suporte a UUIDs para alta performance
  */
 @Repository
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -42,19 +41,12 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     /**
-     * RowMapper otimizado com tratamento de timezone
+     * RowMapper otimizado
      */
     private static final RowMapper<RolesPermissions> ROW_MAPPER = (ResultSet rs, int rowNum) -> {
         RolesPermissions rolesPermissions = new RolesPermissions();
-        rolesPermissions.setRoleId(rs.getLong("role_id"));
-        rolesPermissions.setPermissionId(rs.getLong("permission_id"));
-        
-        // Tratamento seguro de timestamps com timezone
-        Timestamp createdAt = rs.getTimestamp("created_at");
-        if (createdAt != null) {
-            rolesPermissions.setCreatedAt(createdAt.toLocalDateTime());
-        }
-        
+        rolesPermissions.setRoleId(rs.getObject("role_id", UUID.class));
+        rolesPermissions.setPermissionId(rs.getObject("permission_id", UUID.class));
         return rolesPermissions;
     };
 
@@ -62,19 +54,15 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     @Transactional
     public RolesPermissions save(RolesPermissions rolesPermissions) {
         try {
-            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-            rolesPermissions.setCreatedAt(now);
-
             String sql = """
-                INSERT INTO roles_permissions (role_id, permission_id, created_at) 
-                VALUES (:roleId, :permissionId, :createdAt)
+                INSERT INTO roles_permissions (role_id, permission_id) 
+                VALUES (:roleId, :permissionId)
                 ON CONFLICT (role_id, permission_id) DO NOTHING
                 """;
 
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("roleId", rolesPermissions.getRoleId())
-                    .addValue("permissionId", rolesPermissions.getPermissionId())
-                    .addValue("createdAt", rolesPermissions.getCreatedAt());
+                    .addValue("permissionId", rolesPermissions.getPermissionId());
 
             namedParameterJdbcTemplate.update(sql, params);
             return rolesPermissions;
@@ -84,7 +72,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public Optional<RolesPermissions> findByRoleIdAndPermissionId(Long roleId, Long permissionId) {
+    public Optional<RolesPermissions> findByRoleIdAndPermissionId(UUID roleId, UUID permissionId) {
         try {
             String sql = "SELECT * FROM roles_permissions WHERE role_id = :roleId AND permission_id = :permissionId";
             MapSqlParameterSource params = new MapSqlParameterSource()
@@ -99,9 +87,9 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public List<RolesPermissions> findByRoleId(Long roleId) {
+    public List<RolesPermissions> findByRoleId(UUID roleId) {
         try {
-            String sql = "SELECT * FROM roles_permissions WHERE role_id = :roleId ORDER BY created_at DESC";
+            String sql = "SELECT * FROM roles_permissions WHERE role_id = :roleId";
             MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
             return namedParameterJdbcTemplate.query(sql, params, ROW_MAPPER);
         } catch (DataAccessException e) {
@@ -110,9 +98,9 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public List<RolesPermissions> findByPermissionId(Long permissionId) {
+    public List<RolesPermissions> findByPermissionId(UUID permissionId) {
         try {
-            String sql = "SELECT * FROM roles_permissions WHERE permission_id = :permissionId ORDER BY created_at DESC";
+            String sql = "SELECT * FROM roles_permissions WHERE permission_id = :permissionId";
             MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
             return namedParameterJdbcTemplate.query(sql, params, ROW_MAPPER);
         } catch (DataAccessException e) {
@@ -123,7 +111,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     @Override
     public List<RolesPermissions> findAll() {
         try {
-            String sql = "SELECT * FROM roles_permissions ORDER BY created_at DESC";
+            String sql = "SELECT * FROM roles_permissions";
             return jdbcTemplate.query(sql, ROW_MAPPER);
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao buscar todas as relações role-permissão: " + e.getMessage(), e);
@@ -132,7 +120,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
 
     @Override
     @Transactional
-    public boolean deleteByRoleIdAndPermissionId(Long roleId, Long permissionId) {
+    public boolean deleteByRoleIdAndPermissionId(UUID roleId, UUID permissionId) {
         try {
             String sql = "DELETE FROM roles_permissions WHERE role_id = :roleId AND permission_id = :permissionId";
             MapSqlParameterSource params = new MapSqlParameterSource()
@@ -148,7 +136,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
 
     @Override
     @Transactional
-    public boolean deleteByRoleId(Long roleId) {
+    public boolean deleteByRoleId(UUID roleId) {
         try {
             String sql = "DELETE FROM roles_permissions WHERE role_id = :roleId";
             MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
@@ -162,7 +150,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
 
     @Override
     @Transactional
-    public boolean deleteByPermissionId(Long permissionId) {
+    public boolean deleteByPermissionId(UUID permissionId) {
         try {
             String sql = "DELETE FROM roles_permissions WHERE permission_id = :permissionId";
             MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
@@ -175,7 +163,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public boolean existsByRoleIdAndPermissionId(Long roleId, Long permissionId) {
+    public boolean existsByRoleIdAndPermissionId(UUID roleId, UUID permissionId) {
         try {
             String sql = "SELECT COUNT(1) FROM roles_permissions WHERE role_id = :roleId AND permission_id = :permissionId";
             MapSqlParameterSource params = new MapSqlParameterSource()
@@ -189,7 +177,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public boolean existsByRoleId(Long roleId) {
+    public boolean existsByRoleId(UUID roleId) {
         try {
             String sql = "SELECT COUNT(1) FROM roles_permissions WHERE role_id = :roleId";
             MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
@@ -201,7 +189,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public boolean existsByPermissionId(Long permissionId) {
+    public boolean existsByPermissionId(UUID permissionId) {
         try {
             String sql = "SELECT COUNT(1) FROM roles_permissions WHERE permission_id = :permissionId";
             MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
@@ -224,7 +212,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public long countByRoleId(Long roleId) {
+    public long countByRoleId(UUID roleId) {
         try {
             String sql = "SELECT COUNT(1) FROM roles_permissions WHERE role_id = :roleId";
             MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
@@ -236,7 +224,7 @@ public class JdbcRolesPermissionsRepository implements RolesPermissionsRepositor
     }
 
     @Override
-    public long countByPermissionId(Long permissionId) {
+    public long countByPermissionId(UUID permissionId) {
         try {
             String sql = "SELECT COUNT(1) FROM roles_permissions WHERE permission_id = :permissionId";
             MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);

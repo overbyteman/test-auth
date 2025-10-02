@@ -1,6 +1,7 @@
 package com.seccreto.service.auth.api.dto.policies;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.seccreto.service.auth.model.policies.PolicyEffect;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,7 +34,7 @@ public class PolicyRequest {
     
     @Schema(description = "Efeito da policy", example = "ALLOW", required = true)
     @NotNull(message = "Efeito da policy não pode ser nulo")
-    private String effect;
+    private PolicyEffect effect;
     
     @Schema(description = "Lista de ações que a policy se aplica", example = "[\"create\", \"read\", \"update\", \"delete\"]", required = true)
     @NotEmpty(message = "Ações não podem ser vazias")

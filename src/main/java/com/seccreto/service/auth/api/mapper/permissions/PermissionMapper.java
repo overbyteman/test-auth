@@ -40,9 +40,6 @@ public final class PermissionMapper {
                 .id(permission.getId())
                 .action(permission.getAction())
                 .resource(permission.getResource())
-                .createdAt(permission.getCreatedAt())
-                .updatedAt(permission.getUpdatedAt())
-                .version(permission.getVersion())
                 .permissionString(permission.getPermissionString())
                 .build();
     }

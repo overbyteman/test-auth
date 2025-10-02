@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * DTO para resposta de validação de token.
@@ -22,8 +23,8 @@ public class ValidateTokenResponse {
     @Schema(description = "Indica se o token é válido", example = "true")
     private Boolean valid;
     
-    @Schema(description = "ID do usuário", example = "123")
-    private Long userId;
+    @Schema(description = "ID do usuário", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID userId;
     
     @Schema(description = "Nome do usuário", example = "João Silva")
     private String userName;

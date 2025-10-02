@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação de UserRepository usando JDBC + PostgreSQL.
@@ -28,7 +29,7 @@ import java.util.Optional;
  * - Transações declarativas
  * - Tratamento de exceções específicas
  * - Queries otimizadas com índices
- * - Suporte a soft delete
+ * - Suporte a UUIDs para alta performance
  */
 @Repository
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -44,18 +45,25 @@ public class JdbcUserRepository implements UserRepository {
     }
 
     /**
-     * RowMapper otimizado com tratamento de timezone e null safety
+     * RowMapper otimizado com tratamento de timezone e UUID
      */
     private static final RowMapper<User> ROW_MAPPER = (ResultSet rs, int rowNum) -> {
         User user = new User();
-        user.setId(rs.getLong("id"));
+        user.setId(rs.getObject("id", UUID.class));
         user.setName(rs.getString("name"));
         user.setEmail(rs.getString("email"));
+        user.setPasswordHash(rs.getString("password_hash"));
+        user.setIsActive(rs.getBoolean("is_active"));
+        user.setEmailVerificationToken(rs.getString("email_verification_token"));
         
         // Tratamento seguro de timestamps com timezone
+        Timestamp emailVerifiedAt = rs.getTimestamp("email_verified_at");
         Timestamp createdAt = rs.getTimestamp("created_at");
         Timestamp updatedAt = rs.getTimestamp("updated_at");
         
+        if (emailVerifiedAt != null) {
+            user.setEmailVerifiedAt(emailVerifiedAt.toLocalDateTime());
+        }
         if (createdAt != null) {
             user.setCreatedAt(createdAt.toLocalDateTime());
         }
@@ -75,21 +83,22 @@ public class JdbcUserRepository implements UserRepository {
             user.setUpdatedAt(now);
 
             String sql = """
-                INSERT INTO users (name, email, created_at, updated_at, version, active) 
-                VALUES (:name, :email, :createdAt, :updatedAt, 1, true) 
+                INSERT INTO users (name, email, password_hash, is_active, email_verification_token, email_verified_at, created_at, updated_at) 
+                VALUES (:name, :email, :passwordHash, :isActive, :emailVerificationToken, :emailVerifiedAt, :createdAt, :updatedAt) 
                 RETURNING id
                 """;
 
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("name", user.getName())
                     .addValue("email", user.getEmail())
+                    .addValue("passwordHash", user.getPasswordHash())
+                    .addValue("isActive", user.getIsActive())
+                    .addValue("emailVerificationToken", user.getEmailVerificationToken())
+                    .addValue("emailVerifiedAt", user.getEmailVerifiedAt())
                     .addValue("createdAt", user.getCreatedAt())
                     .addValue("updatedAt", user.getUpdatedAt());
 
-            KeyHolder keyHolder = new GeneratedKeyHolder();
-            namedParameterJdbcTemplate.update(sql, params, keyHolder, new String[]{"id"});
-            
-            Long id = keyHolder.getKey().longValue();
+            UUID id = namedParameterJdbcTemplate.queryForObject(sql, params, UUID.class);
             user.setId(id);
             return user;
         } catch (DataAccessException e) {
@@ -98,9 +107,9 @@ public class JdbcUserRepository implements UserRepository {
     }
 
     @Override
-    public Optional<User> findById(Long id) {
+    public Optional<User> findById(UUID id) {
         try {
-            String sql = "SELECT * FROM users WHERE id = :id AND active = true";
+            String sql = "SELECT * FROM users WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
             
             List<User> users = namedParameterJdbcTemplate.query(sql, params, ROW_MAPPER);
@@ -113,7 +122,7 @@ public class JdbcUserRepository implements UserRepository {
     @Override
     public List<User> findAll() {
         try {
-            String sql = "SELECT * FROM users WHERE active = true ORDER BY created_at DESC";
+            String sql = "SELECT * FROM users ORDER BY created_at DESC";
             return jdbcTemplate.query(sql, ROW_MAPPER);
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao buscar todos os usuários: " + e.getMessage(), e);
@@ -125,7 +134,7 @@ public class JdbcUserRepository implements UserRepository {
         try {
             String sql = """
                 SELECT * FROM users 
-                WHERE LOWER(name) LIKE LOWER(:name) AND active = true 
+                WHERE LOWER(name) LIKE LOWER(:name) 
                 ORDER BY name
                 """;
             MapSqlParameterSource params = new MapSqlParameterSource("name", "%" + name + "%");
@@ -138,7 +147,7 @@ public class JdbcUserRepository implements UserRepository {
     @Override
     public Optional<User> findByEmail(String email) {
         try {
-            String sql = "SELECT * FROM users WHERE LOWER(email) = LOWER(:email) AND active = true";
+            String sql = "SELECT * FROM users WHERE LOWER(email) = LOWER(:email)";
             MapSqlParameterSource params = new MapSqlParameterSource("email", email);
             
             List<User> users = namedParameterJdbcTemplate.query(sql, params, ROW_MAPPER);
@@ -154,13 +163,19 @@ public class JdbcUserRepository implements UserRepository {
         try {
             String sql = """
                 UPDATE users 
-                SET name = :name, email = :email, updated_at = :updatedAt 
-                WHERE id = :id AND active = true
+                SET name = :name, email = :email, password_hash = :passwordHash, is_active = :isActive, 
+                    email_verification_token = :emailVerificationToken, email_verified_at = :emailVerifiedAt, 
+                    updated_at = :updatedAt 
+                WHERE id = :id
                 """;
             
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("name", user.getName())
                     .addValue("email", user.getEmail())
+                    .addValue("passwordHash", user.getPasswordHash())
+                    .addValue("isActive", user.getIsActive())
+                    .addValue("emailVerificationToken", user.getEmailVerificationToken())
+                    .addValue("emailVerifiedAt", user.getEmailVerifiedAt())
                     .addValue("updatedAt", LocalDateTime.now(ZoneOffset.UTC))
                     .addValue("id", user.getId());
 
@@ -176,13 +191,10 @@ public class JdbcUserRepository implements UserRepository {
 
     @Override
     @Transactional
-    public boolean deleteById(Long id) {
+    public boolean deleteById(UUID id) {
         try {
-            // Soft delete implementation
-            String sql = "UPDATE users SET active = false, updated_at = :updatedAt WHERE id = :id AND active = true";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("id", id)
-                    .addValue("updatedAt", LocalDateTime.now(ZoneOffset.UTC));
+            String sql = "DELETE FROM users WHERE id = :id";
+            MapSqlParameterSource params = new MapSqlParameterSource("id", id);
             
             int rows = namedParameterJdbcTemplate.update(sql, params);
             return rows > 0;
@@ -192,9 +204,9 @@ public class JdbcUserRepository implements UserRepository {
     }
 
     @Override
-    public boolean existsById(Long id) {
+    public boolean existsById(UUID id) {
         try {
-            String sql = "SELECT COUNT(1) FROM users WHERE id = :id AND active = true";
+            String sql = "SELECT COUNT(1) FROM users WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
             Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
             return count != null && count > 0;
@@ -206,7 +218,7 @@ public class JdbcUserRepository implements UserRepository {
     @Override
     public long count() {
         try {
-            String sql = "SELECT COUNT(1) FROM users WHERE active = true";
+            String sql = "SELECT COUNT(1) FROM users";
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? count : 0;
         } catch (DataAccessException e) {
@@ -218,10 +230,8 @@ public class JdbcUserRepository implements UserRepository {
     @Transactional
     public void clear() {
         try {
-            // Soft delete all users instead of truncating
-            String sql = "UPDATE users SET active = false, updated_at = :updatedAt WHERE active = true";
-            MapSqlParameterSource params = new MapSqlParameterSource("updatedAt", LocalDateTime.now(ZoneOffset.UTC));
-            namedParameterJdbcTemplate.update(sql, params);
+            String sql = "DELETE FROM users";
+            jdbcTemplate.update(sql);
         } catch (DataAccessException e) {
             throw new RuntimeException("Erro ao limpar usuários: " + e.getMessage(), e);
         }
@@ -233,8 +243,7 @@ public class JdbcUserRepository implements UserRepository {
             String sql = """
                 SELECT u.* FROM users u
                 LEFT JOIN sessions s ON u.id = s.user_id
-                WHERE u.active = true
-                GROUP BY u.id, u.username, u.email, u.password_hash, u.active, u.created_at, u.updated_at, u.version
+                GROUP BY u.id, u.name, u.email, u.password_hash, u.is_active, u.email_verification_token, u.email_verified_at, u.created_at, u.updated_at
                 ORDER BY COUNT(s.id) DESC, u.created_at DESC
                 LIMIT :limit
             """;
@@ -252,8 +261,7 @@ public class JdbcUserRepository implements UserRepository {
                 SELECT COUNT(DISTINCT u.id) 
                 FROM users u 
                 LEFT JOIN sessions s ON u.id = s.user_id 
-                WHERE u.active = true 
-                AND s.created_at BETWEEN :startDate AND :endDate
+                WHERE s.created_at BETWEEN :startDate AND :endDate
             """;
             MapSqlParameterSource params = new MapSqlParameterSource()
                     .addValue("startDate", startDate)
@@ -284,12 +292,12 @@ public class JdbcUserRepository implements UserRepository {
     }
 
     @Override
-    public List<User> findUsersByTenant(Long tenantId) {
+    public List<User> findUsersByTenant(UUID tenantId) {
         try {
             String sql = """
                 SELECT DISTINCT u.* FROM users u
                 JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.tenant_id = :tenantId AND u.active = true
+                WHERE utr.tenant_id = :tenantId
                 ORDER BY u.name
                 """;
             MapSqlParameterSource params = new MapSqlParameterSource("tenantId", tenantId);
@@ -305,7 +313,6 @@ public class JdbcUserRepository implements UserRepository {
             String sql = """
                 SELECT * FROM users 
                 WHERE (LOWER(name) LIKE LOWER(:query) OR LOWER(email) LIKE LOWER(:query)) 
-                AND active = true 
                 ORDER BY name
                 """;
             MapSqlParameterSource params = new MapSqlParameterSource("query", "%" + query + "%");
@@ -318,7 +325,7 @@ public class JdbcUserRepository implements UserRepository {
     @Override
     public long countActiveUsers() {
         try {
-            String sql = "SELECT COUNT(1) FROM users WHERE active = true";
+            String sql = "SELECT COUNT(1) FROM users WHERE is_active = true";
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? count : 0;
         } catch (DataAccessException e) {
@@ -329,7 +336,7 @@ public class JdbcUserRepository implements UserRepository {
     @Override
     public long countSuspendedUsers() {
         try {
-            String sql = "SELECT COUNT(1) FROM users WHERE active = false";
+            String sql = "SELECT COUNT(1) FROM users WHERE is_active = false";
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? count : 0;
         } catch (DataAccessException e) {
@@ -371,12 +378,12 @@ public class JdbcUserRepository implements UserRepository {
     }
 
     @Override
-    public long countUsersByTenant(Long tenantId) {
+    public long countUsersByTenant(UUID tenantId) {
         try {
             String sql = """
                 SELECT COUNT(DISTINCT u.id) FROM users u
                 JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.tenant_id = :tenantId AND u.active = true
+                WHERE utr.tenant_id = :tenantId
                 """;
             MapSqlParameterSource params = new MapSqlParameterSource("tenantId", tenantId);
             Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
@@ -387,12 +394,12 @@ public class JdbcUserRepository implements UserRepository {
     }
 
     @Override
-    public long countActiveUsersByTenant(Long tenantId) {
+    public long countActiveUsersByTenant(UUID tenantId) {
         try {
             String sql = """
                 SELECT COUNT(DISTINCT u.id) FROM users u
                 JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.tenant_id = :tenantId AND u.active = true
+                WHERE utr.tenant_id = :tenantId AND u.is_active = true
                 """;
             MapSqlParameterSource params = new MapSqlParameterSource("tenantId", tenantId);
             Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);

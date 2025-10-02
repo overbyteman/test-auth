@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import java.util.UUID;
 
 /**
  * DTO para requisições de criação de relacionamento role-permissão.
@@ -18,13 +18,11 @@ import jakarta.validation.constraints.Positive;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RolesPermissionsRequest {
-    @Schema(description = "ID do role", example = "1", required = true)
+    @Schema(description = "ID do role", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
     @NotNull(message = "ID do role não pode ser nulo")
-    @Positive(message = "ID do role deve ser maior que zero")
-    private Long roleId;
+    private UUID roleId;
     
-    @Schema(description = "ID da permissão", example = "1", required = true)
+    @Schema(description = "ID da permissão", example = "550e8400-e29b-41d4-a716-446655440001", required = true)
     @NotNull(message = "ID da permissão não pode ser nulo")
-    @Positive(message = "ID da permissão deve ser maior que zero")
-    private Long permissionId;
+    private UUID permissionId;
 }

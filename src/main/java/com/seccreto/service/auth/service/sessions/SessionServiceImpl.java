@@ -4,50 +4,52 @@ import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.repository.sessions.SessionRepository;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
+import com.seccreto.service.auth.service.usage.UsageService;
 import io.micrometer.core.annotation.Timed;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.InetAddress;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para sessões.
  * Aplica SRP e DIP com transações declarativas.
+ * Baseado na migração V3.
  *
  * Características de implementação sênior:
  * - Métricas de negócio
  * - Timing automático
  * - Tratamento de exceções específicas
  * - Transações otimizadas
- * - Gerenciamento de sessões e refresh tokens
- * - Limpeza automática de sessões expiradas
+ * - Suporte a UUIDs
+ * - Gerenciamento de sessões com expiração
  */
 @Service
+@Profile({"postgres", "test", "dev", "stage", "prod"})
 @Transactional(readOnly = true)
 public class SessionServiceImpl implements SessionService {
 
     private final SessionRepository sessionRepository;
+    private final UsageService usageService;
 
-    public SessionServiceImpl(SessionRepository sessionRepository) {
+    public SessionServiceImpl(SessionRepository sessionRepository, UsageService usageService) {
         this.sessionRepository = sessionRepository;
+        this.usageService = usageService;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "sessions.create", description = "Time taken to create a session")
-    public Session createSession(Long userId, String refreshTokenHash, String userAgent, InetAddress ipAddress, LocalDateTime expiresAt) {
+    public Session createSession(UUID userId, String refreshTokenHash, String userAgent, InetAddress ipAddress, LocalDateTime expiresAt) {
         validateUserId(userId);
         validateRefreshTokenHash(refreshTokenHash);
         validateExpiresAt(expiresAt);
-
-        // Verificar se já existe uma sessão com este refresh token (idempotência)
-        Optional<Session> existingSession = sessionRepository.findByRefreshTokenHash(refreshTokenHash);
-        if (existingSession.isPresent()) {
-            return existingSession.get(); // Retorna a sessão existente (idempotência)
-        }
 
         Session session = Session.createNew(userId, refreshTokenHash, userAgent, ipAddress, expiresAt);
         return sessionRepository.save(session);
@@ -55,56 +57,50 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.create", description = "Time taken to create a session")
-    public Session createSession(Long userId, String token, String ipAddress, String userAgent) {
+    @Timed(value = "sessions.create", description = "Time taken to create a session with IP string")
+    public Session createSession(UUID userId, String token, String ipAddress, String userAgent) {
         validateUserId(userId);
-        if (token == null || token.trim().isEmpty()) {
-            throw new ValidationException("Token não pode ser vazio");
-        }
-        if (ipAddress == null || ipAddress.trim().isEmpty()) {
-            throw new ValidationException("Endereço IP não pode ser vazio");
-        }
+        validateRefreshTokenHash(token);
 
-        // Definir expiração padrão para 7 dias
-        LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
-
-        try {
-            InetAddress inetAddress = InetAddress.getByName(ipAddress);
-            return createSession(userId, token, userAgent, inetAddress, expiresAt);
-        } catch (Exception e) {
-            throw new ValidationException("Endereço IP inválido: " + ipAddress);
-        }
+        Session session = Session.createNew(userId, token, ipAddress, userAgent);
+        return sessionRepository.save(session);
     }
 
     @Override
+    @Timed(value = "sessions.list", description = "Time taken to list sessions")
     public List<Session> listAllSessions() {
         return sessionRepository.findAll();
     }
 
     @Override
+    @Timed(value = "sessions.list", description = "Time taken to list active sessions")
     public List<Session> listActiveSessions() {
         return sessionRepository.findActiveSessions();
     }
 
     @Override
-    public Optional<Session> findSessionById(Long id) {
+    @Timed(value = "sessions.find", description = "Time taken to find session by id")
+    public Optional<Session> findSessionById(UUID id) {
         validateId(id);
         return sessionRepository.findById(id);
     }
 
     @Override
-    public List<Session> findSessionsByUserId(Long userId) {
+    @Timed(value = "sessions.find", description = "Time taken to find sessions by user")
+    public List<Session> findSessionsByUserId(UUID userId) {
         validateUserId(userId);
         return sessionRepository.findByUserId(userId);
     }
 
     @Override
-    public List<Session> findActiveSessionsByUser(Long userId) {
+    @Timed(value = "sessions.find", description = "Time taken to find active sessions by user")
+    public List<Session> findActiveSessionsByUser(UUID userId) {
         validateUserId(userId);
         return sessionRepository.findActiveSessionsByUser(userId);
     }
 
     @Override
+    @Timed(value = "sessions.find", description = "Time taken to find session by refresh token")
     public Optional<Session> findSessionByRefreshTokenHash(String refreshTokenHash) {
         validateRefreshTokenHash(refreshTokenHash);
         return sessionRepository.findByRefreshTokenHash(refreshTokenHash);
@@ -117,7 +113,6 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     public List<Session> findSessionsByIpAddress(InetAddress ipAddress) {
-        validateIpAddress(ipAddress);
         return sessionRepository.findByIpAddress(ipAddress);
     }
 
@@ -132,54 +127,42 @@ public class SessionServiceImpl implements SessionService {
     }
 
     @Override
-    public List<Session> findValidSessionsByUserId(Long userId) {
+    public List<Session> findValidSessionsByUserId(UUID userId) {
         validateUserId(userId);
         return sessionRepository.findByUserIdAndValid(userId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.update", description = "Time taken to update a session")
+    @Timed(value = "sessions.update", description = "Time taken to update session")
     public Session updateSession(Session session) {
         validateSession(session);
-
-        sessionRepository.findById(session.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada com ID: " + session.getId()));
-
         return sessionRepository.update(session);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.delete", description = "Time taken to delete a session")
-    public boolean deleteSessionById(Long id) {
+    @Timed(value = "sessions.delete", description = "Time taken to delete session")
+    public boolean deleteSessionById(UUID id) {
         validateId(id);
-
-        // Verificar se a sessão existe antes de tentar deletar (idempotência)
-        if (!sessionRepository.existsById(id)) {
-            return false; // Sessão já não existe (idempotência)
-        }
-
         return sessionRepository.deleteById(id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.deleteByUser", description = "Time taken to delete sessions by user")
-    public boolean deleteSessionsByUserId(Long userId) {
+    public boolean deleteSessionsByUserId(UUID userId) {
         validateUserId(userId);
         return sessionRepository.deleteByUserId(userId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.deleteExpired", description = "Time taken to delete expired sessions")
     public boolean deleteExpiredSessions() {
         return sessionRepository.deleteExpiredSessions();
     }
 
     @Override
-    public boolean existsSessionById(Long id) {
+    public boolean existsSessionById(UUID id) {
         validateId(id);
         return sessionRepository.existsById(id);
     }
@@ -191,12 +174,13 @@ public class SessionServiceImpl implements SessionService {
     }
 
     @Override
+    @Timed(value = "sessions.count", description = "Time taken to count sessions")
     public long countSessions() {
         return sessionRepository.count();
     }
 
     @Override
-    public long countSessionsByUserId(Long userId) {
+    public long countSessionsByUserId(UUID userId) {
         validateUserId(userId);
         return sessionRepository.countByUserId(userId);
     }
@@ -208,33 +192,28 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.terminate", description = "Time taken to terminate a session")
-    public void terminateSession(Long id) {
+    public void terminateSession(UUID id) {
         validateId(id);
-
-        Session session = sessionRepository.findById(id)
+        
+        Session session = findSessionById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada com ID: " + id));
-
-        session.setExpiresAt(LocalDateTime.now().minusMinutes(1)); // Força a expiração
+        
+        // Marcar como expirada
+        session.setExpiresAt(LocalDateTime.now().minusMinutes(1));
         sessionRepository.update(session);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.invalidateAll", description = "Time taken to invalidate all user sessions")
-    public void invalidateAllUserSessions(Long userId) {
+    public void invalidateAllUserSessions(UUID userId) {
         validateUserId(userId);
         sessionRepository.deleteByUserId(userId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Timed(value = "sessions.cleanup", description = "Time taken to cleanup expired sessions")
-    public Long cleanupExpiredSessions() {
-        List<Session> expiredSessions = sessionRepository.findExpiredSessions();
-        long count = expiredSessions.size();
-        sessionRepository.deleteExpiredSessions();
-        return count;
+    public int cleanupExpiredSessions() {
+        return usageService.cleanupExpiredSessions();
     }
 
     @Override
@@ -263,64 +242,69 @@ public class SessionServiceImpl implements SessionService {
     }
 
     @Override
-    public long countSessionsInPeriod(String startDate, String endDate) {
-        if (startDate == null || startDate.trim().isEmpty()) {
-            throw new ValidationException("Data de início não pode ser vazia");
-        }
-        if (endDate == null || endDate.trim().isEmpty()) {
-            throw new ValidationException("Data de fim não pode ser vazia");
-        }
-        return sessionRepository.countSessionsInPeriod(startDate, endDate);
+    public long countSessionsInPeriod(LocalDate startDate, LocalDate endDate) {
+        return sessionRepository.countSessionsInPeriod(startDate.toString(), endDate.toString());
     }
 
     @Override
-    public long countActiveSessionsInPeriod(String startDate, String endDate) {
-        if (startDate == null || startDate.trim().isEmpty()) {
-            throw new ValidationException("Data de início não pode ser vazia");
-        }
-        if (endDate == null || endDate.trim().isEmpty()) {
-            throw new ValidationException("Data de fim não pode ser vazia");
-        }
-        return sessionRepository.countActiveSessionsInPeriod(startDate, endDate);
+    public long countActiveSessionsInPeriod(LocalDate startDate, LocalDate endDate) {
+        return sessionRepository.countActiveSessionsInPeriod(startDate.toString(), endDate.toString());
     }
 
     @Override
-    public List<Session> searchSessions(String ipAddress, String userAgent, Long userId) {
+    public List<Session> searchSessions(String ipAddress, String userAgent, UUID userId) {
         return sessionRepository.search(ipAddress, userAgent, userId);
     }
 
     @Override
-    public String findLastLoginByUser(Long userId) {
+    public String findLastLoginByUser(UUID userId) {
         validateUserId(userId);
         return sessionRepository.findLastLoginByUser(userId);
     }
 
     @Override
-    public long countSessionsByUser(Long userId) {
-        validateUserId(userId);
-        return sessionRepository.countByUserId(userId);
+    public boolean isSessionValid(UUID sessionId) {
+        Optional<Session> session = findSessionById(sessionId);
+        return session.isPresent() && session.get().isValid();
     }
 
     @Override
-    public long countActiveSessionsByUser(Long userId) {
-        validateUserId(userId);
-        return sessionRepository.findActiveSessionsByUser(userId).size();
+    public boolean isSessionExpired(UUID sessionId) {
+        Optional<Session> session = findSessionById(sessionId);
+        return session.isPresent() && session.get().isExpired();
     }
 
-    private void validateUserId(Long userId) {
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void refreshSession(UUID sessionId, LocalDateTime newExpiresAt) {
+        validateId(sessionId);
+        validateExpiresAt(newExpiresAt);
+        
+        Session session = findSessionById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada com ID: " + sessionId));
+        
+        session.setExpiresAt(newExpiresAt);
+        sessionRepository.update(session);
+    }
+
+    // Métodos de validação privados
+    private void validateId(UUID id) {
+        if (id == null) {
+            throw new ValidationException("ID da sessão não pode ser nulo");
+        }
+    }
+
+    private void validateUserId(UUID userId) {
         if (userId == null) {
             throw new ValidationException("ID do usuário não pode ser nulo");
-        }
-        if (userId <= 0) {
-            throw new ValidationException("ID do usuário deve ser maior que zero");
         }
     }
 
     private void validateRefreshTokenHash(String refreshTokenHash) {
         if (refreshTokenHash == null || refreshTokenHash.trim().isEmpty()) {
-            throw new ValidationException("Hash do refresh token não pode ser vazio");
+            throw new ValidationException("Hash do refresh token é obrigatório");
         }
-        if (refreshTokenHash.trim().length() < 32) {
+        if (refreshTokenHash.length() < 32) {
             throw new ValidationException("Hash do refresh token deve ter pelo menos 32 caracteres");
         }
     }
@@ -334,21 +318,6 @@ public class SessionServiceImpl implements SessionService {
         }
     }
 
-    private void validateIpAddress(InetAddress ipAddress) {
-        if (ipAddress == null) {
-            throw new ValidationException("Endereço IP não pode ser nulo");
-        }
-    }
-
-    private void validateId(Long id) {
-        if (id == null) {
-            throw new ValidationException("ID não pode ser nulo");
-        }
-        if (id <= 0) {
-            throw new ValidationException("ID deve ser maior que zero");
-        }
-    }
-
     private void validateSession(Session session) {
         if (session == null) {
             throw new ValidationException("Sessão não pode ser nula");
@@ -356,6 +325,5 @@ public class SessionServiceImpl implements SessionService {
         validateId(session.getId());
         validateUserId(session.getUserId());
         validateRefreshTokenHash(session.getRefreshTokenHash());
-        validateExpiresAt(session.getExpiresAt());
     }
 }

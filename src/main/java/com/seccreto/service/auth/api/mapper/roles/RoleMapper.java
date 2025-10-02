@@ -40,9 +40,6 @@ public final class RoleMapper {
                 .id(role.getId())
                 .name(role.getName())
                 .description(role.getDescription())
-                .createdAt(role.getCreatedAt())
-                .updatedAt(role.getUpdatedAt())
-                .version(role.getVersion())
                 .build();
     }
 

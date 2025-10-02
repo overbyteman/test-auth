@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação de SessionRepository usando JDBC + PostgreSQL.
@@ -30,6 +31,7 @@ import java.util.Optional;
  * - Tratamento de exceções específicas
  * - Queries otimizadas com índices
  * - Suporte a limpeza automática de sessões expiradas
+ * - Suporte a UUIDs para alta performance
  */
 @Repository
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -49,8 +51,8 @@ public class JdbcSessionRepository implements SessionRepository {
      */
     private static final RowMapper<Session> ROW_MAPPER = (ResultSet rs, int rowNum) -> {
         Session session = new Session();
-        session.setId(rs.getLong("id"));
-        session.setUserId(rs.getLong("user_id"));
+        session.setId(rs.getObject("id", UUID.class));
+        session.setUserId(rs.getObject("user_id", UUID.class));
         session.setRefreshTokenHash(rs.getString("refresh_token_hash"));
         session.setUserAgent(rs.getString("user_agent"));
         
@@ -100,10 +102,7 @@ public class JdbcSessionRepository implements SessionRepository {
                     .addValue("expiresAt", session.getExpiresAt())
                     .addValue("createdAt", session.getCreatedAt());
 
-            KeyHolder keyHolder = new GeneratedKeyHolder();
-            namedParameterJdbcTemplate.update(sql, params, keyHolder, new String[]{"id"});
-            
-            Long id = keyHolder.getKey().longValue();
+            UUID id = namedParameterJdbcTemplate.queryForObject(sql, params, UUID.class);
             session.setId(id);
             return session;
         } catch (DataAccessException e) {
@@ -112,7 +111,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public Optional<Session> findById(Long id) {
+    public Optional<Session> findById(UUID id) {
         try {
             String sql = "SELECT * FROM sessions WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -135,7 +134,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public List<Session> findByUserId(Long userId) {
+    public List<Session> findByUserId(UUID userId) {
         try {
             String sql = "SELECT * FROM sessions WHERE user_id = :userId ORDER BY created_at DESC";
             MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
@@ -203,7 +202,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public List<Session> findByUserIdAndValid(Long userId) {
+    public List<Session> findByUserIdAndValid(UUID userId) {
         try {
             String sql = "SELECT * FROM sessions WHERE user_id = :userId AND expires_at >= :now ORDER BY created_at DESC";
             MapSqlParameterSource params = new MapSqlParameterSource()
@@ -246,7 +245,7 @@ public class JdbcSessionRepository implements SessionRepository {
 
     @Override
     @Transactional
-    public boolean deleteById(Long id) {
+    public boolean deleteById(UUID id) {
         try {
             String sql = "DELETE FROM sessions WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -260,7 +259,7 @@ public class JdbcSessionRepository implements SessionRepository {
 
     @Override
     @Transactional
-    public boolean deleteByUserId(Long userId) {
+    public boolean deleteByUserId(UUID userId) {
         try {
             String sql = "DELETE FROM sessions WHERE user_id = :userId";
             MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
@@ -287,7 +286,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public boolean existsById(Long id) {
+    public boolean existsById(UUID id) {
         try {
             String sql = "SELECT COUNT(1) FROM sessions WHERE id = :id";
             MapSqlParameterSource params = new MapSqlParameterSource("id", id);
@@ -322,7 +321,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public long countByUserId(Long userId) {
+    public long countByUserId(UUID userId) {
         try {
             String sql = "SELECT COUNT(1) FROM sessions WHERE user_id = :userId";
             MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
@@ -368,7 +367,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public List<Session> findActiveSessionsByUser(Long userId) {
+    public List<Session> findActiveSessionsByUser(UUID userId) {
         try {
             String sql = "SELECT * FROM sessions WHERE user_id = :userId AND expires_at >= :now ORDER BY created_at DESC";
             MapSqlParameterSource params = new MapSqlParameterSource()
@@ -473,7 +472,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public List<Session> search(String ipAddress, String userAgent, Long userId) {
+    public List<Session> search(String ipAddress, String userAgent, UUID userId) {
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM sessions WHERE 1=1");
             MapSqlParameterSource params = new MapSqlParameterSource();
@@ -502,7 +501,7 @@ public class JdbcSessionRepository implements SessionRepository {
     }
 
     @Override
-    public String findLastLoginByUser(Long userId) {
+    public String findLastLoginByUser(UUID userId) {
         try {
             String sql = "SELECT created_at FROM sessions WHERE user_id = :userId ORDER BY created_at DESC LIMIT 1";
             MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);

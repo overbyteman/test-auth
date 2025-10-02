@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO para respostas de relacionamento user-tenant-role.
@@ -18,16 +19,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UsersTenantsRolesResponse {
-    @Schema(description = "ID do usuário", example = "1")
-    private Long userId;
+    @Schema(description = "ID do usuário", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID userId;
     
-    @Schema(description = "ID do tenant", example = "1")
-    private Long tenantId;
+    @Schema(description = "ID do tenant", example = "550e8400-e29b-41d4-a716-446655440001")
+    private UUID tenantId;
     
-    @Schema(description = "ID do role", example = "1")
-    private Long roleId;
+    @Schema(description = "ID do role", example = "550e8400-e29b-41d4-a716-446655440002")
+    private UUID roleId;
     
-    @Schema(description = "Data e hora de criação da relação")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime createdAt;
 }

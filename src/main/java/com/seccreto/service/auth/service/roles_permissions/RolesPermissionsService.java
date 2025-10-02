@@ -4,27 +4,39 @@ import com.seccreto.service.auth.model.roles_permissions.RolesPermissions;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Abstração da camada de serviço para operações de relacionamento role-permissão.
+ * Abstração da camada de serviço para operações de roles_permissions.
  * Segue o princípio da inversão de dependências (DIP): controladores dependem desta interface e não da implementação.
+ * Baseado na migração V6.
  */
 public interface RolesPermissionsService {
-    RolesPermissions assignPermissionToRole(Long roleId, Long permissionId);
-    RolesPermissions createAssociation(Long roleId, Long permissionId);
+    
+    // Operações básicas CRUD
+    RolesPermissions createRolePermission(UUID roleId, UUID permissionId);
+    RolesPermissions createAssociation(UUID roleId, UUID permissionId);
     List<RolesPermissions> listAllRolePermissions();
-    Optional<RolesPermissions> findRolePermission(Long roleId, Long permissionId);
-    List<RolesPermissions> findPermissionsByRole(Long roleId);
-    List<RolesPermissions> findRolesByPermission(Long permissionId);
-    boolean removePermissionFromRole(Long roleId, Long permissionId);
-    boolean removeAssociation(Long roleId, Long permissionId);
-    boolean removeAllPermissionsFromRole(Long roleId);
-    boolean removeAllRolesFromPermission(Long permissionId);
-    boolean existsRolePermission(Long roleId, Long permissionId);
-    boolean existsPermissionsForRole(Long roleId);
-    boolean existsRolesForPermission(Long permissionId);
+    Optional<RolesPermissions> findRolePermission(UUID roleId, UUID permissionId);
+    List<RolesPermissions> findPermissionsByRole(UUID roleId);
+    List<RolesPermissions> findRolesByPermission(UUID permissionId);
+    boolean deleteRolePermission(UUID roleId, UUID permissionId);
+    boolean removeAssociation(UUID roleId, UUID permissionId);
+    boolean deleteAllPermissionsByRole(UUID roleId);
+    boolean deleteAllRolesByPermission(UUID permissionId);
+    boolean existsRolePermission(UUID roleId, UUID permissionId);
+    boolean existsPermissionsByRole(UUID roleId);
+    boolean existsRolesByPermission(UUID permissionId);
     long countRolePermissions();
     long countAssociations();
-    long countPermissionsByRole(Long roleId);
-    long countRolesByPermission(Long permissionId);
+    long countPermissionsByRole(UUID roleId);
+    long countRolesByPermission(UUID permissionId);
+    
+    // Operações de validação
+    boolean roleHasPermission(UUID roleId, UUID permissionId);
+    boolean roleHasPermissionByActionAndResource(UUID roleId, String action, String resource);
+    
+    // Operações de busca
+    List<Object> getRolePermissionsDetails(UUID roleId);
+    List<Object> getPermissionRolesDetails(UUID permissionId);
 }

@@ -12,6 +12,7 @@ import lombok.ToString;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Classe que representa uma política ABAC no sistema (Model)
@@ -21,7 +22,6 @@ import java.util.List;
  * - Efeitos de política (allow/deny)
  * - Arrays de ações e recursos
  * - Condições JSON flexíveis
- * - Versioning para optimistic locking
  * - Timestamps com timezone
  * - Validações de negócio
  * - Documentação completa com Swagger
@@ -35,9 +35,9 @@ import java.util.List;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString
 public class Policy {
-    @Schema(description = "Identificador único da política", example = "1")
+    @Schema(description = "Identificador único da política (UUID)")
     @EqualsAndHashCode.Include
-    private Long id;
+    private UUID id;
     
     @Schema(description = "Nome da política (deve ser único)", example = "Admin Full Access")
     private String name;
@@ -45,7 +45,7 @@ public class Policy {
     @Schema(description = "Descrição opcional da política", example = "Permite acesso total para administradores")
     private String description;
     
-    @Schema(description = "Efeito da política", example = "ALLOW")
+    @Schema(description = "Efeito da política", example = "allow")
     private PolicyEffect effect;
     
     @Schema(description = "Lista de ações que a política se aplica", example = "[\"create\", \"read\", \"update\", \"delete\"]")
@@ -60,13 +60,6 @@ public class Policy {
     @Schema(description = "Data e hora de criação da política")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
-    
-    @Schema(description = "Data e hora da última atualização da política")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime updatedAt;
-    
-    @Schema(description = "Versão para controle de concorrência otimista", example = "1")
-    private Integer version;
 
     /**
      * Construtor para criação de novas políticas com valores padrão
@@ -81,29 +74,27 @@ public class Policy {
                 .resources(resources)
                 .conditions(conditions)
                 .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .version(1)
                 .build();
+    }
+    
+    /**
+     * Verifica se a política é de permissão (allow)
+     */
+    public boolean isAllow() {
+        return PolicyEffect.allow.equals(effect);
+    }
+    
+    /**
+     * Verifica se a política é de negação (deny)
+     */
+    public boolean isDeny() {
+        return PolicyEffect.deny.equals(effect);
     }
     
     /**
      * Método para atualizar timestamps automaticamente
      */
     public void updateTimestamp() {
-        this.updatedAt = LocalDateTime.now();
-    }
-    
-    /**
-     * Verifica se a política é de permissão (ALLOW)
-     */
-    public boolean isAllow() {
-        return PolicyEffect.ALLOW.equals(effect);
-    }
-    
-    /**
-     * Verifica se a política é de negação (DENY)
-     */
-    public boolean isDeny() {
-        return PolicyEffect.DENY.equals(effect);
+        // Policy não tem updatedAt, mas mantemos para compatibilidade
     }
 }

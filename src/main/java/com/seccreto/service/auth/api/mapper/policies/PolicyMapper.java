@@ -26,7 +26,7 @@ public final class PolicyMapper {
         PolicyEffect effect = null;
         if (request.getEffect() != null) {
             try {
-                effect = PolicyEffect.valueOf(request.getEffect().toUpperCase());
+                effect = request.getEffect();
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Efeito inválido: " + request.getEffect());
             }
@@ -59,8 +59,6 @@ public final class PolicyMapper {
                 .resources(policy.getResources())
                 .conditions(policy.getConditions())
                 .createdAt(policy.getCreatedAt())
-                .updatedAt(policy.getUpdatedAt())
-                .version(policy.getVersion())
                 .isAllow(policy.isAllow())
                 .isDeny(policy.isDeny())
                 .build();
@@ -92,7 +90,7 @@ public final class PolicyMapper {
         
         if (request.getEffect() != null) {
             try {
-                policy.setEffect(PolicyEffect.valueOf(request.getEffect().toUpperCase()));
+                policy.setEffect(request.getEffect());
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Efeito inválido: " + request.getEffect());
             }

@@ -40,9 +40,6 @@ public final class TenantMapper {
                 .id(tenant.getId())
                 .name(tenant.getName())
                 .config(tenant.getConfig())
-                .createdAt(tenant.getCreatedAt())
-                .updatedAt(tenant.getUpdatedAt())
-                .version(tenant.getVersion())
                 .build();
     }
 

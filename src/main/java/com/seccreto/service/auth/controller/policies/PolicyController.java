@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -56,6 +57,8 @@ public class PolicyController {
             request.getName(), 
             request.getDescription(), 
             request.getEffect(), 
+            request.getActions(),
+            request.getResources(),
             request.getConditions()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(PolicyMapper.toResponse(policy));
@@ -98,7 +101,7 @@ public class PolicyController {
     })
     @GetMapping("/policies/{id}")
     public ResponseEntity<PolicyResponse> getPolicyDetails(
-            @Parameter(description = "ID da política") @PathVariable Long id) {
+            @Parameter(description = "ID da política") @PathVariable UUID id) {
         return policyService.findPolicyById(id)
                 .map(PolicyMapper::toResponse)
                 .map(ResponseEntity::ok)
@@ -122,13 +125,15 @@ public class PolicyController {
     })
     @PutMapping("/policies/{id}")
     public ResponseEntity<PolicyResponse> updatePolicy(
-            @Parameter(description = "ID da política") @PathVariable Long id,
+            @Parameter(description = "ID da política") @PathVariable UUID id,
             @Valid @RequestBody PolicyRequest request) {
         Policy policy = policyService.updatePolicy(
             id, 
             request.getName(), 
             request.getDescription(), 
             request.getEffect(), 
+            request.getActions(),
+            request.getResources(),
             request.getConditions()
         );
         return ResponseEntity.ok(PolicyMapper.toResponse(policy));
@@ -149,31 +154,11 @@ public class PolicyController {
     })
     @DeleteMapping("/policies/{id}")
     public ResponseEntity<Void> deactivatePolicy(
-            @Parameter(description = "ID da política") @PathVariable Long id) {
-        policyService.deactivatePolicy(id);
+            @Parameter(description = "ID da política") @PathVariable UUID id) {
+        policyService.deletePolicy(id);
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * CASO DE USO: Administrador reativa política
-     * Endpoint semântico: POST /api/policy-management/policies/{id}/activate
-     */
-    @Operation(
-        summary = "Reativar política", 
-        description = "Reativa uma política previamente desativada"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Política reativada com sucesso",
-                content = @Content(schema = @Schema(implementation = PolicyResponse.class))),
-        @ApiResponse(responseCode = "404", description = "Política não encontrada"),
-        @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
-    })
-    @PostMapping("/policies/{id}/activate")
-    public ResponseEntity<PolicyResponse> activatePolicy(
-            @Parameter(description = "ID da política") @PathVariable Long id) {
-        Policy policy = policyService.activatePolicy(id);
-        return ResponseEntity.ok(PolicyMapper.toResponse(policy));
-    }
 
     /**
      * CASO DE USO: Sistema avalia política para usuário
@@ -190,14 +175,14 @@ public class PolicyController {
     })
     @PostMapping("/policies/{id}/evaluate")
     public ResponseEntity<Object> evaluatePolicy(
-            @Parameter(description = "ID da política") @PathVariable Long id,
+            @Parameter(description = "ID da política") @PathVariable UUID id,
             @Valid @RequestBody PolicyEvaluationRequest request) {
-        Boolean appliesResult = policyService.evaluatePolicy(id, request.getUserId(), request.getContext());
+        String result = policyService.evaluatePolicyEffect(policyService.findPolicyById(id).orElse(null), request.getContext().toString());
         return ResponseEntity.ok(new Object() {
-            public final Long policyId = id;
-            public final Long userId = request.getUserId();
-            public final Boolean applies = appliesResult;
-            public final String result = appliesResult ? "ALLOW" : "DENY";
+            public final UUID policyId = id;
+            public final UUID userId = request.getUserId();
+            public final Boolean applies = "ALLOW".equals(result);
+            public final String resultValue = result;
         });
     }
 
@@ -240,9 +225,8 @@ public class PolicyController {
     public ResponseEntity<Object> getPolicyStats() {
         return ResponseEntity.ok(new Object() {
             public final Long totalPolicies = policyService.countPolicies();
-            public final Long activePolicies = policyService.countActivePolicies();
-            public final Long allowPolicies = policyService.countPoliciesByEffect("ALLOW");
-            public final Long denyPolicies = policyService.countPoliciesByEffect("DENY");
+            public final Long allowPolicies = (long) policyService.findPoliciesByEffect("allow").size();
+            public final Long denyPolicies = (long) policyService.findPoliciesByEffect("deny").size();
         });
     }
 
@@ -263,18 +247,17 @@ public class PolicyController {
             public final String status = "healthy";
             public final String service = "policy-management";
             public final Long totalPolicies = policyService.countPolicies();
-            public final Long activePolicies = policyService.countActivePolicies();
         });
     }
 
     // ===== DTOs INTERNOS =====
     
     public static class PolicyEvaluationRequest {
-        private Long userId;
+        private UUID userId;
         private Object context;
         
-        public Long getUserId() { return userId; }
-        public void setUserId(Long userId) { this.userId = userId; }
+        public UUID getUserId() { return userId; }
+        public void setUserId(UUID userId) { this.userId = userId; }
         
         public Object getContext() { return context; }
         public void setContext(Object context) { this.context = context; }

@@ -1,30 +1,28 @@
 package com.seccreto.service.auth.repository.policies;
 
 import com.seccreto.service.auth.model.policies.Policy;
-import com.seccreto.service.auth.model.policies.PolicyEffect;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Abstração de repositório para a entidade Policy, permitindo trocar implementação (in-memory, JPA, etc.).
+ * Baseado na migração V8.
  */
 public interface PolicyRepository {
     Policy save(Policy policy);
-    Optional<Policy> findById(Long id);
+    Optional<Policy> findById(UUID id);
     List<Policy> findAll();
     List<Policy> findByName(String name);
     Optional<Policy> findByNameExact(String name);
-    List<Policy> findByEffect(PolicyEffect effect);
-    List<Policy> findByAction(String action);
-    List<Policy> findByResource(String resource);
-    List<Policy> findByActionAndResource(String action, String resource);
+    List<Policy> findByEffect(String effect);
+    List<Policy> findByEffectAndConditions(String effect, String conditions);
     Policy update(Policy policy);
-    boolean deleteById(Long id);
-    boolean existsById(Long id);
+    boolean deleteById(UUID id);
+    boolean existsById(UUID id);
     boolean existsByName(String name);
     long count();
-    long countByEffect(PolicyEffect effect);
     void clear();
     
     // Métodos adicionais para controllers
