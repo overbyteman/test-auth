@@ -60,6 +60,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRolePermissionService userRolePermissionService;
     private final AuditService auditService;
     private final PasswordResetService passwordResetService;
+    private final PasswordMigrationService passwordMigrationService;
     
     public AuthServiceImpl(UserRepository userRepository, 
                          SessionRepository sessionRepository,
@@ -68,7 +69,8 @@ public class AuthServiceImpl implements AuthService {
                          PasswordEncoder passwordEncoder,
                          UserRolePermissionService userRolePermissionService,
                          AuditService auditService,
-                         PasswordResetService passwordResetService) {
+                         PasswordResetService passwordResetService,
+                         PasswordMigrationService passwordMigrationService) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.usageService = usageService;
@@ -77,6 +79,7 @@ public class AuthServiceImpl implements AuthService {
         this.userRolePermissionService = userRolePermissionService;
         this.auditService = auditService;
         this.passwordResetService = passwordResetService;
+        this.passwordMigrationService = passwordMigrationService;
     }
 
     @Override
@@ -92,7 +95,8 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthenticationException("Usuário inativo");
         }
 
-        if (!validatePassword(password, user.getPasswordHash())) {
+        // Usar migração automática de senha (BCrypt -> Argon2id)
+        if (!passwordMigrationService.verifyAndMigratePassword(password, user.getPasswordHash(), user.getId())) {
             auditService.logLogin(user.getId(), false, "Senha incorreta");
             throw new AuthenticationException("Senha incorreta");
         }

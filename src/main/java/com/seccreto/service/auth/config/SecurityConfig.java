@@ -6,7 +6,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -28,9 +27,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final PostQuantumPasswordEncoder postQuantumPasswordEncoder;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                         PostQuantumPasswordEncoder postQuantumPasswordEncoder) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.postQuantumPasswordEncoder = postQuantumPasswordEncoder;
     }
 
     /**
@@ -94,11 +96,11 @@ public class SecurityConfig {
     }
 
     /**
-     * Encoder de senhas
+     * Encoder de senhas pós-quântico usando Argon2id
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return postQuantumPasswordEncoder;
     }
 }
 

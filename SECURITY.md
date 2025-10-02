@@ -17,7 +17,16 @@
 - ✅ **Solução**: Logger SLF4J com sanitização de dados
 - 🔧 **Implementação**: Não loga tokens, senhas ou emails completos
 
-### 4. **Política de Senha Forte**
+### 4. **Criptografia Pós-Quântica**
+- ❌ **Problema**: BCrypt vulnerável a ataques quânticos futuros
+- ✅ **Solução**: Argon2id implementado (resistente a ataques quânticos)
+- 🔧 **Características**:
+  - Algoritmo Argon2id com parâmetros otimizados
+  - Salt de 256 bits, hash de 512 bits
+  - Custo de memória: 64MB, 3 iterações, 4 threads
+  - Migração automática de senhas legadas durante login
+
+### 5. **Política de Senha Forte**
 - ❌ **Problema**: Senhas fracas (mínimo 6 caracteres)
 - ✅ **Solução**: Política robusta implementada
 - 🔧 **Requisitos**:
@@ -26,7 +35,7 @@
   - Não permite sequências comuns (123456, qwerty, etc.)
   - Não permite mais de 2 caracteres iguais consecutivos
 
-### 5. **Reset de Senha Seguro**
+### 6. **Reset de Senha Seguro**
 - ❌ **Problema**: Funcionalidade não implementada
 - ✅ **Solução**: Sistema completo com tokens seguros
 - 🔧 **Características**:
@@ -35,7 +44,7 @@
   - Invalidação automática após uso
   - Invalidação de todas as sessões após reset
 
-### 6. **Rate Limiting**
+### 7. **Rate Limiting**
 - ❌ **Problema**: Sem proteção contra força bruta
 - ✅ **Solução**: Rate limiting por endpoint
 - 🔧 **Configuração**:
@@ -44,22 +53,22 @@
   - Reset senha: 3 tentativas/15 minutos
   - Refresh token: 10 tentativas/minuto
 
-### 7. **Mensagens de Erro Sanitizadas**
+### 8. **Mensagens de Erro Sanitizadas**
 - ❌ **Problema**: Vazamento de informações internas
 - ✅ **Solução**: Mensagens genéricas para o cliente
 - 🔧 **Implementação**: Logs detalhados para debug, respostas sanitizadas
 
-### 8. **Invalidação de Tokens**
+### 9. **Invalidação de Tokens**
 - ❌ **Problema**: Logout não invalidava tokens
 - ✅ **Solução**: Invalidação completa de sessões
 - 🔧 **Implementação**: Remove sessão do banco ao fazer logout
 
-### 9. **Credenciais Seguras**
+### 10. **Credenciais Seguras**
 - ❌ **Problema**: Credenciais hardcoded
 - ✅ **Solução**: Variáveis de ambiente obrigatórias
 - 🔧 **Configuração**: Arquivo `config/env.example` como template
 
-### 10. **Endpoints Protegidos**
+### 11. **Endpoints Protegidos**
 - ❌ **Problema**: Endpoint `/api/users` público
 - ✅ **Solução**: Removido acesso público
 - 🔧 **Implementação**: Apenas endpoints de auth são públicos
@@ -139,6 +148,12 @@ curl -H "Origin: http://malicious-site.com" http://localhost:8080/api/auth/login
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"password": "123456"}'
+
+# Verificar migração pós-quântica
+curl http://localhost:8080/api/auth/migration-status
+
+# Verificar saúde com info de criptografia
+curl http://localhost:8080/api/auth/health
 ```
 
 ## 🚨 Monitoramento

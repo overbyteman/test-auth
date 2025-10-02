@@ -18,6 +18,7 @@ import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.service.auth.AuthService;
 import com.seccreto.service.auth.service.sessions.SessionService;
 import com.seccreto.service.auth.service.users.UserService;
+import com.seccreto.service.auth.service.auth.PasswordMigrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -42,11 +43,14 @@ public class AuthController {
     private final AuthService authService;
     private final SessionService sessionService;
     private final UserService userService;
+    private final PasswordMigrationService passwordMigrationService;
 
-    public AuthController(AuthService authService, SessionService sessionService, UserService userService) {
+    public AuthController(AuthService authService, SessionService sessionService, 
+                         UserService userService, PasswordMigrationService passwordMigrationService) {
         this.authService = authService;
         this.sessionService = sessionService;
         this.userService = userService;
+        this.passwordMigrationService = passwordMigrationService;
     }
 
     /**
@@ -245,11 +249,45 @@ public class AuthController {
     })
     @GetMapping("/health")
     public ResponseEntity<Object> getAuthHealth() {
+        PasswordMigrationService.MigrationStats migrationStats = passwordMigrationService.getMigrationStats();
+        
         return ResponseEntity.ok(new Object() {
             public final String status = "healthy";
             public final String service = "auth-service";
+            public final String passwordSecurity = "post-quantum-argon2id";
             public final long activeSessions = sessionService.countActiveSessions();
             public final long totalUsers = userService.countUsers();
+            public final String migrationStatus = migrationStats.toString();
+            public final double postQuantumPercentage = migrationStats.migrationPercentage();
+        });
+    }
+
+    /**
+     * CASO DE USO: Admin verifica status da migração pós-quântica
+     * Endpoint semântico: GET /api/auth/migration-status
+     */
+    @Operation(
+        summary = "Verificar status da migração pós-quântica", 
+        description = "Retorna estatísticas da migração de senhas para Argon2id"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Status obtido com sucesso")
+    })
+    @GetMapping("/migration-status")
+    public ResponseEntity<Object> getMigrationStatus() {
+        PasswordMigrationService.MigrationStats stats = passwordMigrationService.getMigrationStats();
+        
+        return ResponseEntity.ok(new Object() {
+            public final String algorithm = "Argon2id Post-Quantum";
+            public final long totalUsers = stats.totalUsers();
+            public final long postQuantumUsers = stats.argon2Users();
+            public final long legacyUsers = stats.bcryptUsers();
+            public final long unknownUsers = stats.unknownUsers();
+            public final double migrationPercentage = stats.migrationPercentage();
+            public final String status = stats.migrationPercentage() == 100.0 ? "COMPLETE" : "IN_PROGRESS";
+            public final String recommendation = stats.bcryptUsers() > 0 ? 
+                "Usuários com senhas legadas migrarão automaticamente no próximo login" : 
+                "Todas as senhas estão usando criptografia pós-quântica";
         });
     }
 }
