@@ -6,6 +6,7 @@ import com.seccreto.service.auth.service.exception.AuthenticationException;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
+import com.seccreto.service.auth.domain.security.InputValidationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataAccessException;
@@ -50,6 +51,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidation(ValidationException ex, HttpServletRequest request) {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(InputValidationException.class)
+    public ResponseEntity<ErrorResponse> handleInputValidation(InputValidationException ex, HttpServletRequest request) {
+        List<String> details = List.of(
+                "Validation Type: " + ex.getValidationType(),
+                "Input: " + (ex.getInput().length() > 50 ? ex.getInput().substring(0, 50) + "..." : ex.getInput())
+        );
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI(), details);
     }
 
     @ExceptionHandler(ConflictException.class)
