@@ -4,6 +4,7 @@ import com.seccreto.service.auth.api.dto.auth.LoginResponse;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
 import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
+import com.seccreto.service.auth.api.dto.auth.RefreshTokenResponse;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.model.users.User;
@@ -24,7 +25,7 @@ public interface AuthService {
     LoginResponse authenticateUser(String email, String password);
     LoginResponse authenticateUser(String email, String password, UUID tenantId);
     RegisterResponse registerUser(String name, String email, String password);
-    LoginResponse refreshAccessToken(String refreshToken);
+    RefreshTokenResponse refreshAccessToken(String refreshToken);
     ValidateTokenResponse validateAccessToken(String token);
     UserResponse getCurrentUserProfile(String token);
     UserProfileResponse getCurrentUserCompleteProfile(String token);

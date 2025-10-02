@@ -4,6 +4,7 @@ import com.seccreto.service.auth.api.dto.auth.LoginResponse;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
 import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
+import com.seccreto.service.auth.api.dto.auth.RefreshTokenResponse;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.model.users.User;
@@ -15,6 +16,7 @@ import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import com.seccreto.service.auth.service.usage.UsageService;
 import com.seccreto.service.auth.service.jwt.JwtService;
+import com.seccreto.service.auth.service.audit.AuditService;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
 // Removed BCryptPasswordEncoder import - not available in current dependencies
@@ -26,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para autenticação.
@@ -38,6 +41,7 @@ import java.util.UUID;
  * - Transações otimizadas
  * - Suporte a UUIDs
  * - Autenticação e autorização
+ * - Criptografia de senhas com BCrypt
  */
 @Service
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -48,14 +52,24 @@ public class AuthServiceImpl implements AuthService {
     private final SessionRepository sessionRepository;
     private final UsageService usageService;
     private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder;
+    private final UserRolePermissionService userRolePermissionService;
+    private final AuditService auditService;
+    
     public AuthServiceImpl(UserRepository userRepository, 
                          SessionRepository sessionRepository,
                          UsageService usageService,
-                         JwtService jwtService) {
+                         JwtService jwtService,
+                         PasswordEncoder passwordEncoder,
+                         UserRolePermissionService userRolePermissionService,
+                         AuditService auditService) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.usageService = usageService;
         this.jwtService = jwtService;
+        this.passwordEncoder = passwordEncoder;
+        this.userRolePermissionService = userRolePermissionService;
+        this.auditService = auditService;
     }
 
     @Override
@@ -72,20 +86,34 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (!validatePassword(password, user.getPasswordHash())) {
+            auditService.logLogin(user.getId(), false, "Senha incorreta");
             throw new AuthenticationException("Senha incorreta");
         }
 
         // Create session and return login response
         Session session = createUserSession(user, "web", null);
         
-        // Gerar tokens JWT reais
-        List<String> roles = List.of("USER"); // TODO: Buscar roles reais do usuário
-        List<String> permissions = List.of("read:profile"); // TODO: Buscar permissões reais
+        // Gerar tokens JWT reais com roles e permissions do banco de dados
+        List<String> roles = userRolePermissionService.getUserRoles(user.getId());
+        List<String> permissions = userRolePermissionService.getUserPermissions(user.getId());
+        
+        // Se usuário não tem roles, dar role básico
+        if (roles.isEmpty()) {
+            roles = List.of("USER");
+        }
+        
+        // Se usuário não tem permissions, dar permissions básicas
+        if (permissions.isEmpty()) {
+            permissions = List.of("read:profile");
+        }
         
         String accessToken = jwtService.generateAccessToken(
             user.getId(), session.getId(), null, roles, permissions
         );
         String refreshToken = jwtService.generateRefreshToken(user.getId(), session.getId());
+        
+        // Log successful login
+        auditService.logLogin(user.getId(), true, null);
         
         return LoginResponse.builder()
                 .accessToken(accessToken)
@@ -114,14 +142,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public boolean validatePassword(String password, String passwordHash) {
-        // Simple password validation - in production, use proper hashing
-        return password != null && password.equals(passwordHash);
+        return password != null && passwordHash != null && passwordEncoder.matches(password, passwordHash);
     }
 
     @Override
     public String hashPassword(String password) {
-        // Simple password hashing - in production, use proper hashing like BCrypt
-        return password; // This is just for compilation - implement proper hashing
+        return passwordEncoder.encode(password);
     }
 
     @Override
@@ -375,47 +401,62 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public LoginResponse refreshAccessToken(String refreshToken) {
+    public RefreshTokenResponse refreshAccessToken(String refreshToken) {
         if (refreshToken == null || refreshToken.trim().isEmpty()) {
             throw new ValidationException("Refresh token é obrigatório");
         }
         
-        // TODO: Implementar validação real do refresh token
-        // Por enquanto, simulando validação básica
-        if (!refreshToken.startsWith("refresh_token_")) {
-            throw new ValidationException("Refresh token inválido");
+        // Validar refresh token usando JwtService
+        var validationResult = jwtService.validateToken(refreshToken);
+        
+        if (!validationResult.valid()) {
+            throw new AuthenticationException("Refresh token inválido ou expirado");
         }
         
-        try {
-            String[] parts = refreshToken.split("_");
-            UUID userId = UUID.fromString(parts[2]);
-            UUID sessionId = UUID.fromString(parts[3]);
-            
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
-            
-            // Gerar novos tokens
-            List<String> roles = List.of("USER"); // TODO: Buscar roles reais
-            List<String> permissions = List.of("read:profile"); // TODO: Buscar permissões reais
-            
-            String newAccessToken = jwtService.generateAccessToken(
-                userId, sessionId, null, roles, permissions
-            );
-            String newRefreshToken = jwtService.generateRefreshToken(userId, sessionId);
-            
-            return LoginResponse.builder()
-                    .accessToken(newAccessToken)
-                    .refreshToken(newRefreshToken)
-                    .tokenType("Bearer")
-                    .expiresIn(3600L)
-                    .userId(user.getId())
-                    .userName(user.getName())
-                    .userEmail(user.getEmail())
-                    .loginTime(LocalDateTime.now())
-                    .build();
-        } catch (Exception e) {
-            throw new ValidationException("Refresh token inválido ou malformado");
+        // Verificar se é um refresh token
+        var tokenInfo = jwtService.extractTokenInfo(refreshToken);
+        if (tokenInfo == null) {
+            throw new AuthenticationException("Não foi possível extrair informações do token");
         }
+        
+        // Buscar usuário
+        User user = userRepository.findById(validationResult.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        
+        if (!user.isActive()) {
+            throw new AuthenticationException("Usuário inativo");
+        }
+        
+        // Buscar roles e permissions atualizadas
+        List<String> roles = userRolePermissionService.getUserRoles(user.getId());
+        List<String> permissions = userRolePermissionService.getUserPermissions(user.getId());
+        
+        // Se usuário não tem roles, dar role básico
+        if (roles.isEmpty()) {
+            roles = List.of("USER");
+        }
+        
+        // Se usuário não tem permissions, dar permissions básicas
+        if (permissions.isEmpty()) {
+            permissions = List.of("read:profile");
+        }
+        
+        // Gerar novo access token
+        String newAccessToken = jwtService.generateAccessToken(
+            user.getId(), validationResult.sessionId(), validationResult.tenantId(), roles, permissions
+        );
+        
+        // Opcionalmente, gerar novo refresh token (rotação de tokens)
+        String newRefreshToken = jwtService.generateRefreshToken(user.getId(), validationResult.sessionId());
+        
+        return RefreshTokenResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .expiresIn(3600L)
+                .userId(user.getId())
+                .refreshedAt(LocalDateTime.now())
+                .build();
     }
 
     @Override

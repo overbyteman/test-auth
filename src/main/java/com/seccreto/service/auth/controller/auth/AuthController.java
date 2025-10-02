@@ -6,6 +6,8 @@ import com.seccreto.service.auth.api.dto.auth.LoginRequest;
 import com.seccreto.service.auth.api.dto.auth.LoginResponse;
 import com.seccreto.service.auth.api.dto.auth.LogoutRequest;
 import com.seccreto.service.auth.api.dto.auth.RefreshTokenRequest;
+import com.seccreto.service.auth.api.dto.auth.RefreshTokenResponse;
+import com.seccreto.service.auth.config.RateLimitingAspect.RateLimit;
 import com.seccreto.service.auth.api.dto.auth.RegisterRequest;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
 import com.seccreto.service.auth.api.dto.auth.ResetPasswordRequest;
@@ -62,6 +64,7 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "Dados de login inválidos")
     })
     @PostMapping("/login")
+    @RateLimit(requests = 5, windowMinutes = 1, message = "Muitas tentativas de login. Tente novamente em 1 minuto.")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.authenticateUser(request.getEmail(), request.getPassword());
         return ResponseEntity.ok(response);
@@ -100,6 +103,7 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "Dados de registro inválidos")
     })
     @PostMapping("/register")
+    @RateLimit(requests = 3, windowMinutes = 5, message = "Muitos registros. Tente novamente em 5 minutos.")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         RegisterResponse response = authService.registerUser(
             request.getName(), 
@@ -123,8 +127,9 @@ public class AuthController {
         @ApiResponse(responseCode = "401", description = "Refresh token inválido ou expirado")
     })
     @PostMapping("/refresh-token")
-    public ResponseEntity<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        LoginResponse response = authService.refreshAccessToken(request.getRefreshToken());
+    @RateLimit(requests = 10, windowMinutes = 1, message = "Muitas tentativas de refresh. Tente novamente em 1 minuto.")
+    public ResponseEntity<RefreshTokenResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        RefreshTokenResponse response = authService.refreshAccessToken(request.getRefreshToken());
         return ResponseEntity.ok(response);
     }
 

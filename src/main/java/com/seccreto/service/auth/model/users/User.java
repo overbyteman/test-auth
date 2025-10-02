@@ -92,7 +92,7 @@ public class User {
                 .name(name)
                 .email(email)
                 .passwordHash(passwordHash)
-                .isActive(false)
+                .isActive(true)
                 .build();
     }
     

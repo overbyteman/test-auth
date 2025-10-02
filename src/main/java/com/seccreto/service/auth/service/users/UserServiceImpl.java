@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio.
@@ -28,6 +29,7 @@ import java.util.UUID;
  * - Transações otimizadas
  * - Suporte a UUIDs
  * - Integração com funções de uso
+ * - Criptografia de senhas com BCrypt
  */
 @Service
 @Profile({"postgres", "test", "dev", "stage", "prod"})
@@ -37,12 +39,16 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMetricsService metricsService;
     private final UsageService usageService;
+    private final PasswordEncoder passwordEncoder;
+    
     public UserServiceImpl(UserRepository userRepository, 
                           UserMetricsService metricsService, 
-                          UsageService usageService) {
+                          UsageService usageService,
+                          PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.metricsService = metricsService;
         this.usageService = usageService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -58,7 +64,8 @@ public class UserServiceImpl implements UserService {
             return existingUser.get(); // Retorna o usuário existente (idempotência)
         }
 
-        User user = User.createNew(name.trim(), email.trim(), password);
+        String hashedPassword = passwordEncoder.encode(password);
+        User user = User.createNew(name.trim(), email.trim(), hashedPassword);
         User savedUser = userRepository.save(user);
         
         // Registrar métricas
