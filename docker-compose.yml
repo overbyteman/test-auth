@@ -1,6 +1,54 @@
-version: '3.9'
-
 services:
+  # Spring Boot Auth Service with multi-stage Docker build
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: auth-service:latest
+    container_name: auth-service
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/usersdb
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: postgres
+      
+      # JVM Configuration
+      JAVA_OPTS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+UseG1GC
+        -XX:+UseStringDeduplication
+        -XX:+ExitOnOutOfMemoryError
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/tmp/heapdump.hprof
+        -Djava.security.egd=file:/dev/./urandom
+        -Dfile.encoding=UTF-8
+        -Duser.timezone=UTC
+        -Djava.awt.headless=true
+      
+      # Application Configuration
+      TZ: UTC
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - auth-network
+
   # PostgreSQL Database with optimized configuration
   db:
     image: postgres:15-alpine
@@ -22,7 +70,8 @@ services:
       start_period: 30s
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/init-multiple-databases.sql:/docker-entrypoint-initdb.d/01-init-multiple-databases.sql
+      # Remove reference to deleted docker directory
+      # - ./docker/init-multiple-databases.sql:/docker-entrypoint-initdb.d/01-init-multiple-databases.sql
     command: >
       postgres
       -c shared_preload_libraries=pg_stat_statements
@@ -35,6 +84,12 @@ services:
       -c default_statistics_target=100
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
+    networks:
+      - auth-network
+
+networks:
+  auth-network:
+    driver: bridge
 
 volumes:
   pgdata:

@@ -1,9 +1,3 @@
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-}
-
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.0'
@@ -75,6 +69,7 @@ dependencies {
     // Utilities
     implementation 'org.apache.commons:commons-lang3:3.13.0'
     implementation 'org.apache.commons:commons-collections4:4.4'
+    implementation 'com.google.guava:guava:32.1.3-jre'
     
     // Lombok - versão mais recente com configurações explícitas
     compileOnly 'org.projectlombok:lombok:1.18.30'
@@ -112,14 +107,17 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-// Correção: usar build ao invés de buildSrc para evitar conflitos
+// Configurar diretório de build para ./buildSrc
+buildDir = file('buildSrc')
+
+// Configuração dos JARs
 jar {
     archiveFileName = 'app.jar'
-    destinationDirectory = file('build/libs')
+    destinationDirectory = file('buildSrc/libs')
 }
 
 bootJar {
     archiveFileName = 'app.jar'
-    destinationDirectory = file('build/libs')
+    destinationDirectory = file('buildSrc/libs')
 }
 
