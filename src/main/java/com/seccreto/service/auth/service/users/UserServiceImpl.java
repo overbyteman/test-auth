@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio.
@@ -36,6 +38,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+    
     private final UserRepository userRepository;
     private final UserMetricsService metricsService;
     private final UsageService usageService;

@@ -1,14 +1,62 @@
 # ===========================================
 # Multi-Stage Dockerfile for Spring Boot App
+# Builds the application inside Docker for consistency
 # Optimized for production with security best practices
-# Uses pre-built JAR from buildSrc directory
 # ===========================================
+
+# ---------- BUILD STAGE ----------
+FROM amazoncorretto:17-alpine AS builder
+
+# Install build dependencies including bash for security script
+RUN apk add --no-cache \
+    git \
+    bash \
+    openssl \
+    util-linux \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory for build
+WORKDIR /build
+
+# Copy Gradle wrapper and build files first (for better caching)
+COPY gradlew .
+COPY gradle/ gradle/
+COPY build.gradle .
+COPY lombok.config .
+
+# Make gradlew executable
+RUN chmod +x gradlew
+
+# Copy and execute security setup script
+COPY docker-security-setup.sh .
+RUN chmod +x docker-security-setup.sh && \
+    ./docker-security-setup.sh && \
+    source /tmp/build-env.sh
+
+# Copy source code
+COPY src/ src/
+
+# Create gradle.properties to disable daemon and configure JVM
+RUN echo "org.gradle.daemon=false" > gradle.properties && \
+    echo "org.gradle.parallel=false" >> gradle.properties && \
+    echo "org.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=512m" >> gradle.properties && \
+    echo "org.gradle.configureondemand=false" >> gradle.properties
+
+# Build the application
+RUN ./gradlew clean bootJar --no-daemon --stacktrace
+
+# Verify the JAR was created correctly
+RUN ls -la build/libs/ && \
+    java -Djarmode=layertools -jar build/libs/app.jar list
+
+# Show generated .env file for reference
+RUN echo "📋 Arquivo .env gerado:" && cat .env
 
 # ---------- EXTRACT STAGE ----------
 FROM eclipse-temurin:21-jre-alpine AS extract
 
-# Copy pre-built JAR from buildSrc
-COPY buildSrc/libs/app.jar app.jar
+# Copy the built JAR from builder stage
+COPY --from=builder /build/build/libs/app.jar app.jar
 
 # Extract JAR layers for better caching
 RUN java -Djarmode=layertools -jar app.jar extract

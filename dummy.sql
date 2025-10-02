@@ -58,54 +58,54 @@ INSERT INTO tenants (id, name, config, created_at, updated_at) VALUES
 -- 2. PERMISSIONS - Permissões Granulares
 -- =====================================================
 
-INSERT INTO permissions (id, action, resource, created_at, updated_at) VALUES
+INSERT INTO permissions (id, action, resource) VALUES
     -- User Management
-    ('a0000000-0000-0000-0000-000000000001', 'create', 'users', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000002', 'read', 'users', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000003', 'update', 'users', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000004', 'delete', 'users', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000005', 'suspend', 'users', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000006', 'activate', 'users', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000001', 'create', 'users'),
+    ('a0000000-0000-0000-0000-000000000002', 'read', 'users'),
+    ('a0000000-0000-0000-0000-000000000003', 'update', 'users'),
+    ('a0000000-0000-0000-0000-000000000004', 'delete', 'users'),
+    ('a0000000-0000-0000-0000-000000000005', 'suspend', 'users'),
+    ('a0000000-0000-0000-0000-000000000006', 'activate', 'users'),
     
     -- Profile Management
-    ('a0000000-0000-0000-0000-000000000007', 'read', 'profile', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000008', 'update', 'profile', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000007', 'read', 'profile'),
+    ('a0000000-0000-0000-0000-000000000008', 'update', 'profile'),
     
     -- Role Management
-    ('a0000000-0000-0000-0000-000000000009', 'create', 'roles', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000010', 'read', 'roles', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000011', 'update', 'roles', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000012', 'delete', 'roles', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000009', 'create', 'roles'),
+    ('a0000000-0000-0000-0000-000000000010', 'read', 'roles'),
+    ('a0000000-0000-0000-0000-000000000011', 'update', 'roles'),
+    ('a0000000-0000-0000-0000-000000000012', 'delete', 'roles'),
     
     -- Permission Management
-    ('a0000000-0000-0000-0000-000000000013', 'create', 'permissions', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000014', 'read', 'permissions', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000015', 'update', 'permissions', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000016', 'delete', 'permissions', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000013', 'create', 'permissions'),
+    ('a0000000-0000-0000-0000-000000000014', 'read', 'permissions'),
+    ('a0000000-0000-0000-0000-000000000015', 'update', 'permissions'),
+    ('a0000000-0000-0000-0000-000000000016', 'delete', 'permissions'),
     
     -- Tenant Management
-    ('a0000000-0000-0000-0000-000000000017', 'create', 'tenants', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000018', 'read', 'tenants', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000019', 'update', 'tenants', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000020', 'delete', 'tenants', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000017', 'create', 'tenants'),
+    ('a0000000-0000-0000-0000-000000000018', 'read', 'tenants'),
+    ('a0000000-0000-0000-0000-000000000019', 'update', 'tenants'),
+    ('a0000000-0000-0000-0000-000000000020', 'delete', 'tenants'),
     
     -- Session Management
-    ('a0000000-0000-0000-0000-000000000021', 'read', 'sessions', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000022', 'delete', 'sessions', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000023', 'manage', 'sessions', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000021', 'read', 'sessions'),
+    ('a0000000-0000-0000-0000-000000000022', 'delete', 'sessions'),
+    ('a0000000-0000-0000-0000-000000000023', 'manage', 'sessions'),
     
     -- System & Monitoring
-    ('a0000000-0000-0000-0000-000000000024', 'read', 'metrics', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000025', 'read', 'health', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000026', 'manage', 'system', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000024', 'read', 'metrics'),
+    ('a0000000-0000-0000-0000-000000000025', 'read', 'health'),
+    ('a0000000-0000-0000-0000-000000000026', 'manage', 'system'),
     
     -- Audit & Compliance
-    ('a0000000-0000-0000-0000-000000000027', 'read', 'audit_logs', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000028', 'export', 'audit_logs', NOW(), NOW()),
+    ('a0000000-0000-0000-0000-000000000027', 'read', 'audit_logs'),
+    ('a0000000-0000-0000-0000-000000000028', 'export', 'audit_logs'),
     
     -- API Access
-    ('a0000000-0000-0000-0000-000000000029', 'access', 'api', NOW(), NOW()),
-    ('a0000000-0000-0000-0000-000000000030', 'manage', 'api_keys', NOW(), NOW());
+    ('a0000000-0000-0000-0000-000000000029', 'access', 'api'),
+    ('a0000000-0000-0000-0000-000000000030', 'manage', 'api_keys');
 
 -- =====================================================
 -- 3. ROLES - Funções Hierárquicas
@@ -283,7 +283,7 @@ INSERT INTO users (id, name, email, password_hash, is_active, email_verified_at,
      false, 
      NOW() - INTERVAL '15 days',
      NOW() - INTERVAL '15 days', 
-     NOW() - INTERVAL '5 days'),
+     CURRENT_TIMESTAMP - INTERVAL '5 days'),
      
     -- Usuário Internacional
     ('c0000000-0000-0000-0000-000000000010', 
@@ -337,120 +337,100 @@ INSERT INTO users_tenants_roles (user_id, tenant_id, role_id) VALUES
 -- 7. SESSIONS - Sessões Ativas e Históricas
 -- =====================================================
 
-INSERT INTO sessions (id, user_id, tenant_id, token, refresh_token, user_agent, ip_address, expires_at, created_at, updated_at) VALUES
+INSERT INTO sessions (id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, created_at) VALUES
     -- Sessões ativas recentes
     ('d0000000-0000-0000-0000-000000000001', 
      'c0000000-0000-0000-0000-000000000001', 
-     '11111111-1111-1111-1111-111111111111',
-     'eyJhbGciOiJIUzM4NCJ9.super_admin_active_token',
      'eyJhbGciOiJIUzM4NCJ9.super_admin_refresh_token',
      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-     '192.168.1.100',
+     '192.168.1.100'::inet,
      NOW() + INTERVAL '1 hour',
-     NOW() - INTERVAL '30 minutes',
-     NOW()),
+     NOW() - INTERVAL '30 minutes'),
      
     ('d0000000-0000-0000-0000-000000000002', 
      'c0000000-0000-0000-0000-000000000002', 
-     '11111111-1111-1111-1111-111111111111',
-     'eyJhbGciOiJIUzM4NCJ9.admin_active_token',
      'eyJhbGciOiJIUzM4NCJ9.admin_refresh_token',
      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-     '10.0.0.50',
+     '10.0.0.50'::inet,
      NOW() + INTERVAL '45 minutes',
-     NOW() - INTERVAL '15 minutes',
-     NOW()),
+     NOW() - INTERVAL '15 minutes'),
      
     -- Sessão API ativa
     ('d0000000-0000-0000-0000-000000000003', 
      'c0000000-0000-0000-0000-000000000006', 
-     '11111111-1111-1111-1111-111111111111',
-     'eyJhbGciOiJIUzM4NCJ9.api_user_token',
      'eyJhbGciOiJIUzM4NCJ9.api_user_refresh_token',
      'APIClient/1.0 (automated-service)',
-     '203.0.113.25',
+     '203.0.113.25'::inet,
      NOW() + INTERVAL '2 hours',
-     NOW() - INTERVAL '5 minutes',
-     NOW()),
+     NOW() - INTERVAL '5 minutes'),
      
     -- Sessões expiradas para histórico
     ('d0000000-0000-0000-0000-000000000004', 
      'c0000000-0000-0000-0000-000000000003', 
-     '11111111-1111-1111-1111-111111111111',
-     'eyJhbGciOiJIUzM4NCJ9.expired_manager_token',
      'eyJhbGciOiJIUzM4NCJ9.expired_manager_refresh',
      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
-     '172.16.0.123',
+     '172.16.0.123'::inet,
      NOW() - INTERVAL '2 hours',
-     NOW() - INTERVAL '3 hours',
-     NOW() - INTERVAL '2 hours'),
+     NOW() - INTERVAL '3 hours'),
      
     -- Sessão de tenant diferente
     ('d0000000-0000-0000-0000-000000000005', 
      'c0000000-0000-0000-0000-000000000007', 
-     '22222222-2222-2222-2222-222222222222',
-     'eyJhbGciOiJIUzM4NCJ9.techstart_admin_token',
      'eyJhbGciOiJIUzM4NCJ9.techstart_admin_refresh',
      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-     '198.51.100.75',
+     '198.51.100.75'::inet,
      NOW() + INTERVAL '30 minutes',
-     NOW() - INTERVAL '10 minutes',
-     NOW());
+     NOW() - INTERVAL '10 minutes');
 
 -- =====================================================
 -- 8. POLICIES - Políticas ABAC Complexas
 -- =====================================================
 
-INSERT INTO policies (id, name, effect, actions, resources, conditions, created_at, updated_at) VALUES
+INSERT INTO policies (id, name, effect, actions, resources, conditions, created_at) VALUES
     -- Política de horário comercial
     ('e0000000-0000-0000-0000-000000000001',
      'Business Hours Only',
-     'ALLOW',
+     'allow',
      ARRAY['login', 'access'],
      ARRAY['system'],
      '{"time": {"start": "08:00", "end": "18:00"}, "timezone": "UTC", "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]}',
-     NOW() - INTERVAL '30 days',
-     NOW()),
+     CURRENT_TIMESTAMP - INTERVAL '30 days'),
      
     -- Política de localização geográfica
     ('e0000000-0000-0000-0000-000000000002',
      'Geo-Location Restriction',
-     'DENY',
+     'deny',
      ARRAY['login', 'api_access'],
      ARRAY['system'],
      '{"geo": {"blocked_countries": ["CN", "RU", "KP"], "allowed_regions": ["US", "EU", "BR"]}}',
-     NOW() - INTERVAL '25 days',
-     NOW()),
+     NOW() - INTERVAL '25 days'),
      
     -- Política de acesso sensível
     ('e0000000-0000-0000-0000-000000000003',
      'Sensitive Data Access',
-     'ALLOW',
+     'allow',
      ARRAY['read', 'export'],
      ARRAY['audit_logs', 'financial_data'],
      '{"user": {"min_role": "MANAGER", "requires_mfa": true}, "time": {"max_session_duration": 3600}}',
-     NOW() - INTERVAL '20 days',
-     NOW()),
+     NOW() - INTERVAL '20 days'),
      
     -- Política de API rate limiting
     ('e0000000-0000-0000-0000-000000000004',
      'API Rate Limiting',
-     'DENY',
+     'deny',
      ARRAY['api_access'],
      ARRAY['users', 'tenants'],
      '{"rate_limit": {"requests_per_minute": 100, "burst": 150}, "user": {"type": "api_user"}}',
-     NOW() - INTERVAL '15 days',
-     NOW()),
+     NOW() - INTERVAL '15 days'),
      
     -- Política de acesso administrativo
     ('e0000000-0000-0000-0000-000000000005',
      'Admin Access Control',
-     'ALLOW',
+     'allow',
      ARRAY['create', 'update', 'delete'],
      ARRAY['users', 'roles', 'permissions'],
      '{"user": {"role": "ADMIN", "tenant_admin": true}, "source": {"ip_whitelist": ["10.0.0.0/8", "192.168.0.0/16"]}}',
-     NOW() - INTERVAL '10 days',
-     NOW());
+     NOW() - INTERVAL '10 days');
 
 -- =====================================================
 -- 9. AUDIT_LOGS - Logs de Auditoria Realísticos
@@ -469,7 +449,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
      true,
      NULL,
-     NOW() - INTERVAL '30 minutes'),
+     CURRENT_TIMESTAMP - INTERVAL '30 minutes'),
      
     -- Criação de usuário pelo Admin
     ('f0000000-0000-0000-0000-000000000002',
@@ -483,7 +463,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
      true,
      NULL,
-     NOW() - INTERVAL '30 days'),
+     CURRENT_TIMESTAMP - INTERVAL '30 days'),
      
     -- Tentativa de login falhada
     ('f0000000-0000-0000-0000-000000000003',
@@ -497,7 +477,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'curl/7.68.0',
      false,
      'Invalid credentials',
-     NOW() - INTERVAL '2 hours'),
+     CURRENT_TIMESTAMP - INTERVAL '2 hours'),
      
     -- Acesso API bem-sucedido
     ('f0000000-0000-0000-0000-000000000004',
@@ -511,7 +491,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'APIClient/1.0 (automated-service)',
      true,
      NULL,
-     NOW() - INTERVAL '5 minutes'),
+     CURRENT_TIMESTAMP - INTERVAL '5 minutes'),
      
     -- Suspensão de usuário por segurança
     ('f0000000-0000-0000-0000-000000000005',
@@ -525,7 +505,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
      true,
      NULL,
-     NOW() - INTERVAL '5 days'),
+     CURRENT_TIMESTAMP - INTERVAL '5 days'),
      
     -- Exportação de logs de auditoria
     ('f0000000-0000-0000-0000-000000000006',
@@ -539,7 +519,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
      true,
      NULL,
-     NOW() - INTERVAL '1 day'),
+     CURRENT_TIMESTAMP - INTERVAL '1 day'),
      
     -- Múltiplas tentativas de força bruta (blocked)
     ('f0000000-0000-0000-0000-000000000007',
@@ -553,7 +533,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'python-requests/2.31.0',
      false,
      'Too many login attempts. IP temporarily blocked.',
-     NOW() - INTERVAL '1 hour'),
+     CURRENT_TIMESTAMP - INTERVAL '1 hour'),
      
     -- Atualização de configuração de tenant
     ('f0000000-0000-0000-0000-000000000008',
@@ -567,7 +547,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
      true,
      NULL,
-     NOW() - INTERVAL '6 hours'),
+     CURRENT_TIMESTAMP - INTERVAL '6 hours'),
      
     -- Acesso negado por política ABAC
     ('f0000000-0000-0000-0000-000000000009',
@@ -581,7 +561,7 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
      false,
      'Policy violation: User role USER insufficient for resource audit_logs',
-     NOW() - INTERVAL '3 hours'),
+     CURRENT_TIMESTAMP - INTERVAL '3 hours'),
      
     -- Refresh token usado com sucesso
     ('f0000000-0000-0000-0000-000000000010',
@@ -595,25 +575,22 @@ INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource
      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
      true,
      NULL,
-     NOW() - INTERVAL '2 hours');
+     CURRENT_TIMESTAMP - INTERVAL '2 hours');
 
 -- =====================================================
 -- 10. CENÁRIOS COMPLEXOS ADICIONAIS
 -- =====================================================
 
 -- Criar sessões expiradas adicionais para demonstrar limpeza
-INSERT INTO sessions (id, user_id, tenant_id, token, refresh_token, user_agent, ip_address, expires_at, created_at, updated_at) 
+INSERT INTO sessions (id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, created_at) 
 SELECT 
     gen_random_uuid(),
     'c0000000-0000-0000-0000-000000000004',
-    '11111111-1111-1111-1111-111111111111',
-    'expired_token_' || generate_series,
     'expired_refresh_' || generate_series,
     'Mozilla/5.0 (Test Browser)',
-    '192.168.1.' || (100 + generate_series),
-    NOW() - INTERVAL '1 day' - (generate_series || ' hours')::INTERVAL,
-    NOW() - INTERVAL '2 days' - (generate_series || ' hours')::INTERVAL,
-    NOW() - INTERVAL '1 day' - (generate_series || ' hours')::INTERVAL
+    ('192.168.1.' || (100 + generate_series))::inet,
+    CURRENT_TIMESTAMP - INTERVAL '1 day' - (generate_series || ' hours')::INTERVAL,
+    CURRENT_TIMESTAMP - INTERVAL '2 days' - (generate_series || ' hours')::INTERVAL
 FROM generate_series(1, 5);
 
 -- Criar logs de auditoria de tentativas de ataque
@@ -631,7 +608,7 @@ SELECT
     'AttackBot/' || generate_series || '.0',
     false,
     'Input validation failed - potentially malicious content',
-    NOW() - INTERVAL '7 days' + (generate_series || ' hours')::INTERVAL
+    CURRENT_TIMESTAMP - INTERVAL '7 days' + (generate_series || ' hours')::INTERVAL
 FROM generate_series(1, 10);
 
 -- =====================================================

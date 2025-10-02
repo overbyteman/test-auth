@@ -43,10 +43,12 @@ public class SecurityConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+                // CORS para API endpoints
                 registry.addMapping("/api/**")
                         .allowedOrigins(
                             "http://localhost:3000",
                             "http://localhost:8080",
+                            "http://localhost:8081",
                             "https://yourdomain.com"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
@@ -58,6 +60,20 @@ public class SecurityConfig {
                             "Origin"
                         )
                         .allowCredentials(true)
+                        .maxAge(3600);
+                
+                // CORS para Swagger UI
+                registry.addMapping("/swagger-ui/**")
+                        .allowedOrigins("*")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .maxAge(3600);
+                
+                // CORS para OpenAPI docs
+                registry.addMapping("/v3/api-docs/**")
+                        .allowedOrigins("*")
+                        .allowedMethods("GET", "OPTIONS")
+                        .allowedHeaders("*")
                         .maxAge(3600);
             }
         };

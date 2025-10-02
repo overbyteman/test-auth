@@ -13,8 +13,8 @@ springBoot {
 }
 
 java {
-    sourceCompatibility = '21'
-    targetCompatibility = '21'
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
 }
 
 configurations {
@@ -111,17 +111,12 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-// Configurar diretório de build para ./buildSrc
-buildDir = file('buildSrc')
-
 // Configuração dos JARs
 jar {
     archiveFileName = 'app.jar'
-    destinationDirectory = file('buildSrc/libs')
 }
 
 bootJar {
     archiveFileName = 'app.jar'
-    destinationDirectory = file('buildSrc/libs')
 }
 

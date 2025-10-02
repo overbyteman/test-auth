@@ -134,7 +134,7 @@ public class PasswordMigrationService {
         
         for (User user : usersWithBCrypt) {
             // Marcar usuário como precisando redefinir senha
-            user.setActive(false); // Desativar até redefinir senha
+            user.setIsActive(false); // Desativar até redefinir senha
             user.updateTimestamp();
             userRepository.save(user);
             
