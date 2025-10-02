@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para autenticação.
@@ -48,6 +50,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
+    
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
     private final UsageService usageService;
@@ -55,6 +59,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final UserRolePermissionService userRolePermissionService;
     private final AuditService auditService;
+    private final PasswordResetService passwordResetService;
     
     public AuthServiceImpl(UserRepository userRepository, 
                          SessionRepository sessionRepository,
@@ -62,7 +67,8 @@ public class AuthServiceImpl implements AuthService {
                          JwtService jwtService,
                          PasswordEncoder passwordEncoder,
                          UserRolePermissionService userRolePermissionService,
-                         AuditService auditService) {
+                         AuditService auditService,
+                         PasswordResetService passwordResetService) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.usageService = usageService;
@@ -70,6 +76,7 @@ public class AuthServiceImpl implements AuthService {
         this.passwordEncoder = passwordEncoder;
         this.userRolePermissionService = userRolePermissionService;
         this.auditService = auditService;
+        this.passwordResetService = passwordResetService;
     }
 
     @Override
@@ -605,12 +612,23 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com email: " + email));
         
-        // TODO: Implement email sending logic
-        // For now, just log the action
-        System.out.println("Password recovery email would be sent to: " + email);
+        if (!user.isActive()) {
+            throw new ValidationException("Não é possível redefinir senha para usuário inativo");
+        }
+        
+        // Gerar token seguro de reset
+        String resetToken = passwordResetService.generateResetToken(user.getId());
+        
+        // TODO: Implement email sending logic with the reset token
+        // The token should be sent via secure email with expiration time
+        logger.info("Password recovery email requested for user ID: {} with token expiry in 15 minutes", user.getId());
+        
+        // Em um ambiente real, você enviaria um email com um link como:
+        // https://yourdomain.com/reset-password?token={resetToken}
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void resetPassword(String token, String newPassword) {
         if (token == null || token.trim().isEmpty()) {
             throw new ValidationException("Token de recuperação é obrigatório");
@@ -618,20 +636,76 @@ public class AuthServiceImpl implements AuthService {
         
         validatePassword(newPassword);
         
-        // TODO: Implement proper token validation
-        // For now, just validate the password format
-        System.out.println("Password reset would be processed for token: " + token);
+        try {
+            // Validar token e obter ID do usuário
+            UUID userId = passwordResetService.validateResetToken(token);
+            
+            // Buscar usuário
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+            
+            if (!user.isActive()) {
+                throw new ValidationException("Não é possível redefinir senha para usuário inativo");
+            }
+            
+            // Verificar se a nova senha não é igual à atual
+            if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+                throw new ValidationException("A nova senha deve ser diferente da senha atual");
+            }
+            
+            // Atualizar senha
+            user.setPasswordHash(hashPassword(newPassword));
+            user.updateTimestamp();
+            userRepository.save(user);
+            
+            // Invalidar token usado
+            passwordResetService.invalidateToken(token);
+            
+            // Invalidar todas as sessões do usuário por segurança
+            sessionRepository.deleteByUserId(userId);
+            
+            // Log da ação
+            auditService.logPasswordReset(userId, true, null);
+            logger.info("Password reset completed successfully for user ID: {}", userId);
+            
+        } catch (IllegalArgumentException e) {
+            logger.warn("Password reset failed: {}", e.getMessage());
+            throw new ValidationException("Token inválido ou expirado");
+        }
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void logoutUser(String token) {
         if (token == null || token.trim().isEmpty()) {
             throw new ValidationException("Token é obrigatório");
         }
         
-        // TODO: Implement proper token invalidation
-        // For now, just log the action
-        System.out.println("User logout processed for token: " + token);
+        try {
+            // Extrair informações do token (mesmo que expirado)
+            JwtService.JwtTokenInfo tokenInfo = jwtService.extractTokenInfo(token);
+            
+            if (tokenInfo != null && tokenInfo.sessionId() != null) {
+                // Invalidar sessão específica
+                Optional<Session> session = sessionRepository.findById(tokenInfo.sessionId());
+                if (session.isPresent()) {
+                    sessionRepository.deleteById(tokenInfo.sessionId());
+                    logger.info("Session invalidated for user ID: {} during logout", tokenInfo.userId());
+                } else {
+                    logger.warn("Session not found during logout for session ID: {}", tokenInfo.sessionId());
+                }
+                
+                // Log da ação de logout
+                auditService.logLogout(tokenInfo.userId(), true, null);
+            } else {
+                logger.warn("Could not extract session information from token during logout");
+                throw new ValidationException("Token inválido para logout");
+            }
+            
+        } catch (Exception e) {
+            logger.warn("Logout failed: {}", e.getMessage());
+            throw new ValidationException("Erro durante logout: token pode estar inválido");
+        }
     }
 
     // Métodos de validação privados
@@ -663,8 +737,51 @@ public class AuthServiceImpl implements AuthService {
         if (password == null || password.trim().isEmpty()) {
             throw new ValidationException("Senha é obrigatória");
         }
-        if (password.length() < 6) {
-            throw new ValidationException("Senha deve ter pelo menos 6 caracteres");
+        
+        // Política de senha forte
+        if (password.length() < 8) {
+            throw new ValidationException("Senha deve ter pelo menos 8 caracteres");
+        }
+        
+        if (password.length() > 128) {
+            throw new ValidationException("Senha não pode ter mais de 128 caracteres");
+        }
+        
+        boolean hasUpperCase = password.chars().anyMatch(Character::isUpperCase);
+        boolean hasLowerCase = password.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
+        boolean hasSpecialChar = password.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;:,.<>?".indexOf(ch) >= 0);
+        
+        if (!hasUpperCase) {
+            throw new ValidationException("Senha deve conter pelo menos uma letra maiúscula");
+        }
+        
+        if (!hasLowerCase) {
+            throw new ValidationException("Senha deve conter pelo menos uma letra minúscula");
+        }
+        
+        if (!hasDigit) {
+            throw new ValidationException("Senha deve conter pelo menos um número");
+        }
+        
+        if (!hasSpecialChar) {
+            throw new ValidationException("Senha deve conter pelo menos um caractere especial (!@#$%^&*()_+-=[]{}|;:,.<>?)");
+        }
+        
+        // Verificar se não contém sequências comuns
+        String lowerPassword = password.toLowerCase();
+        String[] commonSequences = {"123456", "abcdef", "qwerty", "password", "admin", "user"};
+        for (String sequence : commonSequences) {
+            if (lowerPassword.contains(sequence)) {
+                throw new ValidationException("Senha não pode conter sequências comuns como '" + sequence + "'");
+            }
+        }
+        
+        // Verificar se não tem caracteres repetidos consecutivos
+        for (int i = 0; i < password.length() - 2; i++) {
+            if (password.charAt(i) == password.charAt(i + 1) && password.charAt(i) == password.charAt(i + 2)) {
+                throw new ValidationException("Senha não pode ter mais de 2 caracteres iguais consecutivos");
+            }
         }
     }
 

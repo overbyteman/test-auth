@@ -7,6 +7,7 @@ import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import com.seccreto.service.auth.domain.security.InputValidationException;
+import com.seccreto.service.auth.config.RateLimitingAspect.RateLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataAccessException;
@@ -31,12 +32,16 @@ import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Handler global para traduzir exceções em respostas HTTP consistentes.
  */
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
@@ -53,11 +58,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI(), null);
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitExceededException ex, HttpServletRequest request) {
+        return buildError(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request.getRequestURI(), 
+                List.of("Aguarde antes de tentar novamente"));
+    }
+
     @ExceptionHandler(InputValidationException.class)
     public ResponseEntity<ErrorResponse> handleInputValidation(InputValidationException ex, HttpServletRequest request) {
+        // Não expor dados de entrada por segurança
         List<String> details = List.of(
                 "Validation Type: " + ex.getValidationType(),
-                "Input: " + (ex.getInput().length() > 50 ? ex.getInput().substring(0, 50) + "..." : ex.getInput())
+                "Input length: " + ex.getInput().length()
         );
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI(), details);
     }
@@ -84,14 +96,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ErrorResponse> handleDataAccess(DataAccessException ex, HttpServletRequest request) {
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro de acesso aos dados", request.getRequestURI(), 
-                List.of("Detalhes: " + ex.getMessage()));
+        // Não expor detalhes internos do banco de dados
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do sistema", request.getRequestURI(), 
+                List.of("Contate o suporte técnico"));
     }
     
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
-        return buildError(HttpStatus.CONFLICT, "Violação de integridade dos dados", request.getRequestURI(), 
-                List.of("Detalhes: " + ex.getMessage()));
+        // Sanitizar mensagem para não expor estrutura do banco
+        String sanitizedMessage = "Dados já existem no sistema";
+        if (ex.getMessage() != null && ex.getMessage().toLowerCase().contains("unique")) {
+            sanitizedMessage = "Registro duplicado - dados já existem";
+        }
+        return buildError(HttpStatus.CONFLICT, sanitizedMessage, request.getRequestURI(), null);
     }
     
     @ExceptionHandler(OptimisticLockingFailureException.class)
@@ -260,8 +277,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
+        // Log completo para debug, mas resposta sanitizada para o cliente
+        logger.error("Unexpected error occurred", ex);
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor", request.getRequestURI(), 
-                List.of("Tipo: " + ex.getClass().getSimpleName(), "Detalhes: " + ex.getMessage()));
+                List.of("Contate o suporte técnico"));
     }
 
     @Override

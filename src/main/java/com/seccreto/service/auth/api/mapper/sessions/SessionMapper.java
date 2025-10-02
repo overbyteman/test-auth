@@ -8,12 +8,16 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Mapper para conversão entre DTOs e entidades de Session.
  * Implementa o padrão de mapeamento estático para performance.
  */
 public final class SessionMapper {
+    private static final Logger logger = LoggerFactory.getLogger(SessionMapper.class);
+    
     private SessionMapper() {}
 
     /**
@@ -30,7 +34,7 @@ public final class SessionMapper {
                 ipAddress = InetAddress.getByName(request.getIpAddress());
             } catch (Exception e) {
                 // Log warning but don't fail
-                System.err.println("Erro ao converter IP address: " + request.getIpAddress());
+                logger.warn("Erro ao converter IP address, usando null");
             }
         }
         
@@ -92,7 +96,7 @@ public final class SessionMapper {
                 session.setIpAddress(InetAddress.getByName(request.getIpAddress()));
             } catch (Exception e) {
                 // Log warning but don't fail
-                System.err.println("Erro ao converter IP address: " + request.getIpAddress());
+                logger.warn("Erro ao converter IP address, usando null");
             }
         }
         

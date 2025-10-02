@@ -25,9 +25,12 @@ public class JwtServiceImpl implements JwtService {
     private final int refreshTokenValidityDays;
     
     public JwtServiceImpl(
-            @Value("${jwt.secret:default-secret-key-change-in-production-environment}") String secret,
+            @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration:3600000}") int accessTokenExpiration,
             @Value("${jwt.refresh-expiration:604800000}") int refreshTokenExpiration) {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalArgumentException("JWT secret must be at least 32 characters long and cannot be null");
+        }
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
         this.accessTokenValidityHours = accessTokenExpiration / (1000 * 60 * 60); // Convert ms to hours
         this.refreshTokenValidityDays = refreshTokenExpiration / (1000 * 60 * 60 * 24); // Convert ms to days

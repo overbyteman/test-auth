@@ -207,6 +207,7 @@ public class AuthController {
         @ApiResponse(responseCode = "404", description = "Email não encontrado")
     })
     @PostMapping("/forgot-password")
+    @RateLimit(requests = 3, windowMinutes = 15, message = "Muitas solicitações de recuperação de senha. Tente novamente em 15 minutos.")
     public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.sendPasswordRecoveryEmail(request.getEmail());
         return ResponseEntity.ok().build();
@@ -225,6 +226,7 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "Token inválido ou expirado")
     })
     @PostMapping("/reset-password")
+    @RateLimit(requests = 5, windowMinutes = 15, message = "Muitas tentativas de reset de senha. Tente novamente em 15 minutos.")
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok().build();

@@ -96,7 +96,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                path.equals("/api/auth/forgot-password") ||
                path.equals("/api/auth/reset-password") ||
                path.equals("/api/auth/refresh-token") ||
-               path.equals("/api/users") || // Permitir POST para criar usuários
                path.endsWith("/health");
     }
 }

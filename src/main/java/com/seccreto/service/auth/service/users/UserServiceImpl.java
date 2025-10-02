@@ -115,7 +115,7 @@ public class UserServiceImpl implements UserService {
     
     private void sendEmailValidation(String email, String token, String callbackUrl) {
         // TODO: Implementar envio de email de validação
-        System.out.println("Email de validação enviado para: " + email + " com token: " + token);
+        logger.info("Email de validação solicitado com token length: {}", token.length());
     }
 
     @Override

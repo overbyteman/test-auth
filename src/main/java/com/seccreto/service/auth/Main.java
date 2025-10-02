@@ -10,11 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Main {
 
     public static void main(String[] args) {
-        System.out.println("🚀 Iniciando Sistema MVC com Spring Boot e Gradle...");
-        System.out.println("==================================================");
-        System.out.println("🌐 Acesse: http://localhost:8080/users");
-        System.out.println("📚 API REST: http://localhost:8080/users/api");
-        System.out.println("==================================================");
+        // Application startup messages moved to application.yml logging configuration
         
         SpringApplication.run(Main.class, args);
     }

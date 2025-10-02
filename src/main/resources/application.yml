@@ -87,6 +87,17 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:3600000}  # 1 hour in milliseconds
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days in milliseconds
+
+# Application Configuration
+app:
+  password-reset:
+    enabled: ${PASSWORD_RESET_ENABLED:true}
+
 # Application info
 info:
   app:

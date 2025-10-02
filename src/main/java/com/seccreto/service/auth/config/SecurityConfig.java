@@ -34,17 +34,27 @@ public class SecurityConfig {
     }
 
     /**
-     * Configuração de CORS para desenvolvimento e produção
+     * Configuração de CORS segura para desenvolvimento e produção
      */
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")
-                        .allowedOriginPatterns("*")
+                registry.addMapping("/api/**")
+                        .allowedOrigins(
+                            "http://localhost:3000",
+                            "http://localhost:8080",
+                            "https://yourdomain.com"
+                        )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*")
+                        .allowedHeaders(
+                            "Authorization",
+                            "Content-Type",
+                            "X-Requested-With",
+                            "Accept",
+                            "Origin"
+                        )
                         .allowCredentials(true)
                         .maxAge(3600);
             }
@@ -72,8 +82,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/forgot-password").permitAll()
                 .requestMatchers("/api/auth/reset-password").permitAll()
                 .requestMatchers("/api/auth/refresh-token").permitAll()
-                // Permitir criação de usuários temporariamente para testes
-                .requestMatchers("/api/users").permitAll() // POST para criar usuários
                 .requestMatchers("/api/dashboard/health").permitAll()
                 .requestMatchers("/api/*/health").permitAll()
                 // Todos os outros endpoints requerem autenticação

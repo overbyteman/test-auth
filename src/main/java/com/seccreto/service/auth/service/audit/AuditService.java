@@ -120,6 +120,22 @@ public class AuditService {
         logSuccess("LOGOUT", "USER", userId, "User logged out");
     }
 
+    public void logLogout(UUID userId, boolean success, String errorMessage) {
+        if (success) {
+            logSuccess("LOGOUT", "USER", userId, "User logged out successfully");
+        } else {
+            logFailure("LOGOUT", "USER", userId, "Failed logout attempt", errorMessage);
+        }
+    }
+
+    public void logPasswordReset(UUID userId, boolean success, String errorMessage) {
+        if (success) {
+            logSuccess("PASSWORD_RESET", "USER", userId, "Password reset completed");
+        } else {
+            logFailure("PASSWORD_RESET", "USER", userId, "Failed password reset attempt", errorMessage);
+        }
+    }
+
     public void logUserCreation(UUID userId, UUID createdUserId) {
         logSuccess("CREATE_USER", "USER", createdUserId, "New user created by " + userId);
     }
