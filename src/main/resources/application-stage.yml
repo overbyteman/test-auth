@@ -26,14 +26,6 @@ spring:
         cacheServerConfiguration: true
         elideSetAutoCommits: true
         maintainTimeStats: false
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
-    baseline-description: Baseline existing schema before applying versioned migrations
-    validate-on-migrate: true
-    clean-disabled: true
 
 # Undertow configuration for staging
 server:
@@ -53,7 +45,7 @@ logging:
   level:
     root: WARN
     com.example: INFO
-    org.springframework.jdbc.core: INFO
+    org.springframework.orm.jpa: INFO
     org.flywaydb: WARN
     org.postgresql: WARN
     io.undertow: WARN

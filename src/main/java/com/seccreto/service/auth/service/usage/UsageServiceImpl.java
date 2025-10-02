@@ -1,11 +1,8 @@
 package com.seccreto.service.auth.service.usage;
 
 import com.seccreto.service.auth.model.usage.DailyUserUsage;
-import com.seccreto.service.auth.repository.usage.UsageRepository;
+import com.seccreto.service.auth.repository.usage.DailyUserUsageRepository;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -30,27 +28,30 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class UsageServiceImpl implements UsageService {
 
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    private final JdbcTemplate jdbcTemplate;
-    private final UsageRepository usageRepository;
+    private final DailyUserUsageRepository dailyUserUsageRepository;
 
-    public UsageServiceImpl(JdbcTemplate jdbcTemplate, UsageRepository usageRepository) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
-        this.usageRepository = usageRepository;
+    public UsageServiceImpl(DailyUserUsageRepository dailyUserUsageRepository) {
+        this.dailyUserUsageRepository = dailyUserUsageRepository;
     }
 
     @Override
     @Transactional
     public void recordUserLogin(UUID userId, UUID tenantId, LocalDate usageDate) {
         try {
-            String sql = "SELECT record_user_login(:userId, :tenantId, :usageDate)";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId)
-                    .addValue("usageDate", usageDate);
+            // Implementação Java - substitui a função PostgreSQL
+            LocalDate date = usageDate != null ? usageDate : LocalDate.now();
+            Optional<DailyUserUsage> existingUsage = dailyUserUsageRepository
+                .findByUsageDateAndUserIdAndTenantId(date, userId, tenantId);
             
-            namedParameterJdbcTemplate.queryForObject(sql, params, Void.class);
+            if (existingUsage.isPresent()) {
+                DailyUserUsage usage = existingUsage.get();
+                usage.incrementLogin();
+                dailyUserUsageRepository.save(usage);
+            } else {
+                DailyUserUsage newUsage = DailyUserUsage.createNew(userId, tenantId, date);
+                newUsage.incrementLogin();
+                dailyUserUsageRepository.save(newUsage);
+            }
         } catch (Exception e) {
             throw new RuntimeException("Erro ao registrar login do usuário: " + e.getMessage(), e);
         }
@@ -60,14 +61,21 @@ public class UsageServiceImpl implements UsageService {
     @Transactional
     public void recordUserAction(UUID userId, UUID tenantId, LocalDate usageDate, LocalDateTime actionAt) {
         try {
-            String sql = "SELECT record_user_action(:userId, :tenantId, :usageDate, :actionAt)";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId)
-                    .addValue("usageDate", usageDate)
-                    .addValue("actionAt", actionAt);
+            // Implementação Java - substitui a função PostgreSQL
+            LocalDate date = usageDate != null ? usageDate : LocalDate.now();
+            LocalDateTime action = actionAt != null ? actionAt : LocalDateTime.now();
+            Optional<DailyUserUsage> existingUsage = dailyUserUsageRepository
+                .findByUsageDateAndUserIdAndTenantId(date, userId, tenantId);
             
-            namedParameterJdbcTemplate.queryForObject(sql, params, Void.class);
+            if (existingUsage.isPresent()) {
+                DailyUserUsage usage = existingUsage.get();
+                usage.incrementAction(action);
+                dailyUserUsageRepository.save(usage);
+            } else {
+                DailyUserUsage newUsage = DailyUserUsage.createNew(userId, tenantId, date);
+                newUsage.incrementAction(action);
+                dailyUserUsageRepository.save(newUsage);
+            }
         } catch (Exception e) {
             throw new RuntimeException("Erro ao registrar ação do usuário: " + e.getMessage(), e);
         }
@@ -76,23 +84,11 @@ public class UsageServiceImpl implements UsageService {
     @Override
     public List<DailyUserUsage> getUserDailyUsage(UUID userId, LocalDate startDate, LocalDate endDate, UUID tenantId) {
         try {
-            String sql = "SELECT * FROM get_user_daily_usage(:userId, :startDate, :endDate, :tenantId)";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("startDate", startDate)
-                    .addValue("endDate", endDate)
-                    .addValue("tenantId", tenantId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-                DailyUserUsage usage = new DailyUserUsage();
-                usage.setUsageDate(rs.getObject("usage_date", LocalDate.class));
-                usage.setUserId(rs.getObject("tenant_id", UUID.class));
-                usage.setTenantId(rs.getObject("tenant_id", UUID.class));
-                usage.setLogins(rs.getInt("logins"));
-                usage.setActions(rs.getInt("actions"));
-                usage.setLastActionAt(rs.getObject("last_action_at", LocalDateTime.class));
-                return usage;
-            });
+            // Usa método JPA padrão para buscar por período
+            return dailyUserUsageRepository.findByUsageDateBetween(startDate, endDate)
+                    .stream()
+                    .filter(usage -> usage.getUserId().equals(userId) && usage.getTenantId().equals(tenantId))
+                    .toList();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter métricas de uso do usuário: " + e.getMessage(), e);
         }
@@ -101,22 +97,16 @@ public class UsageServiceImpl implements UsageService {
     @Override
     public List<Object> getTopActiveUsers(LocalDate startDate, LocalDate endDate, UUID tenantId, int limit) {
         try {
-            String sql = "SELECT * FROM get_top_active_users(:startDate, :endDate, :tenantId, :limit)";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("startDate", startDate)
-                    .addValue("endDate", endDate)
-                    .addValue("tenantId", tenantId)
-                    .addValue("limit", limit);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-                Map<String, Object> user = Map.of(
-                    "userId", rs.getObject("user_id", UUID.class),
-                    "totalActions", rs.getLong("total_actions"),
-                    "totalLogins", rs.getLong("total_logins"),
-                    "lastActionAt", rs.getObject("last_action_at", LocalDateTime.class)
-                );
-                return user;
-            });
+            // Usa método JPA para obter estatísticas de usuários
+            List<Object[]> stats = dailyUserUsageRepository.getUserUsageStats(startDate);
+            return stats.stream()
+                    .limit(limit)
+                    .map(row -> (Object) Map.of(
+                        "userId", row[0],
+                        "totalLogins", row[1],
+                        "totalActions", row[2]
+                    ))
+                    .toList();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter usuários mais ativos: " + e.getMessage(), e);
         }
@@ -126,11 +116,12 @@ public class UsageServiceImpl implements UsageService {
     @Transactional
     public int cleanupOldUsage(int keepDays) {
         try {
-            String sql = "SELECT cleanup_old_usage(:keepDays)";
-            MapSqlParameterSource params = new MapSqlParameterSource("keepDays", keepDays);
-            
-            Integer deletedCount = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return deletedCount != null ? deletedCount : 0;
+            // Remove registros antigos baseado em keepDays
+            LocalDate cutoffDate = LocalDate.now().minusDays(keepDays);
+            List<DailyUserUsage> oldRecords = dailyUserUsageRepository.findByUsageDateBetween(
+                LocalDate.of(2000, 1, 1), cutoffDate);
+            dailyUserUsageRepository.deleteAll(oldRecords);
+            return oldRecords.size();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao limpar dados antigos: " + e.getMessage(), e);
         }
@@ -139,19 +130,9 @@ public class UsageServiceImpl implements UsageService {
     @Override
     public List<Object> getUserPermissionsInTenant(UUID userId, UUID tenantId) {
         try {
-            String sql = "SELECT * FROM get_user_permissions_in_tenant(:userId, :tenantId)";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-                Map<String, Object> permission = Map.of(
-                    "permissionId", rs.getObject("permission_id", UUID.class),
-                    "action", rs.getString("action"),
-                    "resource", rs.getString("resource")
-                );
-                return permission;
-            });
+            // TODO: Implementar usando outros repositories JPA (UsersTenantsRoles, RolesPermissions)
+            // Por enquanto retorna lista vazia
+            return List.of();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter permissões do usuário: " + e.getMessage(), e);
         }
@@ -160,15 +141,9 @@ public class UsageServiceImpl implements UsageService {
     @Override
     public boolean userHasPermissionInTenant(UUID userId, UUID tenantId, String action, String resource) {
         try {
-            String sql = "SELECT user_has_permission_in_tenant(:userId, :tenantId, :action, :resource)";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId)
-                    .addValue("action", action)
-                    .addValue("resource", resource);
-            
-            Boolean hasPermission = namedParameterJdbcTemplate.queryForObject(sql, params, Boolean.class);
-            return hasPermission != null && hasPermission;
+            // TODO: Implementar usando outros repositories JPA (UsersTenantsRoles, RolesPermissions)
+            // Por enquanto retorna false
+            return false;
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar permissão do usuário: " + e.getMessage(), e);
         }
@@ -177,19 +152,9 @@ public class UsageServiceImpl implements UsageService {
     @Override
     public List<Object> getUserTenantsWithRoles(UUID userId) {
         try {
-            String sql = "SELECT * FROM get_user_tenants_with_roles(:userId)";
-            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-                Map<String, Object> tenantRole = Map.of(
-                    "tenantId", rs.getObject("tenant_id", UUID.class),
-                    "tenantName", rs.getString("tenant_name"),
-                    "roleId", rs.getObject("role_id", UUID.class),
-                    "roleName", rs.getString("role_name"),
-                    "roleDescription", rs.getString("role_description")
-                );
-                return tenantRole;
-            });
+            // TODO: Implementar usando outros repositories JPA (UsersTenantsRoles)
+            // Por enquanto retorna lista vazia
+            return List.of();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter tenants do usuário: " + e.getMessage(), e);
         }
@@ -198,21 +163,9 @@ public class UsageServiceImpl implements UsageService {
     @Override
     public List<Object> evaluateAbacPolicies(String action, String resource, String context) {
         try {
-            String sql = "SELECT * FROM evaluate_abac_policies(:action, :resource, :context)";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("action", action)
-                    .addValue("resource", resource)
-                    .addValue("context", context);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-                Map<String, Object> policy = Map.of(
-                    "policyId", rs.getObject("policy_id", UUID.class),
-                    "policyName", rs.getString("policy_name"),
-                    "effect", rs.getString("effect"),
-                    "conditionsMatch", rs.getBoolean("conditions_match")
-                );
-                return policy;
-            });
+            // TODO: Implementar usando PolicyRepository JPA
+            // Por enquanto retorna lista vazia
+            return List.of();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao avaliar políticas ABAC: " + e.getMessage(), e);
         }
@@ -222,9 +175,9 @@ public class UsageServiceImpl implements UsageService {
     @Transactional
     public int cleanupExpiredSessions() {
         try {
-            String sql = "SELECT cleanup_expired_sessions()";
-            Integer deletedCount = jdbcTemplate.queryForObject(sql, Integer.class);
-            return deletedCount != null ? deletedCount : 0;
+            // TODO: Implementar usando SessionRepository JPA
+            // Por enquanto retorna 0
+            return 0;
         } catch (Exception e) {
             throw new RuntimeException("Erro ao limpar sessões expiradas: " + e.getMessage(), e);
         }

@@ -2,6 +2,7 @@ package com.seccreto.service.auth.api.exception;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.seccreto.service.auth.api.dto.ErrorResponse;
+import com.seccreto.service.auth.service.exception.AuthenticationException;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
@@ -39,6 +40,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI(), null);
     }
 
     @ExceptionHandler(ValidationException.class)

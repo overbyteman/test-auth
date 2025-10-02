@@ -18,7 +18,7 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoleRequest {
-    @Schema(description = "Nome do role", example = "ADMIN", required = true)
+    @Schema(description = "Nome do role", example = "ADMIN")
     @NotBlank(message = "Nome não pode ser vazio")
     @Size(min = 2, max = 100, message = "Nome deve ter entre 2 e 100 caracteres")
     private String name;

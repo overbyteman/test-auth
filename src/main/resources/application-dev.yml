@@ -26,15 +26,6 @@ spring:
         cacheServerConfiguration: true
         elideSetAutoCommits: true
         maintainTimeStats: false
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
-    baseline-description: Baseline existing schema before applying versioned migrations
-    validate-on-migrate: true
-    clean-disabled: false # TEMPORÁRIO: habilitado para corrigir mismatch de checksums (será revertido)
-    # NOTE: The file 01-init-multiple-databases.sql is not a valid Flyway name; leaving it empty is harmless.
 
 # Undertow configuration for development
 server:
@@ -54,7 +45,7 @@ logging:
   level:
     root: INFO
     com.example: DEBUG
-    org.springframework.jdbc.core: DEBUG
+    org.springframework.orm.jpa: DEBUG
     org.flywaydb: INFO
     org.postgresql: INFO
     io.undertow: WARN

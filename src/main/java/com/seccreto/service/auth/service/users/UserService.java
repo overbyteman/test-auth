@@ -16,6 +16,7 @@ public interface UserService {
     
     // Operações básicas CRUD
     User createUser(String name, String email, String password);
+    User createUserWithTenant(String name, String email, String password, UUID tenantId, UUID initialRoleId, boolean sendValidationEmail, String validationCallbackUrl);
     List<User> listAllUsers();
     Optional<User> findUserById(UUID id);
     List<User> findUsersByName(String name);

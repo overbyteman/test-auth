@@ -6,8 +6,6 @@ import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +24,8 @@ import java.util.UUID;
 public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
 
     private final UsersTenantsRolesRepository usersTenantsRolesRepository;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
-    public UsersTenantsRolesServiceImpl(UsersTenantsRolesRepository usersTenantsRolesRepository, 
-                                       NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public UsersTenantsRolesServiceImpl(UsersTenantsRolesRepository usersTenantsRolesRepository) {
         this.usersTenantsRolesRepository = usersTenantsRolesRepository;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -109,7 +103,8 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
         validateUserId(userId);
         validateTenantId(tenantId);
         validateRoleId(roleId);
-        return usersTenantsRolesRepository.deleteByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId);
+        usersTenantsRolesRepository.deleteByUserIdAndTenantIdAndRoleId(userId, tenantId, roleId);
+        return true;
     }
 
     @Override
@@ -124,7 +119,8 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     public boolean deleteAllRolesByUserAndTenant(UUID userId, UUID tenantId) {
         validateUserId(userId);
         validateTenantId(tenantId);
-        return usersTenantsRolesRepository.deleteByUserIdAndTenantId(userId, tenantId);
+        usersTenantsRolesRepository.deleteByUserIdAndTenantId(userId, tenantId);
+        return true;
     }
 
     @Override
@@ -132,7 +128,8 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     public boolean deleteAllUsersByTenantAndRole(UUID tenantId, UUID roleId) {
         validateTenantId(tenantId);
         validateRoleId(roleId);
-        return usersTenantsRolesRepository.deleteByTenantIdAndRoleId(tenantId, roleId);
+        usersTenantsRolesRepository.deleteByTenantIdAndRoleId(tenantId, roleId);
+        return true;
     }
 
     @Override
@@ -140,7 +137,8 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     public boolean deleteAllTenantsByUserAndRole(UUID userId, UUID roleId) {
         validateUserId(userId);
         validateRoleId(roleId);
-        return usersTenantsRolesRepository.deleteByUserIdAndRoleId(userId, roleId);
+        usersTenantsRolesRepository.deleteByUserIdAndRoleId(userId, roleId);
+        return true;
     }
 
     @Override
@@ -216,19 +214,8 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public boolean userHasRoleInTenantByRoleName(UUID userId, UUID tenantId, String roleName) {
         try {
-            String sql = """
-                SELECT COUNT(1)
-                FROM users_tenants_roles utr
-                JOIN roles r ON utr.role_id = r.id
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId AND r.name = :roleName
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId)
-                    .addValue("roleName", roleName);
-            
-            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return count != null && count > 0;
+            long count = usersTenantsRolesRepository.countUserTenantRoleByName(userId, tenantId, roleName);
+            return count > 0;
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar role do usuário no tenant: " + e.getMessage(), e);
         }
@@ -237,24 +224,14 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public List<Object> getUserTenantRolesDetails(UUID userId, UUID tenantId) {
         try {
-            String sql = """
-                SELECT r.id, r.name, r.description
-                FROM roles r
-                JOIN users_tenants_roles utr ON r.id = utr.role_id
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId
-                ORDER BY r.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "name", rs.getString("name"),
-                    "description", rs.getString("description")
-                )
-            );
+            List<Object[]> results = usersTenantsRolesRepository.getUserRolesInTenantDetails(userId, tenantId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "name", row[1],
+                        "description", row[2]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter detalhes dos roles do usuário no tenant: " + e.getMessage(), e);
         }
@@ -263,25 +240,15 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public List<Object> getTenantRoleUsersDetails(UUID tenantId, UUID roleId) {
         try {
-            String sql = """
-                SELECT u.id, u.name, u.email, u.is_active
-                FROM users u
-                JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.tenant_id = :tenantId AND utr.role_id = :roleId
-                ORDER BY u.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("tenantId", tenantId)
-                    .addValue("roleId", roleId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "name", rs.getString("name"),
-                    "email", rs.getString("email"),
-                    "isActive", rs.getBoolean("is_active")
-                )
-            );
+            List<Object[]> results = usersTenantsRolesRepository.getUsersInTenantWithRoleDetails(tenantId, roleId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "name", row[1],
+                        "email", row[2],
+                        "isActive", row[3]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter detalhes dos usuários do tenant com role: " + e.getMessage(), e);
         }
@@ -290,24 +257,14 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public List<Object> getUserRoleTenantsDetails(UUID userId, UUID roleId) {
         try {
-            String sql = """
-                SELECT t.id, t.name, t.config
-                FROM tenants t
-                JOIN users_tenants_roles utr ON t.id = utr.tenant_id
-                WHERE utr.user_id = :userId AND utr.role_id = :roleId
-                ORDER BY t.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("roleId", roleId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "name", rs.getString("name"),
-                    "config", rs.getString("config")
-                )
-            );
+            List<Object[]> results = usersTenantsRolesRepository.getTenantsForUserWithRoleDetails(userId, roleId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "name", row[1],
+                        "config", row[2]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter detalhes dos tenants do usuário com role: " + e.getMessage(), e);
         }
@@ -316,16 +273,7 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public List<String> findRoleNamesByUser(UUID userId) {
         try {
-            String sql = """
-                SELECT DISTINCT r.name
-                FROM roles r
-                JOIN users_tenants_roles utr ON r.id = utr.role_id
-                WHERE utr.user_id = :userId
-                ORDER BY r.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
-            
-            return namedParameterJdbcTemplate.queryForList(sql, params, String.class);
+            return usersTenantsRolesRepository.getAllUserRoleNames(userId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter nomes dos roles do usuário: " + e.getMessage(), e);
         }
@@ -334,17 +282,7 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public List<String> findPermissionNamesByUser(UUID userId) {
         try {
-            String sql = """
-                SELECT DISTINCT p.action || ':' || p.resource as permission
-                FROM permissions p
-                JOIN roles_permissions rp ON p.id = rp.permission_id
-                JOIN users_tenants_roles utr ON rp.role_id = utr.role_id
-                WHERE utr.user_id = :userId
-                ORDER BY permission
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
-            
-            return namedParameterJdbcTemplate.queryForList(sql, params, String.class);
+            return usersTenantsRolesRepository.getAllUserPermissionNames(userId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter nomes das permissões do usuário: " + e.getMessage(), e);
         }
@@ -353,15 +291,7 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public long countRolesByUser(UUID userId) {
         try {
-            String sql = """
-                SELECT COUNT(DISTINCT utr.role_id)
-                FROM users_tenants_roles utr
-                WHERE utr.user_id = :userId
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
-            
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0L;
+            return usersTenantsRolesRepository.countAllUserRoles(userId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar roles do usuário: " + e.getMessage(), e);
         }
@@ -370,17 +300,7 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
     @Override
     public long countPermissionsByUser(UUID userId) {
         try {
-            String sql = """
-                SELECT COUNT(DISTINCT p.id)
-                FROM permissions p
-                JOIN roles_permissions rp ON p.id = rp.permission_id
-                JOIN users_tenants_roles utr ON rp.role_id = utr.role_id
-                WHERE utr.user_id = :userId
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
-            
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0L;
+            return usersTenantsRolesRepository.countAllUserPermissions(userId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar permissões do usuário: " + e.getMessage(), e);
         }

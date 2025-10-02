@@ -7,8 +7,6 @@ import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +25,8 @@ import java.util.UUID;
 public class RoleServiceImpl implements RoleService {
 
     private final RoleRepository roleRepository;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
-    public RoleServiceImpl(RoleRepository roleRepository, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public RoleServiceImpl(RoleRepository roleRepository) {
         this.roleRepository = roleRepository;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -67,7 +62,8 @@ public class RoleServiceImpl implements RoleService {
     @Timed(value = "roles.find", description = "Time taken to find roles by name")
     public List<Role> findRolesByName(String name) {
         validateName(name);
-        return roleRepository.findByName(name);
+        Optional<Role> role = roleRepository.findByName(name);
+        return role.map(List::of).orElse(List.of());
     }
 
     @Override
@@ -97,7 +93,7 @@ public class RoleServiceImpl implements RoleService {
         role.setDescription(description);
         role.updateTimestamp();
 
-        return roleRepository.update(role);
+        return roleRepository.save(role);
     }
 
     @Override
@@ -110,7 +106,8 @@ public class RoleServiceImpl implements RoleService {
             throw new ResourceNotFoundException("Role não encontrado com ID: " + id);
         }
 
-        return roleRepository.deleteById(id);
+        roleRepository.deleteById(id);
+        return true;
     }
 
     @Override
@@ -139,22 +136,14 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public List<Object> getRolePermissions(UUID roleId) {
         try {
-            String sql = """
-                SELECT p.id, p.action, p.resource
-                FROM permissions p
-                JOIN roles_permissions rp ON p.id = rp.permission_id
-                WHERE rp.role_id = :roleId
-                ORDER BY p.action, p.resource
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "action", rs.getString("action"),
-                    "resource", rs.getString("resource")
-                )
-            );
+            List<Object[]> results = roleRepository.getRolePermissionsDetails(roleId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "action", row[1],
+                        "resource", row[2]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter permissões do role: " + e.getMessage(), e);
         }
@@ -163,19 +152,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public boolean roleHasPermission(UUID roleId, String action, String resource) {
         try {
-            String sql = """
-                SELECT COUNT(1)
-                FROM roles_permissions rp
-                JOIN permissions p ON rp.permission_id = p.id
-                WHERE rp.role_id = :roleId AND p.action = :action AND p.resource = :resource
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("roleId", roleId)
-                    .addValue("action", action)
-                    .addValue("resource", resource);
-            
-            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return count != null && count > 0;
+            return roleRepository.roleHasPermissionByActionAndResource(roleId, action, resource);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar permissão do role: " + e.getMessage(), e);
         }
@@ -184,11 +161,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public long countRolePermissions(UUID roleId) {
         try {
-            String sql = "SELECT COUNT(1) FROM roles_permissions WHERE role_id = :roleId";
-            MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
-            
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0;
+            return roleRepository.countPermissionsByRole(roleId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar permissões do role: " + e.getMessage(), e);
         }
@@ -197,23 +170,15 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public List<Object> getRoleUsers(UUID roleId) {
         try {
-            String sql = """
-                SELECT u.id, u.name, u.email, u.is_active
-                FROM users u
-                JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.role_id = :roleId
-                ORDER BY u.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "name", rs.getString("name"),
-                    "email", rs.getString("email"),
-                    "isActive", rs.getBoolean("is_active")
-                )
-            );
+            List<Object[]> results = roleRepository.getRoleUsersDetails(roleId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "name", row[1],
+                        "email", row[2],
+                        "isActive", row[3]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter usuários do role: " + e.getMessage(), e);
         }
@@ -222,16 +187,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public long countRoleUsers(UUID roleId) {
         try {
-            String sql = """
-                SELECT COUNT(DISTINCT u.id)
-                FROM users u
-                JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.role_id = :roleId
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
-            
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0;
+            return roleRepository.countUsersByRole(roleId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar usuários do role: " + e.getMessage(), e);
         }

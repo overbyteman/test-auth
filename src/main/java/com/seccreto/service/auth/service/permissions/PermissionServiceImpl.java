@@ -7,8 +7,6 @@ import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +25,8 @@ import java.util.UUID;
 public class PermissionServiceImpl implements PermissionService {
 
     private final PermissionRepository permissionRepository;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
-    public PermissionServiceImpl(PermissionRepository permissionRepository, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public PermissionServiceImpl(PermissionRepository permissionRepository) {
         this.permissionRepository = permissionRepository;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -107,7 +102,7 @@ public class PermissionServiceImpl implements PermissionService {
         permission.setResource(resource.trim());
         permission.updateTimestamp();
 
-        return permissionRepository.update(permission);
+        return permissionRepository.save(permission);
     }
 
     @Override
@@ -120,7 +115,8 @@ public class PermissionServiceImpl implements PermissionService {
             throw new ResourceNotFoundException("Permissão não encontrada com ID: " + id);
         }
 
-        return permissionRepository.deleteById(id);
+        permissionRepository.deleteById(id);
+        return true;
     }
 
     @Override
@@ -150,22 +146,14 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     public List<Object> getPermissionRoles(UUID permissionId) {
         try {
-            String sql = """
-                SELECT r.id, r.name, r.description
-                FROM roles r
-                JOIN roles_permissions rp ON r.id = rp.role_id
-                WHERE rp.permission_id = :permissionId
-                ORDER BY r.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "name", rs.getString("name"),
-                    "description", rs.getString("description")
-                )
-            );
+            List<Object[]> results = permissionRepository.getPermissionRolesDetails(permissionId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "name", row[1],
+                        "description", row[2]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter roles da permissão: " + e.getMessage(), e);
         }
@@ -174,11 +162,7 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     public long countPermissionRoles(UUID permissionId) {
         try {
-            String sql = "SELECT COUNT(1) FROM roles_permissions WHERE permission_id = :permissionId";
-            MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
-            
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0;
+            return permissionRepository.countRolesByPermission(permissionId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar roles da permissão: " + e.getMessage(), e);
         }

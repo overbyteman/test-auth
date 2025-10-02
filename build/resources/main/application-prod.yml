@@ -32,15 +32,6 @@ spring:
         connectTimeout: 20000
         tcpKeepAlive: true
         tcpNoDelay: true
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
-    baseline-description: Baseline existing schema before applying versioned migrations
-    validate-on-migrate: true
-    clean-disabled: true
-    # Em produção mantenha clean desabilitado por segurança.
 
 # Undertow configuration for production - optimized for high performance
 server:

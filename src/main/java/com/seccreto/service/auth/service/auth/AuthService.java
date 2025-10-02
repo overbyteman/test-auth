@@ -2,6 +2,7 @@ package com.seccreto.service.auth.service.auth;
 
 import com.seccreto.service.auth.api.dto.auth.LoginResponse;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
+import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.sessions.Session;
@@ -26,6 +27,7 @@ public interface AuthService {
     LoginResponse refreshAccessToken(String refreshToken);
     ValidateTokenResponse validateAccessToken(String token);
     UserResponse getCurrentUserProfile(String token);
+    UserProfileResponse getCurrentUserCompleteProfile(String token);
     void changePassword(String token, String currentPassword, String newPassword);
     void sendPasswordRecoveryEmail(String email);
     void resetPassword(String token, String newPassword);

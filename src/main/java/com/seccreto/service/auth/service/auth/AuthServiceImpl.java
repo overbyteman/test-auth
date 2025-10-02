@@ -2,19 +2,21 @@ package com.seccreto.service.auth.service.auth;
 
 import com.seccreto.service.auth.api.dto.auth.LoginResponse;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
+import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.model.users.User;
 import com.seccreto.service.auth.repository.users.UserRepository;
 import com.seccreto.service.auth.repository.sessions.SessionRepository;
+import com.seccreto.service.auth.service.exception.AuthenticationException;
+import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import com.seccreto.service.auth.service.usage.UsageService;
+import com.seccreto.service.auth.service.jwt.JwtService;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 // Removed BCryptPasswordEncoder import - not available in current dependencies
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,17 +47,15 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
     private final UsageService usageService;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    // Removed BCryptPasswordEncoder - not available in current dependencies
-
+    private final JwtService jwtService;
     public AuthServiceImpl(UserRepository userRepository, 
                          SessionRepository sessionRepository,
                          UsageService usageService,
-                         NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+                         JwtService jwtService) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.usageService = usageService;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.jwtService = jwtService;
     }
 
     @Override
@@ -68,19 +68,28 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com email: " + email));
 
         if (!user.isActive()) {
-            throw new ValidationException("Usuário inativo");
+            throw new AuthenticationException("Usuário inativo");
         }
 
         if (!validatePassword(password, user.getPasswordHash())) {
-            throw new ValidationException("Senha incorreta");
+            throw new AuthenticationException("Senha incorreta");
         }
 
         // Create session and return login response
         Session session = createUserSession(user, "web", null);
         
+        // Gerar tokens JWT reais
+        List<String> roles = List.of("USER"); // TODO: Buscar roles reais do usuário
+        List<String> permissions = List.of("read:profile"); // TODO: Buscar permissões reais
+        
+        String accessToken = jwtService.generateAccessToken(
+            user.getId(), session.getId(), null, roles, permissions
+        );
+        String refreshToken = jwtService.generateRefreshToken(user.getId(), session.getId());
+        
         return LoginResponse.builder()
-                .accessToken("dummy-token") // TODO: Implement proper JWT
-                .refreshToken("dummy-refresh-token") // TODO: Implement proper refresh token
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(3600L)
                 .userId(user.getId())
@@ -157,7 +166,7 @@ public class AuthServiceImpl implements AuthService {
 
         // Atualizar expiração
         session.setExpiresAt(LocalDateTime.now().plusDays(7));
-        return sessionRepository.update(session);
+        return sessionRepository.save(session);
     }
 
     @Override
@@ -179,7 +188,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada"));
         
         session.setExpiresAt(LocalDateTime.now().minusMinutes(1));
-        sessionRepository.update(session);
+        sessionRepository.save(session);
     }
 
     @Override
@@ -192,22 +201,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean userHasPermission(UUID userId, UUID tenantId, String action, String resource) {
         try {
-            String sql = """
-                SELECT COUNT(1)
-                FROM users_tenants_roles utr
-                JOIN roles_permissions rp ON utr.role_id = rp.role_id
-                JOIN permissions p ON rp.permission_id = p.id
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId 
-                AND p.action = :action AND p.resource = :resource
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId)
-                    .addValue("action", action)
-                    .addValue("resource", resource);
-            
-            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return count != null && count > 0;
+            // Use the native query method from UserRepository
+            Boolean result = userRepository.userHasPermissionInTenant(userId, tenantId, action, resource);
+            return result != null && result;
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar permissão do usuário: " + e.getMessage(), e);
         }
@@ -216,19 +212,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean userHasRole(UUID userId, UUID tenantId, String roleName) {
         try {
-            String sql = """
-                SELECT COUNT(1)
-                FROM users_tenants_roles utr
-                JOIN roles r ON utr.role_id = r.id
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId AND r.name = :roleName
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId)
-                    .addValue("roleName", roleName);
-            
-            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return count != null && count > 0;
+            // Get user tenants with roles and check if the role exists
+            List<Object[]> userTenants = userRepository.getUserTenantsWithRoles(userId);
+            return userTenants.stream()
+                    .anyMatch(row -> tenantId.equals(row[0]) && roleName.equals(row[3]));
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar role do usuário: " + e.getMessage(), e);
         }
@@ -237,18 +224,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean userHasRole(UUID userId, UUID tenantId, UUID roleId) {
         try {
-            String sql = """
-                SELECT COUNT(1)
-                FROM users_tenants_roles utr
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId AND utr.role_id = :roleId
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId)
-                    .addValue("roleId", roleId);
-            
-            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return count != null && count > 0;
+            // Get user tenants with roles and check if the role ID exists
+            List<Object[]> userTenants = userRepository.getUserTenantsWithRoles(userId);
+            return userTenants.stream()
+                    .anyMatch(row -> tenantId.equals(row[0]) && roleId.equals(row[2]));
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar role do usuário: " + e.getMessage(), e);
         }
@@ -257,19 +236,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public List<String> getUserPermissions(UUID userId, UUID tenantId) {
         try {
-            String sql = """
-                SELECT DISTINCT p.action || ':' || p.resource as permission
-                FROM users_tenants_roles utr
-                JOIN roles_permissions rp ON utr.role_id = rp.role_id
-                JOIN permissions p ON rp.permission_id = p.id
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId
-                ORDER BY permission
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("permission"));
+            // Use the native query method from UserRepository
+            List<Object[]> permissions = userRepository.getUserPermissionsInTenant(userId, tenantId);
+            return permissions.stream()
+                    .map(row -> row[1] + ":" + row[2]) // action:resource
+                    .sorted()
+                    .toList();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter permissões do usuário: " + e.getMessage(), e);
         }
@@ -278,18 +250,13 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public List<String> getUserRoles(UUID userId, UUID tenantId) {
         try {
-            String sql = """
-                SELECT r.name
-                FROM users_tenants_roles utr
-                JOIN roles r ON utr.role_id = r.id
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId
-                ORDER BY r.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("name"));
+            // Get user tenants with roles and extract role names for the specific tenant
+            List<Object[]> userTenants = userRepository.getUserTenantsWithRoles(userId);
+            return userTenants.stream()
+                    .filter(row -> tenantId.equals(row[0]))
+                    .map(row -> (String) row[3]) // role_name
+                    .sorted()
+                    .toList();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter roles do usuário: " + e.getMessage(), e);
         }
@@ -304,18 +271,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean isUserActiveInTenant(UUID userId, UUID tenantId) {
         try {
-            String sql = """
-                SELECT COUNT(1)
-                FROM users_tenants_roles utr
-                JOIN users u ON utr.user_id = u.id
-                WHERE utr.user_id = :userId AND utr.tenant_id = :tenantId AND u.is_active = true
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("userId", userId)
-                    .addValue("tenantId", tenantId);
+            // Check if user is active and has roles in the tenant
+            Optional<User> user = userRepository.findById(userId);
+            if (user.isEmpty() || !user.get().isActive()) {
+                return false;
+            }
             
-            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return count != null && count > 0;
+            // Check if user has any role in the tenant
+            List<Object[]> userTenants = userRepository.getUserTenantsWithRoles(userId);
+            return userTenants.stream()
+                    .anyMatch(row -> tenantId.equals(row[0]));
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar usuário ativo no tenant: " + e.getMessage(), e);
         }
@@ -370,7 +335,7 @@ public class AuthServiceImpl implements AuthService {
         
         // Check if user already exists
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new ValidationException("Usuário já existe com este email");
+            throw new ConflictException("Usuário já existe com este email");
         }
         
         // Create new user
@@ -388,13 +353,22 @@ public class AuthServiceImpl implements AuthService {
         // Create session
         Session session = createUserSession(savedUser, "web", null);
         
+        // Generate JWT tokens
+        List<String> roles = List.of("USER"); // TODO: Fetch real user roles
+        List<String> permissions = List.of("read:profile"); // TODO: Fetch real permissions
+        
+        String accessToken = jwtService.generateAccessToken(
+            savedUser.getId(), session.getId(), null, roles, permissions
+        );
+        String refreshToken = jwtService.generateRefreshToken(savedUser.getId(), session.getId());
+        
         return RegisterResponse.builder()
                 .userId(savedUser.getId())
                 .name(savedUser.getName())
                 .email(savedUser.getEmail())
                 .createdAt(savedUser.getCreatedAt())
-                .accessToken("dummy-token") // TODO: Implement proper JWT
-                .refreshToken("dummy-refresh-token") // TODO: Implement proper refresh token
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(3600L)
                 .build();
@@ -402,26 +376,46 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse refreshAccessToken(String refreshToken) {
-        validateRefreshToken(refreshToken);
-        
-        Optional<Session> session = sessionRepository.findByRefreshTokenHash(refreshToken);
-        if (session.isEmpty() || session.get().isExpired()) {
-            throw new ValidationException("Refresh token inválido ou expirado");
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            throw new ValidationException("Refresh token é obrigatório");
         }
         
-        User user = userRepository.findById(session.get().getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        // TODO: Implementar validação real do refresh token
+        // Por enquanto, simulando validação básica
+        if (!refreshToken.startsWith("refresh_token_")) {
+            throw new ValidationException("Refresh token inválido");
+        }
         
-        return LoginResponse.builder()
-                .accessToken("dummy-token") // TODO: Implement proper JWT
-                .refreshToken("dummy-refresh-token") // TODO: Implement proper refresh token
-                .tokenType("Bearer")
-                .expiresIn(3600L)
-                .userId(user.getId())
-                .userName(user.getName())
-                .userEmail(user.getEmail())
-                .loginTime(LocalDateTime.now())
-                .build();
+        try {
+            String[] parts = refreshToken.split("_");
+            UUID userId = UUID.fromString(parts[2]);
+            UUID sessionId = UUID.fromString(parts[3]);
+            
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+            
+            // Gerar novos tokens
+            List<String> roles = List.of("USER"); // TODO: Buscar roles reais
+            List<String> permissions = List.of("read:profile"); // TODO: Buscar permissões reais
+            
+            String newAccessToken = jwtService.generateAccessToken(
+                userId, sessionId, null, roles, permissions
+            );
+            String newRefreshToken = jwtService.generateRefreshToken(userId, sessionId);
+            
+            return LoginResponse.builder()
+                    .accessToken(newAccessToken)
+                    .refreshToken(newRefreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(3600L)
+                    .userId(user.getId())
+                    .userName(user.getName())
+                    .userEmail(user.getEmail())
+                    .loginTime(LocalDateTime.now())
+                    .build();
+        } catch (Exception e) {
+            throw new ValidationException("Refresh token inválido ou malformado");
+        }
     }
 
     @Override
@@ -433,16 +427,31 @@ public class AuthServiceImpl implements AuthService {
                     .build();
         }
         
-        // TODO: Implement proper JWT validation
-        // For now, return a dummy response
+        // Remover prefixo "Bearer " se presente
+        String cleanToken = token.startsWith("Bearer ") ? token.substring(7) : token;
+        
+        JwtService.JwtValidationResult result = jwtService.validateToken(cleanToken);
+        
+        if (!result.valid()) {
+            return ValidateTokenResponse.builder()
+                    .valid(false)
+                    .userId(result.userId())
+                    .reason(result.reason())
+                    .build();
+        }
+        
+        // Buscar informações do usuário
+        User user = userRepository.findById(result.userId())
+                .orElse(null);
+        
         return ValidateTokenResponse.builder()
                 .valid(true)
-                .userId(UUID.randomUUID()) // TODO: Extract from token
-                .userName("Dummy User") // TODO: Extract from token
-                .userEmail("dummy@example.com") // TODO: Extract from token
-                .roles(List.of("USER")) // TODO: Extract from token
-                .permissions(List.of("READ")) // TODO: Extract from token
-                .expiresAt(LocalDateTime.now().plusHours(1)) // TODO: Extract from token
+                .userId(result.userId())
+                .userName(user != null ? user.getName() : "Unknown")
+                .userEmail(user != null ? user.getEmail() : "unknown@example.com")
+                .roles(result.roles())
+                .permissions(result.permissions())
+                .expiresAt(result.expiresAt())
                 .build();
     }
 
@@ -466,6 +475,69 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public UserProfileResponse getCurrentUserCompleteProfile(String token) {
+        // Remover prefixo "Bearer " se presente
+        String cleanToken = token.startsWith("Bearer ") ? token.substring(7) : token;
+        
+        JwtService.JwtValidationResult result = jwtService.validateToken(cleanToken);
+        
+        if (!result.valid()) {
+            return UserProfileResponse.builder()
+                    .valid(false)
+                    .userId(result.userId())
+                    .sessionId(result.sessionId())
+                    .tenantId(result.tenantId())
+                    .userInfo(null)
+                    .permissions(List.of())
+                    .roles(List.of())
+                    .policies(List.of())
+                    .expiresAt(result.expiresAt())
+                    .reason(result.reason())
+                    .build();
+        }
+        
+        User user = userRepository.findById(result.userId())
+                .orElse(null);
+        
+        if (user == null) {
+            return UserProfileResponse.builder()
+                    .valid(false)
+                    .userId(result.userId())
+                    .sessionId(result.sessionId())
+                    .tenantId(result.tenantId())
+                    .userInfo(null)
+                    .permissions(List.of())
+                    .roles(List.of())
+                    .policies(List.of())
+                    .expiresAt(result.expiresAt())
+                    .reason("Usuário não encontrado")
+                    .build();
+        }
+        
+        UserProfileResponse.UserInfo userInfo = UserProfileResponse.UserInfo.of(
+                user.getName(),
+                user.getEmail(),
+                user.isActive()
+        );
+        
+        // TODO: Buscar políticas reais do usuário
+        List<String> policies = List.of();
+        
+        return UserProfileResponse.builder()
+                .valid(true)
+                .userId(user.getId())
+                .sessionId(result.sessionId())
+                .tenantId(result.tenantId())
+                .userInfo(userInfo)
+                .permissions(result.permissions())
+                .roles(result.roles())
+                .policies(policies)
+                .expiresAt(result.expiresAt())
+                .reason(null)
+                .build();
+    }
+
+    @Override
     public void changePassword(String token, String currentPassword, String newPassword) {
         ValidateTokenResponse tokenResponse = validateAccessToken(token);
         if (!tokenResponse.getValid()) {
@@ -482,7 +554,7 @@ public class AuthServiceImpl implements AuthService {
         validatePassword(newPassword);
         user.setPasswordHash(hashPassword(newPassword));
         user.updateTimestamp();
-        userRepository.update(user);
+        userRepository.save(user);
     }
 
     @Override

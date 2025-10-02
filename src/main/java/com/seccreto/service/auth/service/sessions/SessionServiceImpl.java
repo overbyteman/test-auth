@@ -137,7 +137,7 @@ public class SessionServiceImpl implements SessionService {
     @Timed(value = "sessions.update", description = "Time taken to update session")
     public Session updateSession(Session session) {
         validateSession(session);
-        return sessionRepository.update(session);
+        return sessionRepository.save(session);
     }
 
     @Override
@@ -145,20 +145,23 @@ public class SessionServiceImpl implements SessionService {
     @Timed(value = "sessions.delete", description = "Time taken to delete session")
     public boolean deleteSessionById(UUID id) {
         validateId(id);
-        return sessionRepository.deleteById(id);
+        sessionRepository.deleteById(id);
+        return true;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteSessionsByUserId(UUID userId) {
         validateUserId(userId);
-        return sessionRepository.deleteByUserId(userId);
+        sessionRepository.deleteByUserId(userId);
+        return true;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteExpiredSessions() {
-        return sessionRepository.deleteExpiredSessions();
+        int deletedCount = sessionRepository.deleteExpiredSessions();
+        return deletedCount > 0;
     }
 
     @Override
@@ -200,7 +203,7 @@ public class SessionServiceImpl implements SessionService {
         
         // Marcar como expirada
         session.setExpiresAt(LocalDateTime.now().minusMinutes(1));
-        sessionRepository.update(session);
+        sessionRepository.save(session);
     }
 
     @Override
@@ -253,13 +256,19 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     public List<Session> searchSessions(String ipAddress, String userAgent, UUID userId) {
-        return sessionRepository.search(ipAddress, userAgent, userId);
+        try {
+            InetAddress inetAddress = ipAddress != null ? InetAddress.getByName(ipAddress) : null;
+            return sessionRepository.search(inetAddress, userAgent, userId);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     @Override
     public String findLastLoginByUser(UUID userId) {
         validateUserId(userId);
-        return sessionRepository.findLastLoginByUser(userId);
+        List<Session> sessions = sessionRepository.findLastLoginByUser(userId);
+        return sessions.isEmpty() ? null : sessions.get(0).getCreatedAt().toString();
     }
 
     @Override
@@ -284,7 +293,7 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada com ID: " + sessionId));
         
         session.setExpiresAt(newExpiresAt);
-        sessionRepository.update(session);
+        sessionRepository.save(session);
     }
 
     // Métodos de validação privados

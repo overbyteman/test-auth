@@ -19,7 +19,7 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TenantRequest {
-    @Schema(description = "Nome do tenant", example = "Empresa ABC", required = true)
+    @Schema(description = "Nome do tenant", example = "Empresa ABC")
     @NotBlank(message = "Nome não pode ser vazio")
     @Size(min = 2, max = 200, message = "Nome deve ter entre 2 e 200 caracteres")
     private String name;

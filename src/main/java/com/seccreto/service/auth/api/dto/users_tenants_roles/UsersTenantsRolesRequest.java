@@ -18,15 +18,15 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UsersTenantsRolesRequest {
-    @Schema(description = "ID do usuário", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+    @Schema(description = "ID do usuário", example = "550e8400-e29b-41d4-a716-446655440000")
     @NotNull(message = "ID do usuário não pode ser nulo")
     private UUID userId;
     
-    @Schema(description = "ID do tenant", example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+    @Schema(description = "ID do tenant", example = "550e8400-e29b-41d4-a716-446655440001")
     @NotNull(message = "ID do tenant não pode ser nulo")
     private UUID tenantId;
     
-    @Schema(description = "ID do role", example = "550e8400-e29b-41d4-a716-446655440002", required = true)
+    @Schema(description = "ID do role", example = "550e8400-e29b-41d4-a716-446655440002")
     @NotNull(message = "ID do role não pode ser nulo")
     private UUID roleId;
 }

@@ -10,6 +10,7 @@ import com.seccreto.service.auth.api.dto.auth.RegisterRequest;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
 import com.seccreto.service.auth.api.dto.auth.ResetPasswordRequest;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenRequest;
+import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.service.auth.AuthService;
@@ -147,22 +148,23 @@ public class AuthController {
     }
 
     /**
-     * CASO DE USO: Usuário obtém perfil atual
+     * CASO DE USO: Usuário obtém perfil atual completo
      * Endpoint semântico: GET /api/auth/me
+     * Inclui roles, permissions, tenant info, etc.
      */
     @Operation(
-        summary = "Obter perfil atual", 
-        description = "Retorna informações do usuário autenticado"
+        summary = "Obter perfil completo atual", 
+        description = "Retorna dados completos do usuário autenticado incluindo roles, permissions e tenant info"
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Perfil obtido com sucesso",
-                content = @Content(schema = @Schema(implementation = UserResponse.class))),
+        @ApiResponse(responseCode = "200", description = "Perfil completo obtido com sucesso",
+                content = @Content(schema = @Schema(implementation = UserProfileResponse.class))),
         @ApiResponse(responseCode = "401", description = "Token inválido ou expirado")
     })
     @GetMapping("/me")
-    public ResponseEntity<UserResponse> getCurrentUser(
+    public ResponseEntity<UserProfileResponse> getCurrentUser(
             @Parameter(description = "Token de acesso") @RequestHeader("Authorization") String token) {
-        UserResponse user = authService.getCurrentUserProfile(token);
+        UserProfileResponse user = authService.getCurrentUserCompleteProfile(token);
         return ResponseEntity.ok(user);
     }
 
@@ -238,7 +240,7 @@ public class AuthController {
     public ResponseEntity<Object> getAuthHealth() {
         return ResponseEntity.ok(new Object() {
             public final String status = "healthy";
-            public final String service = "authentication";
+            public final String service = "auth-service";
             public final long activeSessions = sessionService.countActiveSessions();
             public final long totalUsers = userService.countUsers();
         });

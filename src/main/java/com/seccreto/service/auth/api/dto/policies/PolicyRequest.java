@@ -23,7 +23,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PolicyRequest {
-    @Schema(description = "Nome da policy", example = "Admin Full Access", required = true)
+    @Schema(description = "Nome da policy", example = "Admin Full Access")
     @NotBlank(message = "Nome não pode ser vazio")
     @Size(min = 2, max = 200, message = "Nome deve ter entre 2 e 200 caracteres")
     private String name;
@@ -32,15 +32,15 @@ public class PolicyRequest {
     @Size(max = 500, message = "Descrição deve ter no máximo 500 caracteres")
     private String description;
     
-    @Schema(description = "Efeito da policy", example = "ALLOW", required = true)
+    @Schema(description = "Efeito da policy", example = "ALLOW")
     @NotNull(message = "Efeito da policy não pode ser nulo")
     private PolicyEffect effect;
     
-    @Schema(description = "Lista de ações que a policy se aplica", example = "[\"create\", \"read\", \"update\", \"delete\"]", required = true)
+    @Schema(description = "Lista de ações que a policy se aplica", example = "[\"create\", \"read\", \"update\", \"delete\"]")
     @NotEmpty(message = "Ações não podem ser vazias")
     private List<String> actions;
     
-    @Schema(description = "Lista de recursos que a policy se aplica", example = "[\"users\", \"articles\"]", required = true)
+    @Schema(description = "Lista de recursos que a policy se aplica", example = "[\"users\", \"articles\"]")
     @NotEmpty(message = "Recursos não podem ser vazios")
     private List<String> resources;
     

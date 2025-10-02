@@ -6,8 +6,6 @@ import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +24,8 @@ import java.util.UUID;
 public class RolesPermissionsServiceImpl implements RolesPermissionsService {
 
     private final RolesPermissionsRepository rolesPermissionsRepository;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
-    public RolesPermissionsServiceImpl(RolesPermissionsRepository rolesPermissionsRepository, 
-                                     NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public RolesPermissionsServiceImpl(RolesPermissionsRepository rolesPermissionsRepository) {
         this.rolesPermissionsRepository = rolesPermissionsRepository;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -95,7 +89,8 @@ public class RolesPermissionsServiceImpl implements RolesPermissionsService {
     public boolean deleteRolePermission(UUID roleId, UUID permissionId) {
         validateRoleId(roleId);
         validatePermissionId(permissionId);
-        return rolesPermissionsRepository.deleteByRoleIdAndPermissionId(roleId, permissionId);
+        rolesPermissionsRepository.deleteByRoleIdAndPermissionId(roleId, permissionId);
+        return true;
     }
 
     @Override
@@ -109,14 +104,16 @@ public class RolesPermissionsServiceImpl implements RolesPermissionsService {
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteAllPermissionsByRole(UUID roleId) {
         validateRoleId(roleId);
-        return rolesPermissionsRepository.deleteByRoleId(roleId);
+        rolesPermissionsRepository.deleteByRoleId(roleId);
+        return true;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteAllRolesByPermission(UUID permissionId) {
         validatePermissionId(permissionId);
-        return rolesPermissionsRepository.deleteByPermissionId(permissionId);
+        rolesPermissionsRepository.deleteByPermissionId(permissionId);
+        return true;
     }
 
     @Override
@@ -172,19 +169,7 @@ public class RolesPermissionsServiceImpl implements RolesPermissionsService {
     @Override
     public boolean roleHasPermissionByActionAndResource(UUID roleId, String action, String resource) {
         try {
-            String sql = """
-                SELECT COUNT(1)
-                FROM roles_permissions rp
-                JOIN permissions p ON rp.permission_id = p.id
-                WHERE rp.role_id = :roleId AND p.action = :action AND p.resource = :resource
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("roleId", roleId)
-                    .addValue("action", action)
-                    .addValue("resource", resource);
-            
-            Integer count = namedParameterJdbcTemplate.queryForObject(sql, params, Integer.class);
-            return count != null && count > 0;
+            return rolesPermissionsRepository.roleHasPermissionByActionAndResource(roleId, action, resource);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar permissão do role: " + e.getMessage(), e);
         }
@@ -193,22 +178,14 @@ public class RolesPermissionsServiceImpl implements RolesPermissionsService {
     @Override
     public List<Object> getRolePermissionsDetails(UUID roleId) {
         try {
-            String sql = """
-                SELECT p.id, p.action, p.resource
-                FROM permissions p
-                JOIN roles_permissions rp ON p.id = rp.permission_id
-                WHERE rp.role_id = :roleId
-                ORDER BY p.action, p.resource
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("roleId", roleId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "action", rs.getString("action"),
-                    "resource", rs.getString("resource")
-                )
-            );
+            List<Object[]> results = rolesPermissionsRepository.getRolePermissionsDetails(roleId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "action", row[1],
+                        "resource", row[2]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter detalhes das permissões do role: " + e.getMessage(), e);
         }
@@ -217,22 +194,14 @@ public class RolesPermissionsServiceImpl implements RolesPermissionsService {
     @Override
     public List<Object> getPermissionRolesDetails(UUID permissionId) {
         try {
-            String sql = """
-                SELECT r.id, r.name, r.description
-                FROM roles r
-                JOIN roles_permissions rp ON r.id = rp.role_id
-                WHERE rp.permission_id = :permissionId
-                ORDER BY r.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("permissionId", permissionId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "name", rs.getString("name"),
-                    "description", rs.getString("description")
-                )
-            );
+            List<Object[]> results = rolesPermissionsRepository.getPermissionRolesDetails(permissionId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "name", row[1],
+                        "description", row[2]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter detalhes dos roles da permissão: " + e.getMessage(), e);
         }

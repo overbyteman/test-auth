@@ -9,8 +9,6 @@ import com.seccreto.service.auth.service.exception.ValidationException;
 import com.seccreto.service.auth.service.usage.UsageService;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,14 +37,10 @@ public class TenantServiceImpl implements TenantService {
 
     private final TenantRepository tenantRepository;
     private final UsageService usageService;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
     public TenantServiceImpl(TenantRepository tenantRepository, 
-                            UsageService usageService,
-                            NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+                            UsageService usageService) {
         this.tenantRepository = tenantRepository;
         this.usageService = usageService;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -82,7 +76,8 @@ public class TenantServiceImpl implements TenantService {
     @Timed(value = "tenants.find", description = "Time taken to find tenants by name")
     public List<Tenant> findTenantsByName(String name) {
         validateName(name);
-        return tenantRepository.findByName(name);
+        Optional<Tenant> tenant = tenantRepository.findByName(name);
+        return tenant.map(List::of).orElse(List.of());
     }
 
     @Override
@@ -112,7 +107,7 @@ public class TenantServiceImpl implements TenantService {
         tenant.setConfig(config);
         tenant.updateTimestamp();
 
-        return tenantRepository.update(tenant);
+        return tenantRepository.save(tenant);
     }
 
     @Override
@@ -125,7 +120,8 @@ public class TenantServiceImpl implements TenantService {
             throw new ResourceNotFoundException("Tenant não encontrado com ID: " + id);
         }
 
-        return tenantRepository.deleteById(id);
+        tenantRepository.deleteById(id);
+        return true;
     }
 
     @Override
@@ -155,7 +151,7 @@ public class TenantServiceImpl implements TenantService {
         tenant.setConfig(config);
         tenant.updateTimestamp();
         
-        return tenantRepository.update(tenant);
+        return tenantRepository.save(tenant);
     }
 
     @Override
@@ -194,24 +190,16 @@ public class TenantServiceImpl implements TenantService {
     @Override
     public List<Object> getTenantUsers(UUID tenantId) {
         try {
-            String sql = """
-                SELECT u.id, u.name, u.email, u.is_active, u.created_at
-                FROM users u
-                JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.tenant_id = :tenantId
-                ORDER BY u.name
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("tenantId", tenantId);
-            
-            return namedParameterJdbcTemplate.query(sql, params, (rs, rowNum) -> 
-                java.util.Map.of(
-                    "id", rs.getObject("id", UUID.class),
-                    "name", rs.getString("name"),
-                    "email", rs.getString("email"),
-                    "isActive", rs.getBoolean("is_active"),
-                    "createdAt", rs.getTimestamp("created_at")
-                )
-            );
+            List<Object[]> results = tenantRepository.getTenantUsersDetails(tenantId);
+            return results.stream()
+                    .map(row -> java.util.Map.of(
+                        "id", row[0],
+                        "name", row[1],
+                        "email", row[2],
+                        "isActive", row[3],
+                        "createdAt", row[4]
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter usuários do tenant: " + e.getMessage(), e);
         }
@@ -220,16 +208,7 @@ public class TenantServiceImpl implements TenantService {
     @Override
     public long countTenantUsers(UUID tenantId) {
         try {
-            String sql = """
-                SELECT COUNT(DISTINCT u.id)
-                FROM users u
-                JOIN users_tenants_roles utr ON u.id = utr.user_id
-                WHERE utr.tenant_id = :tenantId
-                """;
-            MapSqlParameterSource params = new MapSqlParameterSource("tenantId", tenantId);
-            
-            Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
-            return count != null ? count : 0;
+            return tenantRepository.countTenantUsers(tenantId);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar usuários do tenant: " + e.getMessage(), e);
         }

@@ -4,14 +4,19 @@ spring:
   profiles:
     active: dev
 
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
-    baseline-description: Baseline existing schema before applying versioned migrations
-    validate-on-migrate: true
-    clean-disabled: true
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update  # Hibernate gerencia o schema automaticamente
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
 
   # Cache configuration
   cache:

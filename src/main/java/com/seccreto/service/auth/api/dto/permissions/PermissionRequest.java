@@ -18,7 +18,7 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PermissionRequest {
-    @Schema(description = "Nome da permissão", example = "Criar Usuários", required = true)
+    @Schema(description = "Nome da permissão", example = "Criar Usuários")
     @NotBlank(message = "Nome não pode ser vazio")
     @Size(min = 2, max = 100, message = "Nome deve ter entre 2 e 100 caracteres")
     private String name;
@@ -27,12 +27,12 @@ public class PermissionRequest {
     @Size(max = 500, message = "Descrição deve ter no máximo 500 caracteres")
     private String description;
 
-    @Schema(description = "Ação da permissão", example = "create", required = true)
+    @Schema(description = "Ação da permissão", example = "create")
     @NotBlank(message = "Ação não pode ser vazia")
     @Size(min = 2, max = 50, message = "Ação deve ter entre 2 e 50 caracteres")
     private String action;
     
-    @Schema(description = "Recurso da permissão", example = "users", required = true)
+    @Schema(description = "Recurso da permissão", example = "users")
     @NotBlank(message = "Recurso não pode ser vazio")
     @Size(min = 2, max = 100, message = "Recurso deve ter entre 2 e 100 caracteres")
     private String resource;

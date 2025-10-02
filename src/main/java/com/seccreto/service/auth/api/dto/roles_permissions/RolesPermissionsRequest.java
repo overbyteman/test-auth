@@ -18,11 +18,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RolesPermissionsRequest {
-    @Schema(description = "ID do role", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+    @Schema(description = "ID do role", example = "550e8400-e29b-41d4-a716-446655440000")
     @NotNull(message = "ID do role não pode ser nulo")
     private UUID roleId;
     
-    @Schema(description = "ID da permissão", example = "550e8400-e29b-41d4-a716-446655440001", required = true)
+    @Schema(description = "ID da permissão", example = "550e8400-e29b-41d4-a716-446655440001")
     @NotNull(message = "ID da permissão não pode ser nulo")
     private UUID permissionId;
 }

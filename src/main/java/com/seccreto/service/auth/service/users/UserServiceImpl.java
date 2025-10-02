@@ -8,8 +8,6 @@ import com.seccreto.service.auth.service.exception.ValidationException;
 import com.seccreto.service.auth.service.usage.UsageService;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,16 +37,12 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMetricsService metricsService;
     private final UsageService usageService;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
     public UserServiceImpl(UserRepository userRepository, 
                           UserMetricsService metricsService, 
-                          UsageService usageService,
-                          NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+                          UsageService usageService) {
         this.userRepository = userRepository;
         this.metricsService = metricsService;
         this.usageService = usageService;
-        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
@@ -71,6 +65,50 @@ public class UserServiceImpl implements UserService {
         metricsService.incrementUserCreated();
         
         return savedUser;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @Timed(value = "users.create_with_tenant", description = "Time taken to create a user with tenant association")
+    public User createUserWithTenant(String name, String email, String password, UUID tenantId, UUID initialRoleId, boolean sendValidationEmail, String validationCallbackUrl) {
+        validateName(name);
+        validateEmail(email);
+        validateId(tenantId);
+
+        Optional<User> existingUser = userRepository.findByEmail(email.trim());
+        if (existingUser.isPresent()) {
+            throw new ConflictException("Usuário já existe com este email");
+        }
+
+        // Criar usuário inativo inicialmente (será ativado após validação de email)
+        User user = User.createNew(name.trim(), email.trim(), password);
+        user.setIsActive(false); // Inativo até validação de email
+        
+        User savedUser = userRepository.save(user);
+        
+        // TODO: Associar usuário ao tenant com role inicial
+        // usersTenantsRolesService.createAssociation(savedUser.getId(), tenantId, initialRoleId);
+        
+        // TODO: Gerar token de validação de email
+        if (sendValidationEmail) {
+            String validationToken = generateEmailValidationToken(savedUser.getId());
+            sendEmailValidation(savedUser.getEmail(), validationToken, validationCallbackUrl);
+        }
+        
+        // Registrar métricas
+        metricsService.incrementUserCreated();
+        
+        return savedUser;
+    }
+    
+    private String generateEmailValidationToken(UUID userId) {
+        // TODO: Implementar geração de token JWT para validação de email
+        return "validation-token-" + userId.toString();
+    }
+    
+    private void sendEmailValidation(String email, String token, String callbackUrl) {
+        // TODO: Implementar envio de email de validação
+        System.out.println("Email de validação enviado para: " + email + " com token: " + token);
     }
 
     @Override
@@ -121,7 +159,7 @@ public class UserServiceImpl implements UserService {
         user.setEmail(email.trim());
         user.updateTimestamp();
 
-        return userRepository.update(user);
+        return userRepository.save(user);
     }
 
     @Override
@@ -134,7 +172,8 @@ public class UserServiceImpl implements UserService {
             throw new ResourceNotFoundException("Usuário não encontrado com ID: " + id);
         }
 
-        boolean deleted = userRepository.deleteById(id);
+        userRepository.deleteById(id);
+        boolean deleted = true;
         if (deleted) {
             metricsService.incrementUserDeleted();
         }
@@ -169,7 +208,7 @@ public class UserServiceImpl implements UserService {
         user.setIsActive(true);
         user.updateTimestamp();
         
-        return userRepository.update(user);
+        return userRepository.save(user);
     }
 
     @Override
@@ -181,7 +220,7 @@ public class UserServiceImpl implements UserService {
         user.setIsActive(false);
         user.updateTimestamp();
         
-        return userRepository.update(user);
+        return userRepository.save(user);
     }
 
     @Override
@@ -196,7 +235,7 @@ public class UserServiceImpl implements UserService {
             user.setIsActive(true);
             user.updateTimestamp();
             
-            return userRepository.update(user);
+            return userRepository.save(user);
         } else {
             throw new ValidationException("Token de verificação inválido");
         }
@@ -213,7 +252,7 @@ public class UserServiceImpl implements UserService {
         user.setEmailVerificationToken(newToken);
         user.updateTimestamp();
         
-        return userRepository.update(user);
+        return userRepository.save(user);
     }
 
     @Override

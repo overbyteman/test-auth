@@ -69,7 +69,8 @@ public class PolicyServiceImpl implements PolicyService {
     @Timed(value = "policies.find", description = "Time taken to find policies by name")
     public List<Policy> findPoliciesByName(String name) {
         validateName(name);
-        return policyRepository.findByName(name);
+        Optional<Policy> policy = policyRepository.findByName(name);
+        return policy.map(List::of).orElse(List.of());
     }
 
     @Override
@@ -83,7 +84,8 @@ public class PolicyServiceImpl implements PolicyService {
     @Timed(value = "policies.find", description = "Time taken to find policies by effect")
     public List<Policy> findPoliciesByEffect(String effect) {
         validateEffectString(effect);
-        return policyRepository.findByEffect(effect);
+        PolicyEffect policyEffect = PolicyEffect.valueOf(effect.toUpperCase());
+        return policyRepository.findByEffect(policyEffect);
     }
 
     @Override
@@ -114,7 +116,7 @@ public class PolicyServiceImpl implements PolicyService {
         policy.setConditions(conditions);
         policy.updateTimestamp();
 
-        return policyRepository.update(policy);
+        return policyRepository.save(policy);
     }
 
     @Override
@@ -127,7 +129,8 @@ public class PolicyServiceImpl implements PolicyService {
             throw new ResourceNotFoundException("Policy não encontrada com ID: " + id);
         }
 
-        return policyRepository.deleteById(id);
+        policyRepository.deleteById(id);
+        return true;
     }
 
     @Override
@@ -205,7 +208,8 @@ public class PolicyServiceImpl implements PolicyService {
     public List<Policy> findPoliciesByEffectAndConditions(String effect, String conditions) {
         validateEffectString(effect);
         validateConditionsString(conditions);
-        return policyRepository.findByEffectAndConditions(effect, conditions);
+        PolicyEffect policyEffect = PolicyEffect.valueOf(effect.toUpperCase());
+        return policyRepository.findByEffectAndConditions(policyEffect, conditions);
     }
 
     // Métodos de validação privados

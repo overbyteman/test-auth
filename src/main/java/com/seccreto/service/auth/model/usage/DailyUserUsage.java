@@ -8,10 +8,14 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Entity
+@Table(name = "daily_user_usage")
+@IdClass(DailyUserUsageId.class)
 @Schema(description = "Agregação diária de uso por usuário e tenant")
 @Data
 @Builder
@@ -19,32 +23,43 @@ import java.util.UUID;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class DailyUserUsage {
+    @Id
+    @Column(name = "usage_date")
     @Schema(description = "Data de uso (usage_date)")
     @EqualsAndHashCode.Include
     private LocalDate usageDate;
 
+    @Id
+    @Column(name = "user_id")
     @Schema(description = "ID do usuário (UUID)")
     @EqualsAndHashCode.Include
     private UUID userId;
 
+    @Id
+    @Column(name = "tenant_id")
     @Schema(description = "ID do tenant (UUID)")
     @EqualsAndHashCode.Include
     private UUID tenantId;
 
+    @Column(name = "logins")
     @Schema(description = "Quantidade de logins no dia")
-    private int logins;
+    private Long logins;
 
+    @Column(name = "actions")
     @Schema(description = "Quantidade de ações no dia")
-    private int actions;
+    private Long actions;
 
-    @Schema(description = "Timestamp da última ação registrada no dia")
+    @Column(name = "last_action_at")
+    @Schema(description = "Última ação registrada")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime lastActionAt;
 
+    @Column(name = "created_at")
     @Schema(description = "Criado em")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
     @Schema(description = "Atualizado em")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime updatedAt;
@@ -55,8 +70,8 @@ public class DailyUserUsage {
                 .usageDate(date)
                 .userId(userId)
                 .tenantId(tenantId)
-                .logins(0)
-                .actions(0)
+                .logins(0L)
+                .actions(0L)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
@@ -72,6 +87,8 @@ public class DailyUserUsage {
         }
         touch();
     }
-    public void touch() { this.updatedAt = LocalDateTime.now(); }
+    public void touch() { 
+        this.updatedAt = LocalDateTime.now();
+    }
 }
 
