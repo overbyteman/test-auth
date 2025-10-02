@@ -27,11 +27,8 @@ COPY lombok.config .
 # Make gradlew executable
 RUN chmod +x gradlew
 
-# Copy and execute security setup script
-COPY docker-security-setup.sh .
-RUN chmod +x docker-security-setup.sh && \
-    ./docker-security-setup.sh && \
-    source /tmp/build-env.sh
+# Security credentials are now managed externally by run.sh
+# No need to generate them inside the container
 
 # Copy source code
 COPY src/ src/
@@ -49,8 +46,7 @@ RUN ./gradlew clean bootJar --no-daemon --stacktrace
 RUN ls -la build/libs/ && \
     java -Djarmode=layertools -jar build/libs/app.jar list
 
-# Show generated .env file for reference
-RUN echo "📋 Arquivo .env gerado:" && cat .env
+# JAR build completed successfully
 
 # ---------- EXTRACT STAGE ----------
 FROM eclipse-temurin:21-jre-alpine AS extract
