@@ -121,18 +121,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
            "WHERE u.createdAt >= :since GROUP BY DATE(u.createdAt) ORDER BY DATE(u.createdAt)")
     List<Object[]> getUserCreationStats(@Param("since") LocalDateTime since);
 
-    // ========================================
-    // MÉTODOS PARA COMPATIBILIDADE COM SERVICES
-    // ========================================
-    
-    @Query("SELECT u FROM User u WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :name, '%'))")
-    List<User> findByName(@Param("name") String name);
-    
-    @Query(value = "SELECT u.* FROM users u WHERE u.id IN " +
-                   "(SELECT utr.user_id FROM users_tenants_roles utr WHERE utr.tenant_id = :tenantId)",
-           nativeQuery = true)
+    @Query("SELECT DISTINCT u FROM User u JOIN u.tenantRoles utr WHERE utr.tenantId = :tenantId")
     List<User> findUsersByTenant(@Param("tenantId") UUID tenantId);
-    
+
     @Query("SELECT u FROM User u WHERE u.isActive = true ORDER BY u.createdAt DESC")
     List<User> findTopActiveUsers(Pageable pageable);
     
@@ -169,14 +160,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
         return countUsersCreatedThisMonth(LocalDateTime.now().minusDays(30));
     }
     
-    @Query(value = "SELECT COUNT(u.*) FROM users u WHERE u.id IN " +
-                   "(SELECT utr.user_id FROM users_tenants_roles utr WHERE utr.tenant_id = :tenantId)",
-           nativeQuery = true)
+    @Query("SELECT COUNT(DISTINCT u.id) FROM User u JOIN u.tenantRoles utr WHERE utr.tenantId = :tenantId")
     long countUsersByTenant(@Param("tenantId") UUID tenantId);
-    
-    @Query(value = "SELECT COUNT(u.*) FROM users u WHERE u.is_active = true AND u.id IN " +
-                   "(SELECT utr.user_id FROM users_tenants_roles utr WHERE utr.tenant_id = :tenantId)",
-           nativeQuery = true)
+
+    @Query("SELECT COUNT(DISTINCT u.id) FROM User u JOIN u.tenantRoles utr " +
+        "WHERE utr.tenantId = :tenantId AND u.isActive = true")
     long countActiveUsersByTenant(@Param("tenantId") UUID tenantId);
     
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt BETWEEN :start AND :end")

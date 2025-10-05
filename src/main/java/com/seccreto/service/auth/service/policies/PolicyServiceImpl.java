@@ -3,7 +3,9 @@ package com.seccreto.service.auth.service.policies;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.seccreto.service.auth.model.policies.Policy;
 import com.seccreto.service.auth.model.policies.PolicyEffect;
+import com.seccreto.service.auth.model.tenants.Tenant;
 import com.seccreto.service.auth.repository.policies.PolicyRepository;
+import com.seccreto.service.auth.repository.tenants.TenantRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
@@ -27,71 +29,82 @@ import java.util.UUID;
 public class PolicyServiceImpl implements PolicyService {
 
     private final PolicyRepository policyRepository;
+    private final TenantRepository tenantRepository;
 
-    public PolicyServiceImpl(PolicyRepository policyRepository) {
+    public PolicyServiceImpl(PolicyRepository policyRepository, TenantRepository tenantRepository) {
         this.policyRepository = policyRepository;
+        this.tenantRepository = tenantRepository;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "policies.create", description = "Time taken to create a policy")
-    public Policy createPolicy(String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions) {
+    public Policy createPolicy(UUID tenantId, String code, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions) {
+        validateTenantId(tenantId);
+        validateCode(code);
         validateName(name);
         validateEffect(effect);
         validateActions(actions);
         validateResources(resources);
         validateConditions(conditions);
 
-        // Verificar se já existe uma policy com este nome (idempotência)
-        Optional<Policy> existingPolicy = policyRepository.findByNameExact(name.trim());
-        if (existingPolicy.isPresent()) {
-            return existingPolicy.get(); // Retorna a policy existente (idempotência)
-        }
+        Tenant tenant = findTenant(tenantId);
 
-        Policy policy = Policy.createNew(name.trim(), description, effect, actions, resources, conditions);
+        policyRepository.findByTenantIdAndCode(tenantId, code.trim())
+                .ifPresent(existing -> { throw new ConflictException("Code da policy já está em uso para este tenant"); });
+
+        policyRepository.findByTenantIdAndName(tenantId, name.trim())
+                .ifPresent(existing -> { throw new ConflictException("Nome da policy já está em uso para este tenant"); });
+
+        Policy policy = Policy.createNew(tenant, code.trim(), name.trim(), description, effect, actions, resources, conditions);
         return policyRepository.save(policy);
     }
 
     @Override
     @Timed(value = "policies.list", description = "Time taken to list policies")
-    public List<Policy> listAllPolicies() {
-        return policyRepository.findAll();
+    public List<Policy> listPolicies(UUID tenantId) {
+        validateTenantId(tenantId);
+        return policyRepository.findByTenantId(tenantId);
     }
 
     @Override
     @Timed(value = "policies.find", description = "Time taken to find policy by id")
-    public Optional<Policy> findPolicyById(UUID id) {
+    public Optional<Policy> findPolicyById(UUID tenantId, UUID id) {
+        validateTenantId(tenantId);
         validateId(id);
-        return policyRepository.findById(id);
+        return policyRepository.findById(id)
+                .filter(policy -> policy.getTenant() != null && tenantId.equals(policy.getTenant().getId()));
     }
 
     @Override
     @Timed(value = "policies.find", description = "Time taken to find policies by name")
-    public List<Policy> findPoliciesByName(String name) {
+    public List<Policy> findPoliciesByName(UUID tenantId, String name) {
+        validateTenantId(tenantId);
         validateName(name);
-        Optional<Policy> policy = policyRepository.findByName(name);
-        return policy.map(List::of).orElse(List.of());
+        return policyRepository.findByTenantIdAndNameContainingIgnoreCase(tenantId, name.trim());
     }
 
     @Override
-    @Timed(value = "policies.find", description = "Time taken to find policy by exact name")
-    public Optional<Policy> findPolicyByNameExact(String name) {
-        validateName(name);
-        return policyRepository.findByNameExact(name);
+    public Optional<Policy> findPolicyByCode(UUID tenantId, String code) {
+        validateTenantId(tenantId);
+        validateCode(code);
+        return policyRepository.findByTenantIdAndCode(tenantId, code.trim());
     }
 
     @Override
     @Timed(value = "policies.find", description = "Time taken to find policies by effect")
-    public List<Policy> findPoliciesByEffect(String effect) {
+    public List<Policy> findPoliciesByEffect(UUID tenantId, String effect) {
+        validateTenantId(tenantId);
         validateEffectString(effect);
         PolicyEffect policyEffect = PolicyEffect.valueOf(effect.toUpperCase());
-        return policyRepository.findByEffect(policyEffect);
+        return policyRepository.findByTenantIdAndEffect(tenantId, policyEffect);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "policies.update", description = "Time taken to update policy")
-    public Policy updatePolicy(UUID id, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions) {
+    public Policy updatePolicy(UUID tenantId, UUID id, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions) {
+        validateTenantId(tenantId);
         validateId(id);
         validateName(name);
         validateEffect(effect);
@@ -99,14 +112,11 @@ public class PolicyServiceImpl implements PolicyService {
         validateResources(resources);
         validateConditions(conditions);
 
-        Policy policy = policyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Policy não encontrada com ID: " + id));
+        Policy policy = requirePolicy(tenantId, id);
 
-        // Verificar se nome já existe em outra policy
-        Optional<Policy> existingPolicy = policyRepository.findByNameExact(name.trim());
-        if (existingPolicy.isPresent() && !existingPolicy.get().getId().equals(id)) {
-            throw new ConflictException("Nome já está em uso por outra policy");
-        }
+        policyRepository.findByTenantIdAndName(tenantId, name.trim())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> { throw new ConflictException("Nome da policy já está em uso para este tenant"); });
 
         policy.setName(name.trim());
         policy.setDescription(description);
@@ -114,7 +124,6 @@ public class PolicyServiceImpl implements PolicyService {
         policy.setActions(actions);
         policy.setResources(resources);
         policy.setConditions(conditions);
-        policy.updateTimestamp();
 
         return policyRepository.save(policy);
     }
@@ -122,38 +131,45 @@ public class PolicyServiceImpl implements PolicyService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "policies.delete", description = "Time taken to delete policy")
-    public boolean deletePolicy(UUID id) {
+    public boolean deletePolicy(UUID tenantId, UUID id) {
+        validateTenantId(tenantId);
         validateId(id);
-        
-        if (!policyRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Policy não encontrada com ID: " + id);
-        }
 
-        policyRepository.deleteById(id);
+        Policy policy = requirePolicy(tenantId, id);
+        policyRepository.delete(policy);
         return true;
     }
 
     @Override
-    public boolean existsPolicyById(UUID id) {
+    public boolean existsPolicyById(UUID tenantId, UUID id) {
+        validateTenantId(tenantId);
         validateId(id);
-        return policyRepository.existsById(id);
+        return policyRepository.findById(id)
+                .map(policy -> policy.getTenant() != null && tenantId.equals(policy.getTenant().getId()))
+                .orElse(false);
     }
 
     @Override
-    public boolean existsPolicyByName(String name) {
-        validateName(name);
-        return policyRepository.existsByName(name);
+    public boolean existsPolicyByCode(UUID tenantId, String code) {
+        validateTenantId(tenantId);
+        validateCode(code);
+        return policyRepository.existsByTenantIdAndCode(tenantId, code.trim());
     }
 
     @Override
     @Timed(value = "policies.count", description = "Time taken to count policies")
-    public long countPolicies() {
-        return policyRepository.count();
+    public long countPolicies(UUID tenantId) {
+        validateTenantId(tenantId);
+        return policyRepository.countByTenantId(tenantId);
     }
 
     @Override
-    public List<Policy> searchPolicies(String query) {
-        return policyRepository.search(query);
+    public List<Policy> searchPolicies(UUID tenantId, String query) {
+        validateTenantId(tenantId);
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+        return policyRepository.search(tenantId, query.trim());
     }
 
     @Override
@@ -205,17 +221,33 @@ public class PolicyServiceImpl implements PolicyService {
     }
 
     @Override
-    public List<Policy> findPoliciesByEffectAndConditions(String effect, String conditions) {
+    public List<Policy> findPoliciesByEffectAndConditions(UUID tenantId, String effect, String conditions) {
+        validateTenantId(tenantId);
         validateEffectString(effect);
         validateConditionsString(conditions);
         PolicyEffect policyEffect = PolicyEffect.valueOf(effect.toUpperCase());
-        return policyRepository.findByEffectAndConditions(policyEffect, conditions);
+        return policyRepository.findByEffectAndConditions(tenantId, policyEffect, conditions);
     }
 
     // Métodos de validação privados
+    private void validateTenantId(UUID tenantId) {
+        if (tenantId == null) {
+            throw new ValidationException("TenantId da policy não pode ser nulo");
+        }
+    }
+
     private void validateId(UUID id) {
         if (id == null) {
             throw new ValidationException("ID da policy não pode ser nulo");
+        }
+    }
+
+    private void validateCode(String code) {
+        if (code == null || code.trim().isEmpty()) {
+            throw new ValidationException("Código da policy é obrigatório");
+        }
+        if (code.trim().length() < 2) {
+            throw new ValidationException("Código da policy deve ter pelo menos 2 caracteres");
         }
     }
 
@@ -268,5 +300,17 @@ public class PolicyServiceImpl implements PolicyService {
         if (conditions.trim().length() < 2) {
             throw new ValidationException("Condições da policy devem ter pelo menos 2 caracteres");
         }
+    }
+
+    private Tenant findTenant(UUID tenantId) {
+        return tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + tenantId));
+    }
+
+    private Policy requirePolicy(UUID tenantId, UUID policyId) {
+        return policyRepository.findById(policyId)
+                .filter(policy -> policy.getTenant() != null && tenantId.equals(policy.getTenant().getId()))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Policy não encontrada para o tenant informado (tenantId=" + tenantId + ", policyId=" + policyId + ")"));
     }
 }

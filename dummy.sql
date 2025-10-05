@@ -1,656 +1,179 @@
--- =====================================================
--- DUMMY.SQL - Dados de Exemplo para Auth Service
--- =====================================================
--- Autor: Auth Service Team
--- Data: 2025-10-02
--- Versão: 1.0
--- Descrição: Popula a aplicação com dados realísticos para demonstração
---           Inclui cenários complexos de autenticação e autorização
--- =====================================================
-
--- Habilitar extensões necessárias
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Dummy seed script for manual execution
+-- Run manually when you need baseline data in local/dev environments.
 
 -- =====================================================
--- 1. TENANTS - Organizações/Empresas
+-- Schema guardrails for compatibility
+-- Ensures required columns and indexes exist before seeding
 -- =====================================================
-
--- Limpar dados existentes (cuidado em produção!)
-TRUNCATE TABLE users_tenants_roles CASCADE;
-TRUNCATE TABLE roles_permissions CASCADE;
-TRUNCATE TABLE sessions CASCADE;
-TRUNCATE TABLE audit_logs CASCADE;
-TRUNCATE TABLE users CASCADE;
-TRUNCATE TABLE permissions CASCADE;
-TRUNCATE TABLE roles CASCADE;
-TRUNCATE TABLE tenants CASCADE;
-TRUNCATE TABLE policies CASCADE;
-
--- Inserir Tenants
-INSERT INTO tenants (id, name, config, created_at, updated_at) VALUES
-    -- Empresa Principal
-    ('11111111-1111-1111-1111-111111111111', 'Seccreto Corporation', 
-     '{"domain": "seccreto.com", "features": ["sso", "ldap_sync", "advanced_reports"], "theme": "corporate", "max_users": 1000}',
-     NOW() - INTERVAL '90 days', NOW()),
-    
-    -- Cliente Corporativo
-    ('22222222-2222-2222-2222-222222222222', 'TechStart Solutions',
-     '{"domain": "techstart.com", "features": ["api_access", "webhooks"], "theme": "startup", "max_users": 100}',
-     NOW() - INTERVAL '60 days', NOW()),
-     
-    -- Cliente SaaS
-    ('33333333-3333-3333-3333-333333333333', 'Global Finance Corp',
-     '{"domain": "globalfinance.com", "features": ["compliance", "audit_logs", "sso"], "theme": "finance", "max_users": 500}',
-     NOW() - INTERVAL '30 days', NOW()),
-     
-    -- Tenant para Testes
-    ('44444444-4444-4444-4444-444444444444', 'Dev Testing Environment',
-     '{"domain": "dev.test", "features": ["all"], "theme": "dev", "max_users": 50}',
-     NOW() - INTERVAL '1 day', NOW()),
-     
-    -- Tenant Multi-Regional
-    ('55555555-5555-5555-5555-555555555555', 'International Holdings',
-     '{"domain": "intl.com", "features": ["multi_region", "compliance", "advanced_reports"], "theme": "enterprise", "max_users": 2000, "regions": ["US", "EU", "APAC"]}',
-     NOW() - INTERVAL '120 days', NOW());
-
--- =====================================================
--- 2. PERMISSIONS - Permissões Granulares
--- =====================================================
-
-INSERT INTO permissions (id, action, resource) VALUES
-    -- User Management
-    ('a0000000-0000-0000-0000-000000000001', 'create', 'users'),
-    ('a0000000-0000-0000-0000-000000000002', 'read', 'users'),
-    ('a0000000-0000-0000-0000-000000000003', 'update', 'users'),
-    ('a0000000-0000-0000-0000-000000000004', 'delete', 'users'),
-    ('a0000000-0000-0000-0000-000000000005', 'suspend', 'users'),
-    ('a0000000-0000-0000-0000-000000000006', 'activate', 'users'),
-    
-    -- Profile Management
-    ('a0000000-0000-0000-0000-000000000007', 'read', 'profile'),
-    ('a0000000-0000-0000-0000-000000000008', 'update', 'profile'),
-    
-    -- Role Management
-    ('a0000000-0000-0000-0000-000000000009', 'create', 'roles'),
-    ('a0000000-0000-0000-0000-000000000010', 'read', 'roles'),
-    ('a0000000-0000-0000-0000-000000000011', 'update', 'roles'),
-    ('a0000000-0000-0000-0000-000000000012', 'delete', 'roles'),
-    
-    -- Permission Management
-    ('a0000000-0000-0000-0000-000000000013', 'create', 'permissions'),
-    ('a0000000-0000-0000-0000-000000000014', 'read', 'permissions'),
-    ('a0000000-0000-0000-0000-000000000015', 'update', 'permissions'),
-    ('a0000000-0000-0000-0000-000000000016', 'delete', 'permissions'),
-    
-    -- Tenant Management
-    ('a0000000-0000-0000-0000-000000000017', 'create', 'tenants'),
-    ('a0000000-0000-0000-0000-000000000018', 'read', 'tenants'),
-    ('a0000000-0000-0000-0000-000000000019', 'update', 'tenants'),
-    ('a0000000-0000-0000-0000-000000000020', 'delete', 'tenants'),
-    
-    -- Session Management
-    ('a0000000-0000-0000-0000-000000000021', 'read', 'sessions'),
-    ('a0000000-0000-0000-0000-000000000022', 'delete', 'sessions'),
-    ('a0000000-0000-0000-0000-000000000023', 'manage', 'sessions'),
-    
-    -- System & Monitoring
-    ('a0000000-0000-0000-0000-000000000024', 'read', 'metrics'),
-    ('a0000000-0000-0000-0000-000000000025', 'read', 'health'),
-    ('a0000000-0000-0000-0000-000000000026', 'manage', 'system'),
-    
-    -- Audit & Compliance
-    ('a0000000-0000-0000-0000-000000000027', 'read', 'audit_logs'),
-    ('a0000000-0000-0000-0000-000000000028', 'export', 'audit_logs'),
-    
-    -- API Access
-    ('a0000000-0000-0000-0000-000000000029', 'access', 'api'),
-    ('a0000000-0000-0000-0000-000000000030', 'manage', 'api_keys');
-
--- =====================================================
--- 3. ROLES - Funções Hierárquicas
--- =====================================================
-
-INSERT INTO roles (id, name, description) VALUES
-    -- Hierarquia de Roles
-    ('b0000000-0000-0000-0000-000000000001', 'SUPER_ADMIN', 'Administrador supremo com acesso total ao sistema'),
-    ('b0000000-0000-0000-0000-000000000002', 'ADMIN', 'Administrador com acesso completo ao tenant'),
-    ('b0000000-0000-0000-0000-000000000003', 'MANAGER', 'Gerente com permissões de gestão limitadas'),
-    ('b0000000-0000-0000-0000-000000000004', 'USER', 'Usuário padrão com acesso básico'),
-    ('b0000000-0000-0000-0000-000000000005', 'GUEST', 'Usuário convidado com acesso limitado'),
-    
-    -- Roles Especializados
-    ('b0000000-0000-0000-0000-000000000006', 'SECURITY_OFFICER', 'Oficial de segurança com acesso a logs e auditoria'),
-    ('b0000000-0000-0000-0000-000000000007', 'API_USER', 'Usuário especializado para acesso via API'),
-    ('b0000000-0000-0000-0000-000000000008', 'COMPLIANCE_AUDITOR', 'Auditor com acesso a relatórios de compliance'),
-    ('b0000000-0000-0000-0000-000000000009', 'SUPPORT_AGENT', 'Agente de suporte com permissões específicas'),
-    ('b0000000-0000-0000-0000-000000000010', 'READ_ONLY', 'Usuário apenas leitura para relatórios');
-
--- =====================================================
--- 4. ROLES_PERMISSIONS - Associações Role-Permissão
--- =====================================================
-
--- SUPER_ADMIN - Todas as permissões
-INSERT INTO roles_permissions (role_id, permission_id)
-SELECT 'b0000000-0000-0000-0000-000000000001', id FROM permissions;
-
--- ADMIN - Gerenciamento completo exceto sistema
-INSERT INTO roles_permissions (role_id, permission_id) VALUES
-    -- User Management
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000003'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000004'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000005'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000006'),
-    -- Role & Permission Management
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000009'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000010'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000011'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000014'),
-    -- Tenant Management
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000018'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000019'),
-    -- Session & Monitoring
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000021'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000022'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000023'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000024'),
-    ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000025');
-
--- MANAGER - Leitura de usuários e gestão limitada
-INSERT INTO roles_permissions (role_id, permission_id) VALUES
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000002'), -- read users
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000007'), -- read profile
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000008'), -- update profile
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000010'), -- read roles
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000014'), -- read permissions
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000018'), -- read tenants
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000021'), -- read sessions
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000024'), -- read metrics
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000025'); -- read health
-
--- USER - Permissões básicas
-INSERT INTO roles_permissions (role_id, permission_id) VALUES
-    ('b0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000007'), -- read profile
-    ('b0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000008'), -- update profile
-    ('b0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000025'); -- read health
-
--- SECURITY_OFFICER - Segurança e auditoria
-INSERT INTO roles_permissions (role_id, permission_id) VALUES
-    ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000002'), -- read users
-    ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000021'), -- read sessions
-    ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000022'), -- delete sessions
-    ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000024'), -- read metrics
-    ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000027'), -- read audit_logs
-    ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000028'); -- export audit_logs
-
--- API_USER - Acesso via API
-INSERT INTO roles_permissions (role_id, permission_id) VALUES
-    ('b0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000029'), -- access api
-    ('b0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000007'), -- read profile
-    ('b0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000002'); -- read users
-
--- =====================================================
--- 5. USERS - Usuários Realísticos
--- =====================================================
-
-INSERT INTO users (id, name, email, password_hash, is_active, email_verified_at, created_at, updated_at) VALUES
-    -- Super Administrador
-    ('c0000000-0000-0000-0000-000000000001', 
-     'Super Administrator', 
-     'superadmin@empresa.com',
-     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqfcwKpDOr6vTq4/Ng9V2dG', -- SuperAdmin@2024!
-     true, 
-     NOW() - INTERVAL '90 days',
-     NOW() - INTERVAL '90 days', 
-     NOW()),
-     
-    -- Administrador Principal
-    ('c0000000-0000-0000-0000-000000000002', 
-     'João Silva', 
-     'admin@empresa.com',
-     '$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- Admin@2024!
-     true, 
-     NOW() - INTERVAL '85 days',
-     NOW() - INTERVAL '85 days', 
-     NOW()),
-     
-    -- Gerente
-    ('c0000000-0000-0000-0000-000000000003', 
-     'Maria Santos', 
-     'manager@empresa.com',
-     '$2a$12$GTFmPA/Klx/LcPxnfaJ.7u42zE4Z5.vVsQLK7LkzQd8yD5EmS5N.a', -- Manager@2024!
-     true, 
-     NOW() - INTERVAL '60 days',
-     NOW() - INTERVAL '60 days', 
-     NOW()),
-     
-    -- Usuário Padrão
-    ('c0000000-0000-0000-0000-000000000004', 
-     'Carlos Oliveira', 
-     'user@empresa.com',
-     '$2a$12$8YUf5OyCrON8F0tXd.zVkOZJdcXCU1qscrHxqgMXCtMDKl1OZQ8sG', -- User@2024!
-     true, 
-     NOW() - INTERVAL '30 days',
-     NOW() - INTERVAL '30 days', 
-     NOW()),
-     
-    -- Oficial de Segurança
-    ('c0000000-0000-0000-0000-000000000005', 
-     'Ana Security', 
-     'security@empresa.com',
-     '$2a$12$VJeNF/xOvZ7DhF9m3KGTre6pCzHJjL2IyG4HgJzHg3cLkQs2vQxMa', -- Security@2024!
-     true, 
-     NOW() - INTERVAL '45 days',
-     NOW() - INTERVAL '45 days', 
-     NOW()),
-     
-    -- Usuário API
-    ('c0000000-0000-0000-0000-000000000006', 
-     'API Service Account', 
-     'api@empresa.com',
-     '$2a$12$7ZvOZUq3f6Y.VQOGd8.fzO6SqE6Mk4gKzJhG4/QP8L3MNJr5L2k6K', -- ApiUser@2024!
-     true, 
-     NOW() - INTERVAL '20 days',
-     NOW() - INTERVAL '20 days', 
-     NOW()),
-     
-    -- Usuários de Diferentes Tenants
-    ('c0000000-0000-0000-0000-000000000007', 
-     'Tech Admin', 
-     'admin@techstart.com',
-     '$2a$12$NFbcPQ5r8vX9/.YGfJ3cIe7ZgRqxP2v3k4GvE5Hm7Jz/Nx8Lz9mNq', -- TechAdmin@2024!
-     true, 
-     NOW() - INTERVAL '60 days',
-     NOW() - INTERVAL '60 days', 
-     NOW()),
-     
-    ('c0000000-0000-0000-0000-000000000008', 
-     'Finance Manager', 
-     'manager@globalfinance.com',
-     '$2a$12$OPdAQT6u9aY0/.ZHgK4dJf8AhSrxQ3w4l5HwF6In8Ka/Oy9Ma0oOr', -- FinanceManager@2024!
-     true, 
-     NOW() - INTERVAL '30 days',
-     NOW() - INTERVAL '30 days', 
-     NOW()),
-     
-    -- Usuários Inativos/Suspensos para Testes
-    ('c0000000-0000-0000-0000-000000000009', 
-     'Suspended User', 
-     'suspended@empresa.com',
-     '$2a$12$QReBS7r0bZ1/.AIhL5eEKg9BiTsxR4x5m6IxG7Jo9Lb/Pz0Nb1pPs', -- Suspended@2024!
-     false, 
-     NOW() - INTERVAL '15 days',
-     NOW() - INTERVAL '15 days', 
-     CURRENT_TIMESTAMP - INTERVAL '5 days'),
-     
-    -- Usuário Internacional
-    ('c0000000-0000-0000-0000-000000000010', 
-     'International User', 
-     'global@intl.com',
-     '$2a$12$RSfCT8s1cA2/.BJiM6fFLh0CjUtxS5y6n7JyH8Kp0Mc/Qa1Oc2qQt', -- International@2024!
-     true, 
-     NOW() - INTERVAL '120 days',
-     NOW() - INTERVAL '120 days', 
-     NOW());
-
--- =====================================================
--- 6. USERS_TENANTS_ROLES - Associações Complexas
--- =====================================================
-
-INSERT INTO users_tenants_roles (user_id, tenant_id, role_id) VALUES
-    -- Super Admin em todos os tenants
-    ('c0000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'b0000000-0000-0000-0000-000000000001'),
-    ('c0000000-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'b0000000-0000-0000-0000-000000000001'),
-    ('c0000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'b0000000-0000-0000-0000-000000000001'),
-    ('c0000000-0000-0000-0000-000000000001', '44444444-4444-4444-4444-444444444444', 'b0000000-0000-0000-0000-000000000001'),
-    ('c0000000-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555', 'b0000000-0000-0000-0000-000000000001'),
-    
-    -- Admin Principal da Seccreto Corp
-    ('c0000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'b0000000-0000-0000-0000-000000000002'),
-    
-    -- Gerente em múltiplos tenants
-    ('c0000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'b0000000-0000-0000-0000-000000000003'),
-    ('c0000000-0000-0000-0000-000000000003', '22222222-2222-2222-2222-222222222222', 'b0000000-0000-0000-0000-000000000003'),
-    
-    -- Usuário padrão
-    ('c0000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'b0000000-0000-0000-0000-000000000004'),
-    
-    -- Oficial de Segurança
-    ('c0000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'b0000000-0000-0000-0000-000000000006'),
-    ('c0000000-0000-0000-0000-000000000005', '33333333-3333-3333-3333-333333333333', 'b0000000-0000-0000-0000-000000000006'),
-    
-    -- API User
-    ('c0000000-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111111', 'b0000000-0000-0000-0000-000000000007'),
-    
-    -- Admins específicos de cada tenant
-    ('c0000000-0000-0000-0000-000000000007', '22222222-2222-2222-2222-222222222222', 'b0000000-0000-0000-0000-000000000002'),
-    ('c0000000-0000-0000-0000-000000000008', '33333333-3333-3333-3333-333333333333', 'b0000000-0000-0000-0000-000000000003'),
-    
-    -- Usuário internacional em multiple tenants com roles diferentes
-    ('c0000000-0000-0000-0000-000000000010', '55555555-5555-5555-5555-555555555555', 'b0000000-0000-0000-0000-000000000002'),
-    ('c0000000-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111111', 'b0000000-0000-0000-0000-000000000003'),
-    ('c0000000-0000-0000-0000-000000000010', '33333333-3333-3333-3333-333333333333', 'b0000000-0000-0000-0000-000000000004');
-
--- =====================================================
--- 7. SESSIONS - Sessões Ativas e Históricas
--- =====================================================
-
-INSERT INTO sessions (id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, created_at) VALUES
-    -- Sessões ativas recentes
-    ('d0000000-0000-0000-0000-000000000001', 
-     'c0000000-0000-0000-0000-000000000001', 
-     'eyJhbGciOiJIUzM4NCJ9.super_admin_refresh_token',
-     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-     '192.168.1.100'::inet,
-     NOW() + INTERVAL '1 hour',
-     NOW() - INTERVAL '30 minutes'),
-     
-    ('d0000000-0000-0000-0000-000000000002', 
-     'c0000000-0000-0000-0000-000000000002', 
-     'eyJhbGciOiJIUzM4NCJ9.admin_refresh_token',
-     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-     '10.0.0.50'::inet,
-     NOW() + INTERVAL '45 minutes',
-     NOW() - INTERVAL '15 minutes'),
-     
-    -- Sessão API ativa
-    ('d0000000-0000-0000-0000-000000000003', 
-     'c0000000-0000-0000-0000-000000000006', 
-     'eyJhbGciOiJIUzM4NCJ9.api_user_refresh_token',
-     'APIClient/1.0 (automated-service)',
-     '203.0.113.25'::inet,
-     NOW() + INTERVAL '2 hours',
-     NOW() - INTERVAL '5 minutes'),
-     
-    -- Sessões expiradas para histórico
-    ('d0000000-0000-0000-0000-000000000004', 
-     'c0000000-0000-0000-0000-000000000003', 
-     'eyJhbGciOiJIUzM4NCJ9.expired_manager_refresh',
-     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
-     '172.16.0.123'::inet,
-     NOW() - INTERVAL '2 hours',
-     NOW() - INTERVAL '3 hours'),
-     
-    -- Sessão de tenant diferente
-    ('d0000000-0000-0000-0000-000000000005', 
-     'c0000000-0000-0000-0000-000000000007', 
-     'eyJhbGciOiJIUzM4NCJ9.techstart_admin_refresh',
-     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-     '198.51.100.75'::inet,
-     NOW() + INTERVAL '30 minutes',
-     NOW() - INTERVAL '10 minutes');
-
--- =====================================================
--- 8. POLICIES - Políticas ABAC Complexas
--- =====================================================
-
-INSERT INTO policies (id, name, effect, actions, resources, conditions, created_at) VALUES
-    -- Política de horário comercial
-    ('e0000000-0000-0000-0000-000000000001',
-     'Business Hours Only',
-     'allow',
-     ARRAY['login', 'access'],
-     ARRAY['system'],
-     '{"time": {"start": "08:00", "end": "18:00"}, "timezone": "UTC", "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]}',
-     CURRENT_TIMESTAMP - INTERVAL '30 days'),
-     
-    -- Política de localização geográfica
-    ('e0000000-0000-0000-0000-000000000002',
-     'Geo-Location Restriction',
-     'deny',
-     ARRAY['login', 'api_access'],
-     ARRAY['system'],
-     '{"geo": {"blocked_countries": ["CN", "RU", "KP"], "allowed_regions": ["US", "EU", "BR"]}}',
-     NOW() - INTERVAL '25 days'),
-     
-    -- Política de acesso sensível
-    ('e0000000-0000-0000-0000-000000000003',
-     'Sensitive Data Access',
-     'allow',
-     ARRAY['read', 'export'],
-     ARRAY['audit_logs', 'financial_data'],
-     '{"user": {"min_role": "MANAGER", "requires_mfa": true}, "time": {"max_session_duration": 3600}}',
-     NOW() - INTERVAL '20 days'),
-     
-    -- Política de API rate limiting
-    ('e0000000-0000-0000-0000-000000000004',
-     'API Rate Limiting',
-     'deny',
-     ARRAY['api_access'],
-     ARRAY['users', 'tenants'],
-     '{"rate_limit": {"requests_per_minute": 100, "burst": 150}, "user": {"type": "api_user"}}',
-     NOW() - INTERVAL '15 days'),
-     
-    -- Política de acesso administrativo
-    ('e0000000-0000-0000-0000-000000000005',
-     'Admin Access Control',
-     'allow',
-     ARRAY['create', 'update', 'delete'],
-     ARRAY['users', 'roles', 'permissions'],
-     '{"user": {"role": "ADMIN", "tenant_admin": true}, "source": {"ip_whitelist": ["10.0.0.0/8", "192.168.0.0/16"]}}',
-     NOW() - INTERVAL '10 days');
-
--- =====================================================
--- 9. AUDIT_LOGS - Logs de Auditoria Realísticos
--- =====================================================
-
-INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource_id, details, ip_address, user_agent, success, error_message, timestamp) VALUES
-    -- Login bem-sucedido do Super Admin
-    ('f0000000-0000-0000-0000-000000000001',
-     'c0000000-0000-0000-0000-000000000001',
-     'd0000000-0000-0000-0000-000000000001',
-     'LOGIN',
-     'SESSION',
-     'd0000000-0000-0000-0000-000000000001',
-     'Super admin login successful',
-     '192.168.1.100',
-     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-     true,
-     NULL,
-     CURRENT_TIMESTAMP - INTERVAL '30 minutes'),
-     
-    -- Criação de usuário pelo Admin
-    ('f0000000-0000-0000-0000-000000000002',
-     'c0000000-0000-0000-0000-000000000002',
-     'd0000000-0000-0000-0000-000000000002',
-     'CREATE_USER',
-     'USER',
-     'c0000000-0000-0000-0000-000000000004',
-     'Admin created new user: Carlos Oliveira',
-     '10.0.0.50',
-     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-     true,
-     NULL,
-     CURRENT_TIMESTAMP - INTERVAL '30 days'),
-     
-    -- Tentativa de login falhada
-    ('f0000000-0000-0000-0000-000000000003',
-     NULL,
-     NULL,
-     'LOGIN_FAILED',
-     'SESSION',
-     NULL,
-     'Failed login attempt for email: hacker@evil.com',
-     '185.220.101.50',
-     'curl/7.68.0',
-     false,
-     'Invalid credentials',
-     CURRENT_TIMESTAMP - INTERVAL '2 hours'),
-     
-    -- Acesso API bem-sucedido
-    ('f0000000-0000-0000-0000-000000000004',
-     'c0000000-0000-0000-0000-000000000006',
-     'd0000000-0000-0000-0000-000000000003',
-     'API_ACCESS',
-     'USER',
-     NULL,
-     'API user accessed user list endpoint',
-     '203.0.113.25',
-     'APIClient/1.0 (automated-service)',
-     true,
-     NULL,
-     CURRENT_TIMESTAMP - INTERVAL '5 minutes'),
-     
-    -- Suspensão de usuário por segurança
-    ('f0000000-0000-0000-0000-000000000005',
-     'c0000000-0000-0000-0000-000000000005',
-     NULL,
-     'SUSPEND_USER',
-     'USER',
-     'c0000000-0000-0000-0000-000000000009',
-     'Security officer suspended user due to suspicious activity',
-     '10.0.0.75',
-     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-     true,
-     NULL,
-     CURRENT_TIMESTAMP - INTERVAL '5 days'),
-     
-    -- Exportação de logs de auditoria
-    ('f0000000-0000-0000-0000-000000000006',
-     'c0000000-0000-0000-0000-000000000005',
-     NULL,
-     'EXPORT_AUDIT_LOGS',
-     'AUDIT_LOG',
-     NULL,
-     'Security officer exported audit logs for compliance review - Period: last 30 days',
-     '10.0.0.75',
-     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-     true,
-     NULL,
-     CURRENT_TIMESTAMP - INTERVAL '1 day'),
-     
-    -- Múltiplas tentativas de força bruta (blocked)
-    ('f0000000-0000-0000-0000-000000000007',
-     NULL,
-     NULL,
-     'RATE_LIMIT_EXCEEDED',
-     'SESSION',
-     NULL,
-     'Rate limit exceeded for login attempts from IP: 185.220.101.50',
-     '185.220.101.50',
-     'python-requests/2.31.0',
-     false,
-     'Too many login attempts. IP temporarily blocked.',
-     CURRENT_TIMESTAMP - INTERVAL '1 hour'),
-     
-    -- Atualização de configuração de tenant
-    ('f0000000-0000-0000-0000-000000000008',
-     'c0000000-0000-0000-0000-000000000007',
-     'd0000000-0000-0000-0000-000000000005',
-     'UPDATE_TENANT_CONFIG',
-     'TENANT',
-     '22222222-2222-2222-2222-222222222222',
-     'TechStart admin updated tenant configuration - Added API webhook endpoint',
-     '198.51.100.75',
-     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-     true,
-     NULL,
-     CURRENT_TIMESTAMP - INTERVAL '6 hours'),
-     
-    -- Acesso negado por política ABAC
-    ('f0000000-0000-0000-0000-000000000009',
-     'c0000000-0000-0000-0000-000000000004',
-     NULL,
-     'ACCESS_DENIED',
-     'AUDIT_LOG',
-     NULL,
-     'User attempted to access audit logs but denied by policy: insufficient role level',
-     '172.16.0.123',
-     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
-     false,
-     'Policy violation: User role USER insufficient for resource audit_logs',
-     CURRENT_TIMESTAMP - INTERVAL '3 hours'),
-     
-    -- Refresh token usado com sucesso
-    ('f0000000-0000-0000-0000-000000000010',
-     'c0000000-0000-0000-0000-000000000010',
-     NULL,
-     'REFRESH_TOKEN',
-     'SESSION',
-     NULL,
-     'International user refreshed access token across multiple tenants',
-     '203.0.113.100',
-     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-     true,
-     NULL,
-     CURRENT_TIMESTAMP - INTERVAL '2 hours');
-
--- =====================================================
--- 10. CENÁRIOS COMPLEXOS ADICIONAIS
--- =====================================================
-
--- Criar sessões expiradas adicionais para demonstrar limpeza
-INSERT INTO sessions (id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, created_at) 
-SELECT 
-    gen_random_uuid(),
-    'c0000000-0000-0000-0000-000000000004',
-    'expired_refresh_' || generate_series,
-    'Mozilla/5.0 (Test Browser)',
-    ('192.168.1.' || (100 + generate_series))::inet,
-    CURRENT_TIMESTAMP - INTERVAL '1 day' - (generate_series || ' hours')::INTERVAL,
-    CURRENT_TIMESTAMP - INTERVAL '2 days' - (generate_series || ' hours')::INTERVAL
-FROM generate_series(1, 5);
-
--- Criar logs de auditoria de tentativas de ataque
-INSERT INTO audit_logs (id, user_id, session_id, action, resource_type, resource_id, details, ip_address, user_agent, success, error_message, timestamp)
-SELECT 
-    gen_random_uuid(),
-    NULL,
-    NULL,
-    'SECURITY_VIOLATION',
-    'SYSTEM',
-    NULL,
-    'SQL injection attempt detected in user input: ' || 
-    (ARRAY['DROP TABLE users', 'UNION SELECT * FROM', '<script>alert()', 'OR 1=1--'])[generate_series % 4 + 1],
-    '185.220.101.' || (50 + generate_series),
-    'AttackBot/' || generate_series || '.0',
-    false,
-    'Input validation failed - potentially malicious content',
-    CURRENT_TIMESTAMP - INTERVAL '7 days' + (generate_series || ' hours')::INTERVAL
-FROM generate_series(1, 10);
-
--- =====================================================
--- 11. COMENTÁRIOS E DOCUMENTAÇÃO
--- =====================================================
-
--- Adicionar comentários às tabelas para documentação
-COMMENT ON TABLE tenants IS 'Multi-tenant organizations with complex configurations and feature sets';
-COMMENT ON TABLE users IS 'System users with encrypted passwords and comprehensive audit trail';
-COMMENT ON TABLE roles IS 'Hierarchical role system supporting RBAC with granular permissions';
-COMMENT ON TABLE permissions IS 'Granular permissions for fine-grained access control';
-COMMENT ON TABLE users_tenants_roles IS 'Multi-tenant role assignments enabling complex organizational structures';
-COMMENT ON TABLE sessions IS 'User sessions with JWT tokens and comprehensive tracking';
-COMMENT ON TABLE policies IS 'ABAC policies for complex conditional access control';
-COMMENT ON TABLE audit_logs IS 'Comprehensive audit trail for security and compliance';
-
--- =====================================================
--- 12. ESTATÍSTICAS E VERIFICAÇÕES
--- =====================================================
-
--- Mostrar estatísticas dos dados inseridos
 DO $$
 BEGIN
-    RAISE NOTICE '================================';
-    RAISE NOTICE 'DUMMY DATA INSERTION COMPLETED';
-    RAISE NOTICE '================================';
-    RAISE NOTICE 'Tenants created: %', (SELECT COUNT(*) FROM tenants);
-    RAISE NOTICE 'Users created: %', (SELECT COUNT(*) FROM users);
-    RAISE NOTICE 'Roles created: %', (SELECT COUNT(*) FROM roles);
-    RAISE NOTICE 'Permissions created: %', (SELECT COUNT(*) FROM permissions);
-    RAISE NOTICE 'Role-Permission associations: %', (SELECT COUNT(*) FROM roles_permissions);
-    RAISE NOTICE 'User-Tenant-Role associations: %', (SELECT COUNT(*) FROM users_tenants_roles);
-    RAISE NOTICE 'Active sessions: %', (SELECT COUNT(*) FROM sessions WHERE expires_at > NOW());
-    RAISE NOTICE 'Expired sessions: %', (SELECT COUNT(*) FROM sessions WHERE expires_at <= NOW());
-    RAISE NOTICE 'Policies created: %', (SELECT COUNT(*) FROM policies);
-    RAISE NOTICE 'Audit log entries: %', (SELECT COUNT(*) FROM audit_logs);
-    RAISE NOTICE '================================';
-    RAISE NOTICE 'READY FOR TESTING!';
-    RAISE NOTICE 'Use credentials from README.md';
-    RAISE NOTICE '================================';
-END $$;
+	IF NOT EXISTS (
+		SELECT 1
+		FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'roles'
+		  AND column_name = 'code'
+	) THEN
+		ALTER TABLE roles ADD COLUMN code VARCHAR(100);
+		UPDATE roles
+		SET code = LOWER(REGEXP_REPLACE(name, '[^a-z0-9]+', '-', 'g'))
+		WHERE code IS NULL;
+	END IF;
+END$$;
+
+-- Ensure all roles have non-empty codes before enforcing uniqueness
+UPDATE roles
+SET code = CONCAT('role-', SUBSTRING(id::text, 1, 8))
+WHERE code IS NULL OR TRIM(code) = '';
+
+-- Resolve duplicate codes within the same tenant by suffixing an ordinal
+WITH duplicate_codes AS (
+		SELECT id,
+					 tenant_id,
+					 code,
+					 ROW_NUMBER() OVER (PARTITION BY tenant_id, code ORDER BY id) AS rn
+		FROM roles
+)
+UPDATE roles r
+SET code = CONCAT(r.code, '-', duplicate_codes.rn)
+FROM duplicate_codes
+WHERE r.id = duplicate_codes.id
+	AND duplicate_codes.rn > 1;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_roles_code_tenant ON roles (code, tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_roles_name_tenant ON roles (name, tenant_id);
 
 -- =====================================================
--- FIM DO ARQUIVO DUMMY.SQL
+-- System root tenant + Super Admin seed
 -- =====================================================
+INSERT INTO tenants (id, name, config, created_at, updated_at)
+VALUES (
+	'00000000-0000-0000-0000-000000000000',
+	'System Root Tenant',
+	'{"type": "system", "default": true}',
+	NOW(),
+	NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO roles (id, code, name, description, tenant_id)
+VALUES (
+	'99999999-9999-9999-9999-999999999999',
+	'root-super-admin',
+	'SUPER_ADMIN',
+	'Global super administrator with unrestricted access',
+	'00000000-0000-0000-0000-000000000000'
+)
+ON CONFLICT (name, tenant_id) DO NOTHING;
+
+INSERT INTO users (id, name, email, password_hash, is_active, email_verified_at, created_at, updated_at)
+-- Senha padrão: ChangeMeNow!123 (hash Argon2id gerado com PostQuantumPasswordEncoder)
+VALUES (
+	'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+	'System Super Admin',
+	'super.admin@system.local',
+	'$argon2id$v=19$m=65536,t=3,p=4$UBPfdzWRImPL7316HUF3SwjezhzHk3mFcYwiYeSB364$fL5gXZFM133bNfenk0hdM8MfudaUbz0l/EcrUyMHbtbPCh/7vU6hZG6uAiTx2BdwA17epgHsq3wIUkxZr3baCw',
+	true,
+	NOW(),
+	NOW(),
+	NOW()
+)
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO users_tenants_roles (user_id, tenant_id, role_id)
+VALUES (
+	'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+	'00000000-0000-0000-0000-000000000000',
+	'99999999-9999-9999-9999-999999999999'
+)
+ON CONFLICT (user_id, tenant_id, role_id) DO NOTHING;
+
+-- Default password hint: override hash before production use.
+
+-- Tenants
+INSERT INTO tenants (id, name, config, created_at, updated_at)
+VALUES ('11111111-1111-1111-1111-111111111111', 'Acme Corp', '{"type": "enterprise", "active": true}', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO tenants (id, name, config, created_at, updated_at)
+VALUES ('22222222-2222-2222-2222-222222222222', 'Beta Ltd', '{"type": "startup", "active": true}', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+-- Roles per tenant
+INSERT INTO roles (id, code, name, description, tenant_id)
+VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'platform-admin', 'ADMIN', 'Administrator role', '11111111-1111-1111-1111-111111111111')
+ON CONFLICT (code, tenant_id) DO NOTHING;
+
+INSERT INTO roles (id, code, name, description, tenant_id)
+VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'platform-user', 'USER', 'Standard user role', '11111111-1111-1111-1111-111111111111')
+ON CONFLICT (code, tenant_id) DO NOTHING;
+
+INSERT INTO roles (id, code, name, description, tenant_id)
+VALUES ('c0c0c0c0-c0c0-c0c0-c0c0-c0c0c0c0c0c0', 'branch-staff', 'STAFF', 'Staff role for Beta Ltd', '22222222-2222-2222-2222-222222222222')
+ON CONFLICT (code, tenant_id) DO NOTHING;
+
+-- Policies per tenant
+INSERT INTO policies (id, tenant_id, code, name, description, effect, actions, resources, conditions, created_at)
+VALUES ('12121212-1212-1212-1212-121212121212', '11111111-1111-1111-1111-111111111111', 'admin-access', 'Admin Full Access', 'Full administrative access for Acme', 'ALLOW', ARRAY['create', 'read', 'update', 'delete'], ARRAY['users', 'roles', 'policies'], '{}'::jsonb, NOW())
+ON CONFLICT (tenant_id, code) DO NOTHING;
+
+INSERT INTO policies (id, tenant_id, code, name, description, effect, actions, resources, conditions, created_at)
+VALUES ('34343434-3434-3434-3434-343434343434', '22222222-2222-2222-2222-222222222222', 'staff-dashboard', 'Staff Dashboard Access', 'Restrict staff to tenant-specific dashboards', 'ALLOW', ARRAY['read'], ARRAY['dashboard'], '{}'::jsonb, NOW())
+ON CONFLICT (tenant_id, code) DO NOTHING;
+
+-- Permissions
+INSERT INTO permissions (id, action, resource)
+VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'read', 'users')
+ON CONFLICT (action, resource) DO NOTHING;
+
+INSERT INTO permissions (id, action, resource)
+VALUES ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'update', 'users')
+ON CONFLICT (action, resource) DO NOTHING;
+
+-- Role-permission associations (with tenant-specific policies)
+INSERT INTO roles_permissions (role_id, permission_id, policy_id, created_at, updated_at)
+SELECT r.id, p.id, pol.id, NOW(), NOW()
+FROM roles r
+JOIN permissions p ON p.action = 'read' AND p.resource = 'users'
+JOIN policies pol ON pol.code = 'admin-access' AND pol.tenant_id = '11111111-1111-1111-1111-111111111111'
+WHERE r.code = 'platform-admin' AND r.tenant_id = '11111111-1111-1111-1111-111111111111'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+INSERT INTO roles_permissions (role_id, permission_id, policy_id, created_at, updated_at)
+SELECT r.id, p.id, NULL, NOW(), NOW()
+FROM roles r
+JOIN permissions p ON p.action = 'read' AND p.resource = 'users'
+WHERE r.code = 'platform-user' AND r.tenant_id = '11111111-1111-1111-1111-111111111111'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+INSERT INTO roles_permissions (role_id, permission_id, policy_id, created_at, updated_at)
+SELECT r.id, p.id, pol.id, NOW(), NOW()
+FROM roles r
+JOIN permissions p ON p.action = 'update' AND p.resource = 'users'
+JOIN policies pol ON pol.code = 'staff-dashboard' AND pol.tenant_id = '22222222-2222-2222-2222-222222222222'
+WHERE r.code = 'branch-staff' AND r.tenant_id = '22222222-2222-2222-2222-222222222222'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- Users
+INSERT INTO users (id, name, email, password_hash, is_active, created_at, updated_at)
+-- Senha padrão: ChangeMeNow!123 (hash Argon2id gerado com PostQuantumPasswordEncoder)
+VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Admin User', 'admin@acme.test', '$argon2id$v=19$m=65536,t=3,p=4$UBPfdzWRImPL7316HUF3SwjezhzHk3mFcYwiYeSB364$fL5gXZFM133bNfenk0hdM8MfudaUbz0l/EcrUyMHbtbPCh/7vU6hZG6uAiTx2BdwA17epgHsq3wIUkxZr3baCw', true, NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (id, name, email, password_hash, is_active, created_at, updated_at)
+-- Senha padrão: ChangeMeNow!123 (hash Argon2id gerado com PostQuantumPasswordEncoder)
+VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'Regular User', 'user@acme.test', '$argon2id$v=19$m=65536,t=3,p=4$UBPfdzWRImPL7316HUF3SwjezhzHk3mFcYwiYeSB364$fL5gXZFM133bNfenk0hdM8MfudaUbz0l/EcrUyMHbtbPCh/7vU6hZG6uAiTx2BdwA17epgHsq3wIUkxZr3baCw', true, NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+-- User-tenant-role associations
+INSERT INTO users_tenants_roles (user_id, tenant_id, role_id)
+VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+ON CONFLICT (user_id, tenant_id, role_id) DO NOTHING;
+
+INSERT INTO users_tenants_roles (user_id, tenant_id, role_id)
+VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', '11111111-1111-1111-1111-111111111111', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')
+ON CONFLICT (user_id, tenant_id, role_id) DO NOTHING;
+
+INSERT INTO users_tenants_roles (user_id, tenant_id, role_id)
+VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', '22222222-2222-2222-2222-222222222222', 'c0c0c0c0-c0c0-c0c0-c0c0-c0c0c0c0c0c0')
+ON CONFLICT (user_id, tenant_id, role_id) DO NOTHING;

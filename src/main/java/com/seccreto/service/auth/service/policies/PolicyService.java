@@ -16,20 +16,20 @@ import java.util.UUID;
 public interface PolicyService {
     
     // Operações básicas CRUD
-    Policy createPolicy(String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions);
-    List<Policy> listAllPolicies();
-    Optional<Policy> findPolicyById(UUID id);
-    List<Policy> findPoliciesByName(String name);
-    Optional<Policy> findPolicyByNameExact(String name);
-    List<Policy> findPoliciesByEffect(String effect);
-    Policy updatePolicy(UUID id, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions);
-    boolean deletePolicy(UUID id);
-    boolean existsPolicyById(UUID id);
-    boolean existsPolicyByName(String name);
-    long countPolicies();
+    Policy createPolicy(UUID tenantId, String code, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions);
+    List<Policy> listPolicies(UUID tenantId);
+    Optional<Policy> findPolicyById(UUID tenantId, UUID id);
+    Optional<Policy> findPolicyByCode(UUID tenantId, String code);
+    List<Policy> findPoliciesByName(UUID tenantId, String name);
+    List<Policy> findPoliciesByEffect(UUID tenantId, String effect);
+    Policy updatePolicy(UUID tenantId, UUID id, String name, String description, PolicyEffect effect, List<String> actions, List<String> resources, JsonNode conditions);
+    boolean deletePolicy(UUID tenantId, UUID id);
+    boolean existsPolicyById(UUID tenantId, UUID id);
+    boolean existsPolicyByCode(UUID tenantId, String code);
+    long countPolicies(UUID tenantId);
     
     // Operações de busca
-    List<Policy> searchPolicies(String query);
+    List<Policy> searchPolicies(UUID tenantId, String query);
     
     // Operações de validação
     boolean isPolicyValid(Policy policy);
@@ -37,5 +37,5 @@ public interface PolicyService {
     
     // Operações de efeito
     String evaluatePolicyEffect(Policy policy, String context);
-    List<Policy> findPoliciesByEffectAndConditions(String effect, String conditions);
+    List<Policy> findPoliciesByEffectAndConditions(UUID tenantId, String effect, String conditions);
 }

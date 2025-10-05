@@ -33,6 +33,7 @@ public final class PolicyMapper {
         }
         
         return Policy.builder()
+        .code(request.getCode())
                 .name(request.getName())
                 .description(request.getDescription())
                 .effect(effect)
@@ -52,6 +53,8 @@ public final class PolicyMapper {
         
         return PolicyResponse.builder()
                 .id(policy.getId())
+        .tenantId(policy.getTenant() != null ? policy.getTenant().getId() : null)
+        .code(policy.getCode())
                 .name(policy.getName())
                 .description(policy.getDescription())
                 .effect(policy.getEffect() != null ? policy.getEffect().name() : null)
@@ -85,6 +88,7 @@ public final class PolicyMapper {
             return;
         }
         
+        policy.setCode(request.getCode());
         policy.setName(request.getName());
         policy.setDescription(request.getDescription());
         

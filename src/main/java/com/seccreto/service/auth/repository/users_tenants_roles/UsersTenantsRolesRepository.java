@@ -35,7 +35,6 @@ public interface UsersTenantsRolesRepository extends JpaRepository<UsersTenantsR
     
     boolean existsByUserIdAndTenantIdAndRoleId(UUID userId, UUID tenantId, UUID roleId);
     
-    // Métodos adicionais para compatibilidade com services
     Optional<UsersTenantsRoles> findByUserIdAndTenantIdAndRoleId(UUID userId, UUID tenantId, UUID roleId);
     
     void deleteByUserIdAndTenantIdAndRoleId(UUID userId, UUID tenantId, UUID roleId);

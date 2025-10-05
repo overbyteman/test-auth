@@ -70,7 +70,6 @@
 | **Segurança** | Spring Security | 6.x |
 | **Banco** | PostgreSQL | 15+ |
 | **Cache** | Redis (Opcional) | 7+ |
-| **Migração** | Flyway | 9.x |
 | **Build** | Gradle | 8.5 |
 | **Container** | Docker & Docker Compose | Latest |
 | **Documentação** | OpenAPI/Swagger | 3.0 |
@@ -110,10 +109,7 @@ createdb auth_service
 # 2. Configure as variáveis de ambiente
 cp config/dev.env .env
 
-# 3. Execute as migrações
-./gradlew flywayMigrate
-
-# 4. Inicie a aplicação
+# 3. Inicie a aplicação (Hibernate criará o schema automaticamente)
 ./gradlew bootRun
 ```
 

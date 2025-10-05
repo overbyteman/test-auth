@@ -139,7 +139,7 @@ public class UserServiceImpl implements UserService {
     @Timed(value = "users.find", description = "Time taken to find users by name")
     public List<User> findUsersByName(String name) {
         validateName(name);
-        return userRepository.findByName(name);
+        return userRepository.findByNameContainingIgnoreCase(name.trim());
     }
 
     @Override
@@ -168,7 +168,6 @@ public class UserServiceImpl implements UserService {
 
         user.setName(name.trim());
         user.setEmail(email.trim());
-        user.updateTimestamp();
 
         return userRepository.save(user);
     }
@@ -217,7 +216,6 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com ID: " + id));
         
         user.setIsActive(true);
-        user.updateTimestamp();
         
         return userRepository.save(user);
     }
@@ -229,7 +227,6 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com ID: " + id));
         
         user.setIsActive(false);
-        user.updateTimestamp();
         
         return userRepository.save(user);
     }
@@ -244,7 +241,6 @@ public class UserServiceImpl implements UserService {
             user.setEmailVerifiedAt(java.time.LocalDateTime.now());
             user.setEmailVerificationToken(null);
             user.setIsActive(true);
-            user.updateTimestamp();
             
             return userRepository.save(user);
         } else {
@@ -261,7 +257,6 @@ public class UserServiceImpl implements UserService {
         // Gerar novo token
         String newToken = UUID.randomUUID().toString();
         user.setEmailVerificationToken(newToken);
-        user.updateTimestamp();
         
         return userRepository.save(user);
     }

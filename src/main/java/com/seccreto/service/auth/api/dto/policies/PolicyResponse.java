@@ -23,6 +23,12 @@ import java.util.List;
 public class PolicyResponse {
     @Schema(description = "Identificador único da policy", example = "550e8400-e29b-41d4-a716-446655440000")
     private UUID id;
+
+    @Schema(description = "Identificador do tenant ao qual a policy pertence", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID tenantId;
+
+    @Schema(description = "Código único da policy dentro do tenant", example = "staff-view-policy")
+    private String code;
     
     @Schema(description = "Nome da policy", example = "Admin Full Access")
     private String name;

@@ -23,6 +23,7 @@ public final class RoleMapper {
         }
         
         return Role.builder()
+        .code(request.getCode())
                 .name(request.getName())
                 .description(request.getDescription())
                 .build();
@@ -38,6 +39,8 @@ public final class RoleMapper {
         
         return RoleResponse.builder()
                 .id(role.getId())
+        .code(role.getCode())
+        .tenantId(role.getTenant() != null ? role.getTenant().getId() : null)
                 .name(role.getName())
                 .description(role.getDescription())
                 .build();
@@ -64,6 +67,7 @@ public final class RoleMapper {
             return;
         }
         
+        role.setCode(request.getCode());
         role.setName(request.getName());
         role.setDescription(request.getDescription());
     }

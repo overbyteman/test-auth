@@ -122,7 +122,7 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @PutMapping("/tenants/{id}")
+    @PatchMapping("/tenants/{id}")
     public ResponseEntity<TenantResponse> updateTenant(
             @Parameter(description = "ID do tenant") @PathVariable UUID id,
             @Valid @RequestBody TenantRequest request) {

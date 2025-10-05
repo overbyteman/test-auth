@@ -95,10 +95,6 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
                         @Param("userAgent") String userAgent, 
                         @Param("userId") UUID userId);
 
-    // ========================================
-    // MÉTODOS PARA COMPATIBILIDADE COM SERVICES
-    // ========================================
-    
     @Query("SELECT s FROM Session s WHERE s.refreshTokenHash = :refreshTokenHash")
     Optional<Session> findByRefreshTokenHash(@Param("refreshTokenHash") String refreshTokenHash);
     

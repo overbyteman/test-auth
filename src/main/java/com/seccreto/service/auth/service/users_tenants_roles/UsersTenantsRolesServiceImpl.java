@@ -42,12 +42,8 @@ public class UsersTenantsRolesServiceImpl implements UsersTenantsRolesService {
             return existingRelation.get(); // Retorna a relação existente (idempotência)
         }
 
-        UsersTenantsRoles usersTenantsRoles = new UsersTenantsRoles();
-        usersTenantsRoles.setUserId(userId);
-        usersTenantsRoles.setTenantId(tenantId);
-        usersTenantsRoles.setRoleId(roleId);
-
-        return usersTenantsRolesRepository.save(usersTenantsRoles);
+    UsersTenantsRoles usersTenantsRoles = UsersTenantsRoles.createNew(userId, tenantId, roleId);
+    return usersTenantsRolesRepository.save(usersTenantsRoles);
     }
 
     @Override

@@ -1,18 +1,21 @@
 package com.seccreto.service.auth.service.roles;
 
 import com.seccreto.service.auth.model.roles.Role;
+import com.seccreto.service.auth.model.tenants.Tenant;
 import com.seccreto.service.auth.repository.roles.RoleRepository;
+import com.seccreto.service.auth.repository.tenants.TenantRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
-import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para roles.
@@ -25,73 +28,76 @@ import java.util.UUID;
 public class RoleServiceImpl implements RoleService {
 
     private final RoleRepository roleRepository;
-    public RoleServiceImpl(RoleRepository roleRepository) {
+    private final TenantRepository tenantRepository;
+
+    public RoleServiceImpl(RoleRepository roleRepository, TenantRepository tenantRepository) {
         this.roleRepository = roleRepository;
+        this.tenantRepository = tenantRepository;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "roles.create", description = "Time taken to create a role")
-    public Role createRole(String name, String description) {
+    public Role createRole(UUID tenantId, String code, String name, String description) {
+        validateTenantId(tenantId);
+        validateCode(code);
         validateName(name);
 
-        // Verificar se já existe um role com este nome (idempotência)
-        Optional<Role> existingRole = roleRepository.findByNameExact(name.trim());
-        if (existingRole.isPresent()) {
-            return existingRole.get(); // Retorna o role existente (idempotência)
-        }
+        Tenant tenant = findTenant(tenantId);
 
-        Role role = Role.createNew(name.trim(), description);
+        roleRepository.findByCodeAndTenantId(code.trim(), tenantId)
+                .ifPresent(existing -> { throw new ConflictException("Code já está em uso para este tenant"); });
+
+        roleRepository.findByNameAndTenantId(name.trim(), tenantId)
+                .ifPresent(existing -> { throw new ConflictException("Nome já está em uso para este tenant"); });
+
+        Role role = Role.createNew(code.trim(), name.trim(), description, tenant);
         return roleRepository.save(role);
     }
 
     @Override
     @Timed(value = "roles.list", description = "Time taken to list roles")
-    public List<Role> listAllRoles() {
-        return roleRepository.findAll();
+    public List<Role> listRoles(UUID tenantId) {
+        validateTenantId(tenantId);
+        return roleRepository.findByTenantId(tenantId);
     }
 
     @Override
     @Timed(value = "roles.find", description = "Time taken to find role by id")
-    public Optional<Role> findRoleById(UUID id) {
+    public Optional<Role> findRoleById(UUID tenantId, UUID id) {
+        validateTenantId(tenantId);
         validateId(id);
-        return roleRepository.findById(id);
+        return roleRepository.findById(id)
+                .filter(role -> role.getTenant() != null && tenantId.equals(role.getTenant().getId()));
     }
 
     @Override
-    @Timed(value = "roles.find", description = "Time taken to find roles by name")
-    public List<Role> findRolesByName(String name) {
-        validateName(name);
-        Optional<Role> role = roleRepository.findByName(name);
-        return role.map(List::of).orElse(List.of());
-    }
-
-    @Override
-    @Timed(value = "roles.find", description = "Time taken to find role by exact name")
-    public Optional<Role> findRoleByNameExact(String name) {
-        validateName(name);
-        return roleRepository.findByNameExact(name);
+    public Optional<Role> findRoleByCode(UUID tenantId, String code) {
+        validateTenantId(tenantId);
+        validateCode(code);
+        return roleRepository.findByCodeAndTenantId(code.trim(), tenantId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "roles.update", description = "Time taken to update role")
-    public Role updateRole(UUID id, String name, String description) {
+    public Role updateRole(UUID tenantId, UUID id, String name, String description) {
+        validateTenantId(tenantId);
         validateId(id);
         validateName(name);
 
-        Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Role não encontrado com ID: " + id));
+        Role role = requireRole(tenantId, id);
 
-        // Verificar se nome já existe em outro role
-        Optional<Role> existingRole = roleRepository.findByNameExact(name.trim());
-        if (existingRole.isPresent() && !existingRole.get().getId().equals(id)) {
-            throw new ConflictException("Nome já está em uso por outro role");
+        roleRepository.findByNameAndTenantId(name.trim(), tenantId)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> { throw new ConflictException("Nome já está em uso para este tenant"); });
+
+        if (description != null && description.trim().isEmpty()) {
+            description = null;
         }
 
         role.setName(name.trim());
         role.setDescription(description);
-        role.updateTimestamp();
 
         return roleRepository.save(role);
     }
@@ -99,113 +105,153 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "roles.delete", description = "Time taken to delete role")
-    public boolean deleteRole(UUID id) {
+    public boolean deleteRole(UUID tenantId, UUID id) {
+        validateTenantId(tenantId);
         validateId(id);
-        
-        if (!roleRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Role não encontrado com ID: " + id);
-        }
 
-        roleRepository.deleteById(id);
+        Role role = requireRole(tenantId, id);
+        roleRepository.delete(role);
         return true;
     }
 
     @Override
-    public boolean existsRoleById(UUID id) {
+    public boolean existsRoleById(UUID tenantId, UUID id) {
+        validateTenantId(tenantId);
         validateId(id);
-        return roleRepository.existsById(id);
+        return roleRepository.findById(id)
+                .map(role -> role.getTenant() != null && tenantId.equals(role.getTenant().getId()))
+                .orElse(false);
     }
 
     @Override
-    public boolean existsRoleByName(String name) {
-        validateName(name);
-        return roleRepository.existsByName(name);
+    public boolean existsRoleByCode(UUID tenantId, String code) {
+        validateTenantId(tenantId);
+        validateCode(code);
+        return roleRepository.existsByCodeAndTenantId(code.trim(), tenantId);
     }
 
     @Override
     @Timed(value = "roles.count", description = "Time taken to count roles")
-    public long countRoles() {
-        return roleRepository.count();
+    public long countRoles(UUID tenantId) {
+        validateTenantId(tenantId);
+        return roleRepository.countByTenantId(tenantId);
     }
 
     @Override
-    public List<Role> searchRoles(String query) {
-        return roleRepository.search(query);
+    public List<Role> searchRoles(UUID tenantId, String query) {
+        validateTenantId(tenantId);
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+        return roleRepository.search(tenantId, query.trim());
     }
 
     @Override
-    public List<Object> getRolePermissions(UUID roleId) {
+    public List<Object> getRolePermissions(UUID tenantId, UUID roleId) {
+        Role role = requireRole(tenantId, roleId);
         try {
-            List<Object[]> results = roleRepository.getRolePermissionsDetails(roleId);
+            List<Object[]> results = roleRepository.getRolePermissionsDetails(role.getId());
             return results.stream()
-                    .map(row -> java.util.Map.of(
-                        "id", row[0],
-                        "action", row[1],
-                        "resource", row[2]
+                    .map(row -> Map.of(
+                            "id", row[0],
+                            "action", row[1],
+                            "resource", row[2],
+                            "policyId", row[3]
                     ))
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter permissões do role: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public boolean roleHasPermission(UUID roleId, String action, String resource) {
+    public boolean roleHasPermission(UUID tenantId, UUID roleId, String action, String resource) {
+        Role role = requireRole(tenantId, roleId);
         try {
-            return roleRepository.roleHasPermissionByActionAndResource(roleId, action, resource);
+            return roleRepository.roleHasPermission(role.getId(), action, resource);
         } catch (Exception e) {
             throw new RuntimeException("Erro ao verificar permissão do role: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public long countRolePermissions(UUID roleId) {
+    public long countRolePermissions(UUID tenantId, UUID roleId) {
+        Role role = requireRole(tenantId, roleId);
         try {
-            return roleRepository.countPermissionsByRole(roleId);
+            return roleRepository.countPermissionsByRole(role.getId());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar permissões do role: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public List<Object> getRoleUsers(UUID roleId) {
+    public List<Object> getRoleUsers(UUID tenantId, UUID roleId) {
+        Role role = requireRole(tenantId, roleId);
         try {
-            List<Object[]> results = roleRepository.getRoleUsersDetails(roleId);
+            List<Object[]> results = roleRepository.getRoleUsersDetails(role.getId());
             return results.stream()
-                    .map(row -> java.util.Map.of(
-                        "id", row[0],
-                        "name", row[1],
-                        "email", row[2],
-                        "isActive", row[3]
+                    .map(row -> Map.of(
+                            "id", row[0],
+                            "name", row[1],
+                            "email", row[2],
+                            "isActive", row[3]
                     ))
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter usuários do role: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public long countRoleUsers(UUID roleId) {
+    public long countRoleUsers(UUID tenantId, UUID roleId) {
+        Role role = requireRole(tenantId, roleId);
         try {
-            return roleRepository.countUsersByRole(roleId);
+            return roleRepository.countUsersByRole(role.getId());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar usuários do role: " + e.getMessage(), e);
         }
     }
 
     // Métodos de validação privados
+    private void validateTenantId(UUID tenantId) {
+        if (tenantId == null) {
+            throw new IllegalArgumentException("TenantId não pode ser nulo");
+        }
+    }
+
     private void validateId(UUID id) {
         if (id == null) {
-            throw new ValidationException("ID do role não pode ser nulo");
+            throw new IllegalArgumentException("ID do role não pode ser nulo");
+        }
+    }
+
+    private void validateCode(String code) {
+        if (code == null || code.trim().isEmpty()) {
+            throw new IllegalArgumentException("Code do role é obrigatório");
+        }
+        if (code.trim().length() < 2) {
+            throw new IllegalArgumentException("Code do role deve ter pelo menos 2 caracteres");
         }
     }
 
     private void validateName(String name) {
         if (name == null || name.trim().isEmpty()) {
-            throw new ValidationException("Nome do role é obrigatório");
+            throw new IllegalArgumentException("Nome do role é obrigatório");
         }
         if (name.trim().length() < 2) {
-            throw new ValidationException("Nome do role deve ter pelo menos 2 caracteres");
+            throw new IllegalArgumentException("Nome do role deve ter pelo menos 2 caracteres");
         }
+    }
+
+    private Tenant findTenant(UUID tenantId) {
+        return tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + tenantId));
+    }
+
+    private Role requireRole(UUID tenantId, UUID roleId) {
+        return roleRepository.findById(roleId)
+                .filter(role -> role.getTenant() != null && tenantId.equals(role.getTenant().getId()))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Role não encontrado para o tenant informado (tenantId=" + tenantId + ", roleId=" + roleId + ")"));
     }
 }

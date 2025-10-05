@@ -20,7 +20,7 @@ import java.util.UUID;
  * - Detecção automática do tipo de hash
  * - Migração transparente durante login
  * - Migração em lote para usuários existentes
- * - Compatibilidade com hashes antigos
+ * - Suporte a hashes antigos até migração completa
  */
 @Service
 public class PasswordMigrationService {
@@ -80,7 +80,6 @@ public class PasswordMigrationService {
             
             String newHash = postQuantumEncoder.encode(rawPassword);
             user.setPasswordHash(newHash);
-            user.updateTimestamp();
             
             userRepository.save(user);
             
@@ -118,7 +117,7 @@ public class PasswordMigrationService {
         // Em um ambiente real, você poderia:
         // 1. Forçar reset de senha para todos os usuários
         // 2. Migrar durante o próximo login (implementado no verifyAndMigratePassword)
-        // 3. Manter compatibilidade com ambos os formatos
+    // 3. Suportar ambos os formatos durante a transição
     }
     
     /**
@@ -135,7 +134,6 @@ public class PasswordMigrationService {
         for (User user : usersWithBCrypt) {
             // Marcar usuário como precisando redefinir senha
             user.setIsActive(false); // Desativar até redefinir senha
-            user.updateTimestamp();
             userRepository.save(user);
             
             logger.info("Forced password reset for user: {}", user.getId());

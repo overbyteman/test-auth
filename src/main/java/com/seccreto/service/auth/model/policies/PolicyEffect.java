@@ -14,8 +14,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "Enum que representa os efeitos de uma política ABAC")
 public enum PolicyEffect {
     @Schema(description = "Política que permite acesso")
-    allow,
-    
+    ALLOW,
+
     @Schema(description = "Política que nega acesso")
-    deny
+    DENY
 }

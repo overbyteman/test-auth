@@ -14,26 +14,25 @@ import java.util.UUID;
 public interface RoleService {
     
     // Operações básicas CRUD
-    Role createRole(String name, String description);
-    List<Role> listAllRoles();
-    Optional<Role> findRoleById(UUID id);
-    List<Role> findRolesByName(String name);
-    Optional<Role> findRoleByNameExact(String name);
-    Role updateRole(UUID id, String name, String description);
-    boolean deleteRole(UUID id);
-    boolean existsRoleById(UUID id);
-    boolean existsRoleByName(String name);
-    long countRoles();
+    Role createRole(UUID tenantId, String code, String name, String description);
+    List<Role> listRoles(UUID tenantId);
+    Optional<Role> findRoleById(UUID tenantId, UUID id);
+    Optional<Role> findRoleByCode(UUID tenantId, String code);
+    Role updateRole(UUID tenantId, UUID id, String name, String description);
+    boolean deleteRole(UUID tenantId, UUID id);
+    boolean existsRoleById(UUID tenantId, UUID id);
+    boolean existsRoleByCode(UUID tenantId, String code);
+    long countRoles(UUID tenantId);
     
     // Operações de busca
-    List<Role> searchRoles(String query);
+    List<Role> searchRoles(UUID tenantId, String query);
     
     // Operações de permissões
-    List<Object> getRolePermissions(UUID roleId);
-    boolean roleHasPermission(UUID roleId, String action, String resource);
-    long countRolePermissions(UUID roleId);
+    List<Object> getRolePermissions(UUID tenantId, UUID roleId);
+    boolean roleHasPermission(UUID tenantId, UUID roleId, String action, String resource);
+    long countRolePermissions(UUID tenantId, UUID roleId);
     
     // Operações de usuários
-    List<Object> getRoleUsers(UUID roleId);
-    long countRoleUsers(UUID roleId);
+    List<Object> getRoleUsers(UUID tenantId, UUID roleId);
+    long countRoleUsers(UUID tenantId, UUID roleId);
 }

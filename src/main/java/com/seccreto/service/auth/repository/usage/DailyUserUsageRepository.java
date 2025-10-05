@@ -58,10 +58,6 @@ public interface DailyUserUsageRepository extends JpaRepository<DailyUserUsage, 
            "WHERE d.usageDate >= :since GROUP BY d.tenantId ORDER BY SUM(d.logins) DESC")
     List<Object[]> getTenantUsageStats(@Param("since") LocalDate since);
 
-    // ========================================
-    // MÉTODOS PARA COMPATIBILIDADE COM SERVICES
-    // ========================================
-
     @Query("SELECT COUNT(DISTINCT d.userId) FROM DailyUserUsage d WHERE d.usageDate = :date")
     long countActiveUsersOnDate(@Param("date") LocalDate date);
 

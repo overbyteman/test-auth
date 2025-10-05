@@ -12,7 +12,12 @@ public interface JwtService {
     /**
      * Gera um token de acesso JWT
      */
-    String generateAccessToken(UUID userId, UUID sessionId, UUID tenantId, List<String> roles, List<String> permissions);
+    String generateAccessToken(UUID userId,
+                               UUID sessionId,
+                               UUID tenantId,
+                               List<String> roles,
+                               List<String> permissions,
+                               List<TenantAccessClaim> tenantAccess);
     
     /**
      * Gera um token de refresh
@@ -44,6 +49,7 @@ public interface JwtService {
         UUID tenantId,
         List<String> roles,
         List<String> permissions,
+        List<TenantAccessClaim> tenantAccess,
         LocalDateTime expiresAt,
         String reason
     ) {}
@@ -57,7 +63,18 @@ public interface JwtService {
         UUID tenantId,
         List<String> roles,
         List<String> permissions,
+        List<TenantAccessClaim> tenantAccess,
         LocalDateTime issuedAt,
         LocalDateTime expiresAt
+    ) {}
+
+    /**
+     * Informações de acesso por tenant
+     */
+    record TenantAccessClaim(
+        UUID tenantId,
+        String tenantName,
+        List<String> roles,
+        List<String> permissions
     ) {}
 }

@@ -6,11 +6,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import com.seccreto.service.auth.service.jwt.JwtService.TenantAccessClaim;
+
 import javax.crypto.SecretKey;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -37,7 +42,12 @@ public class JwtServiceImpl implements JwtService {
     }
     
     @Override
-    public String generateAccessToken(UUID userId, UUID sessionId, UUID tenantId, List<String> roles, List<String> permissions) {
+    public String generateAccessToken(UUID userId,
+                                      UUID sessionId,
+                                      UUID tenantId,
+                                      List<String> roles,
+                                      List<String> permissions,
+                                      List<TenantAccessClaim> tenantAccess) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + (accessTokenValidityHours * 60 * 60 * 1000L));
         
@@ -53,6 +63,12 @@ public class JwtServiceImpl implements JwtService {
         
         if (tenantId != null) {
             builder.claim("tenantId", tenantId.toString());
+        }
+
+        if (tenantAccess != null && !tenantAccess.isEmpty()) {
+            builder.claim("tenants", tenantAccess.stream()
+                    .map(JwtServiceImpl::tenantClaimToMap)
+                    .toList());
         }
         
         return builder.compact();
@@ -77,7 +93,7 @@ public class JwtServiceImpl implements JwtService {
     public JwtValidationResult validateToken(String token) {
         if (token == null || token.trim().isEmpty()) {
             return new JwtValidationResult(
-                false, null, null, null, List.of(), List.of(), null, "Token não fornecido"
+                false, null, null, null, List.of(), List.of(), List.<TenantAccessClaim>of(), null, "Token não fornecido"
             );
         }
         
@@ -94,26 +110,23 @@ public class JwtServiceImpl implements JwtService {
             String tenantIdStr = claims.get("tenantId", String.class);
             UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
             
-            @SuppressWarnings("unchecked")
-            List<String> roles = claims.get("roles", List.class);
-            if (roles == null) roles = List.of();
-            
-            @SuppressWarnings("unchecked")
-            List<String> permissions = claims.get("permissions", List.class);
-            if (permissions == null) permissions = List.of();
+            List<String> roles = extractStringList(claims.get("roles"));
+            List<String> permissions = extractStringList(claims.get("permissions"));
+            List<TenantAccessClaim> tenantAccess = extractTenantAccess(claims.get("tenants"));
             
             LocalDateTime expiresAt = LocalDateTime.ofInstant(
                 claims.getExpiration().toInstant(), java.time.ZoneId.systemDefault()
             );
             
             return new JwtValidationResult(
-                true, userId, sessionId, tenantId, roles, permissions, expiresAt, null
+                true, userId, sessionId, tenantId, roles, permissions, tenantAccess, expiresAt, null
             );
             
         } catch (ExpiredJwtException e) {
             UUID userId = null;
             UUID sessionId = null;
             LocalDateTime expiresAt = null;
+            List<TenantAccessClaim> tenantAccess = List.of();
             
             try {
                 userId = UUID.fromString(e.getClaims().getSubject());
@@ -121,27 +134,28 @@ public class JwtServiceImpl implements JwtService {
                 expiresAt = LocalDateTime.ofInstant(
                     e.getClaims().getExpiration().toInstant(), java.time.ZoneId.systemDefault()
                 );
+                tenantAccess = extractTenantAccess(e.getClaims().get("tenants"));
             } catch (Exception ignored) {
                 // Ignore parsing errors for expired token
             }
             
             return new JwtValidationResult(
-                false, userId, sessionId, null, List.of(), List.of(), expiresAt, "Token expirado"
+                false, userId, sessionId, null, List.of(), List.of(), tenantAccess, expiresAt, "Token expirado"
             );
             
         } catch (UnsupportedJwtException e) {
             return new JwtValidationResult(
-                false, null, null, null, List.of(), List.of(), null, "Token não suportado"
+                false, null, null, null, List.of(), List.of(), List.<TenantAccessClaim>of(), null, "Token não suportado"
             );
             
         } catch (MalformedJwtException e) {
             return new JwtValidationResult(
-                false, null, null, null, List.of(), List.of(), null, "Token malformado"
+                false, null, null, null, List.of(), List.of(), List.<TenantAccessClaim>of(), null, "Token malformado"
             );
             
         } catch (SecurityException | IllegalArgumentException | io.jsonwebtoken.security.SignatureException e) {
             return new JwtValidationResult(
-                false, null, null, null, List.of(), List.of(), null, "Token inválido"
+                false, null, null, null, List.of(), List.of(), List.<TenantAccessClaim>of(), null, "Token inválido"
             );
         }
     }
@@ -171,13 +185,9 @@ public class JwtServiceImpl implements JwtService {
             String tenantIdStr = claims.get("tenantId", String.class);
             UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
             
-            @SuppressWarnings("unchecked")
-            List<String> roles = claims.get("roles", List.class);
-            if (roles == null) roles = List.of();
-            
-            @SuppressWarnings("unchecked")
-            List<String> permissions = claims.get("permissions", List.class);
-            if (permissions == null) permissions = List.of();
+            List<String> roles = extractStringList(claims.get("roles"));
+            List<String> permissions = extractStringList(claims.get("permissions"));
+            List<TenantAccessClaim> tenantAccess = extractTenantAccess(claims.get("tenants"));
             
             LocalDateTime issuedAt = LocalDateTime.ofInstant(
                 claims.getIssuedAt().toInstant(), java.time.ZoneId.systemDefault()
@@ -187,7 +197,7 @@ public class JwtServiceImpl implements JwtService {
             );
             
             return new JwtTokenInfo(
-                userId, sessionId, tenantId, roles, permissions, issuedAt, expiresAt
+                userId, sessionId, tenantId, roles, permissions, tenantAccess, issuedAt, expiresAt
             );
             
         } catch (Exception e) {
@@ -207,13 +217,9 @@ public class JwtServiceImpl implements JwtService {
                 String tenantIdStr = claims.get("tenantId", String.class);
                 UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
                 
-                @SuppressWarnings("unchecked")
-                List<String> roles = claims.get("roles", List.class);
-                if (roles == null) roles = List.of();
-                
-                @SuppressWarnings("unchecked")
-                List<String> permissions = claims.get("permissions", List.class);
-                if (permissions == null) permissions = List.of();
+                List<String> roles = extractStringList(claims.get("roles"));
+                List<String> permissions = extractStringList(claims.get("permissions"));
+                List<TenantAccessClaim> tenantAccess = extractTenantAccess(claims.get("tenants"));
                 
                 LocalDateTime issuedAt = LocalDateTime.ofInstant(
                     claims.getIssuedAt().toInstant(), java.time.ZoneId.systemDefault()
@@ -223,7 +229,7 @@ public class JwtServiceImpl implements JwtService {
                 );
                 
                 return new JwtTokenInfo(
-                    userId, sessionId, tenantId, roles, permissions, issuedAt, expiresAt
+                    userId, sessionId, tenantId, roles, permissions, tenantAccess, issuedAt, expiresAt
                 );
                 
             } catch (Exception ignored) {
@@ -241,5 +247,62 @@ public class JwtServiceImpl implements JwtService {
         
         LocalDateTime thresholdTime = LocalDateTime.now().plusMinutes(minutesThreshold);
         return tokenInfo.expiresAt().isBefore(thresholdTime);
+    }
+
+    private static Map<String, Object> tenantClaimToMap(TenantAccessClaim claim) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        if (claim.tenantId() != null) {
+            map.put("tenantId", claim.tenantId().toString());
+        }
+        map.put("tenantName", claim.tenantName());
+        map.put("roles", claim.roles() != null ? claim.roles() : List.of());
+        map.put("permissions", claim.permissions() != null ? claim.permissions() : List.of());
+        return map;
+    }
+
+    private static List<String> extractStringList(Object claimValue) {
+        if (claimValue == null) {
+            return List.of();
+        }
+        if (claimValue instanceof List<?> list) {
+            return list.stream()
+                    .filter(Objects::nonNull)
+                    .map(Object::toString)
+                    .toList();
+        }
+        return List.of(claimValue.toString());
+    }
+
+    private static List<TenantAccessClaim> extractTenantAccess(Object claimValue) {
+        if (!(claimValue instanceof List<?> rawList) || rawList.isEmpty()) {
+            return List.of();
+        }
+
+        return rawList.stream()
+                .map(JwtServiceImpl::mapToTenantClaim)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private static TenantAccessClaim mapToTenantClaim(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return null;
+        }
+
+        UUID tenantId = null;
+        Object tenantIdValue = map.get("tenantId");
+        if (tenantIdValue != null && !tenantIdValue.toString().isBlank()) {
+            try {
+                tenantId = UUID.fromString(tenantIdValue.toString());
+            } catch (IllegalArgumentException ignored) {
+                tenantId = null;
+            }
+        }
+
+        String tenantName = Objects.toString(map.get("tenantName"), null);
+        List<String> roles = extractStringList(map.get("roles"));
+        List<String> permissions = extractStringList(map.get("permissions"));
+
+        return new TenantAccessClaim(tenantId, tenantName, roles, permissions);
     }
 }

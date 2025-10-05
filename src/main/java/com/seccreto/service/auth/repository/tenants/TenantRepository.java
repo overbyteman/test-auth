@@ -92,13 +92,6 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
            nativeQuery = true)
     List<Object[]> getTenantUsageStats(@Param("since") LocalDateTime since);
 
-    // ========================================
-    // MÉTODOS PARA COMPATIBILIDADE COM SERVICES
-    // ========================================
-    
-    @Query("SELECT t FROM Tenant t WHERE LOWER(t.name) = LOWER(:name)")
-    Optional<Tenant> findByNameExact(@Param("name") String name);
-    
     @Query("SELECT COUNT(t) FROM Tenant t WHERE t.createdAt >= :startOfDay AND t.createdAt < :endOfDay")
     long countCreatedToday(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
     

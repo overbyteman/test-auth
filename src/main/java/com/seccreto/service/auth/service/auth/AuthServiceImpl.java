@@ -2,6 +2,7 @@ package com.seccreto.service.auth.service.auth;
 
 import com.seccreto.service.auth.api.dto.auth.LoginResponse;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
+import com.seccreto.service.auth.api.dto.auth.RolePermissionsResponse;
 import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
 import com.seccreto.service.auth.api.dto.auth.RefreshTokenResponse;
@@ -107,6 +108,9 @@ public class AuthServiceImpl implements AuthService {
         // Gerar tokens JWT reais com roles e permissions do banco de dados
         List<String> roles = userRolePermissionService.getUserRoles(user.getId());
         List<String> permissions = userRolePermissionService.getUserPermissions(user.getId());
+        List<TenantAccess> tenantAccess = userRolePermissionService.getUserTenantAccess(user.getId());
+        List<JwtService.TenantAccessClaim> tenantClaims = toTenantClaims(tenantAccess);
+        TenantAccess primaryTenant = resolvePrimaryTenant(tenantAccess);
         
         // Se usuário não tem roles, dar role básico
         if (roles.isEmpty()) {
@@ -118,8 +122,10 @@ public class AuthServiceImpl implements AuthService {
             permissions = List.of("read:profile");
         }
         
+        List<RolePermissionsResponse> roleResponses = toRoleResponses(tenantAccess, roles, permissions);
+
         String accessToken = jwtService.generateAccessToken(
-            user.getId(), session.getId(), null, roles, permissions
+            user.getId(), session.getId(), null, roles, permissions, tenantClaims
         );
         String refreshToken = jwtService.generateRefreshToken(user.getId(), session.getId());
         
@@ -134,7 +140,10 @@ public class AuthServiceImpl implements AuthService {
                 .userId(user.getId())
                 .userName(user.getName())
                 .userEmail(user.getEmail())
+        .tenantId(primaryTenant != null ? primaryTenant.tenantId() : null)
+        .tenantName(primaryTenant != null ? primaryTenant.tenantName() : null)
                 .loginTime(LocalDateTime.now())
+                .roles(List.copyOf(roleResponses))
                 .build();
     }
 
@@ -395,7 +404,7 @@ public class AuthServiceImpl implements AuthService {
         List<String> permissions = List.of("read:profile"); // TODO: Fetch real permissions
         
         String accessToken = jwtService.generateAccessToken(
-            savedUser.getId(), session.getId(), null, roles, permissions
+            savedUser.getId(), session.getId(), null, roles, permissions, List.of()
         );
         String refreshToken = jwtService.generateRefreshToken(savedUser.getId(), session.getId());
         
@@ -441,6 +450,9 @@ public class AuthServiceImpl implements AuthService {
         // Buscar roles e permissions atualizadas
         List<String> roles = userRolePermissionService.getUserRoles(user.getId());
         List<String> permissions = userRolePermissionService.getUserPermissions(user.getId());
+        List<TenantAccess> tenantAccess = userRolePermissionService.getUserTenantAccess(user.getId());
+        List<JwtService.TenantAccessClaim> tenantClaims = toTenantClaims(tenantAccess);
+        TenantAccess primaryTenant = resolvePrimaryTenant(tenantAccess);
         
         // Se usuário não tem roles, dar role básico
         if (roles.isEmpty()) {
@@ -452,21 +464,26 @@ public class AuthServiceImpl implements AuthService {
             permissions = List.of("read:profile");
         }
         
+    List<RolePermissionsResponse> roleResponses = toRoleResponses(tenantAccess, roles, permissions);
+
         // Gerar novo access token
         String newAccessToken = jwtService.generateAccessToken(
-            user.getId(), validationResult.sessionId(), validationResult.tenantId(), roles, permissions
+            user.getId(), validationResult.sessionId(), validationResult.tenantId(), roles, permissions, tenantClaims
         );
         
         // Opcionalmente, gerar novo refresh token (rotação de tokens)
         String newRefreshToken = jwtService.generateRefreshToken(user.getId(), validationResult.sessionId());
         
-        return RefreshTokenResponse.builder()
+    return RefreshTokenResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
                 .expiresIn(3600L)
                 .userId(user.getId())
                 .refreshedAt(LocalDateTime.now())
+        .tenantId(primaryTenant != null ? primaryTenant.tenantId() : null)
+        .tenantName(primaryTenant != null ? primaryTenant.tenantName() : null)
+                .roles(List.copyOf(roleResponses))
                 .build();
     }
 
@@ -475,6 +492,8 @@ public class AuthServiceImpl implements AuthService {
         if (token == null || token.trim().isEmpty()) {
             return ValidateTokenResponse.builder()
                     .valid(false)
+                    .roles(List.of())
+                    .permissions(List.of())
                     .reason("Token não fornecido")
                     .build();
         }
@@ -488,6 +507,8 @@ public class AuthServiceImpl implements AuthService {
             return ValidateTokenResponse.builder()
                     .valid(false)
                     .userId(result.userId())
+                    .roles(List.of())
+                    .permissions(List.of())
                     .reason(result.reason())
                     .build();
         }
@@ -501,8 +522,8 @@ public class AuthServiceImpl implements AuthService {
                 .userId(result.userId())
                 .userName(user != null ? user.getName() : "Unknown")
                 .userEmail(user != null ? user.getEmail() : "unknown@example.com")
-                .roles(result.roles())
-                .permissions(result.permissions())
+        .roles(List.copyOf(result.roles()))
+        .permissions(List.copyOf(result.permissions()))
                 .expiresAt(result.expiresAt())
                 .build();
     }
@@ -581,8 +602,8 @@ public class AuthServiceImpl implements AuthService {
                 .sessionId(result.sessionId())
                 .tenantId(result.tenantId())
                 .userInfo(userInfo)
-                .permissions(result.permissions())
-                .roles(result.roles())
+        .permissions(List.copyOf(result.permissions()))
+        .roles(List.copyOf(result.roles()))
                 .policies(policies)
                 .expiresAt(result.expiresAt())
                 .reason(null)
@@ -605,7 +626,6 @@ public class AuthServiceImpl implements AuthService {
         
         validatePassword(newPassword);
         user.setPasswordHash(hashPassword(newPassword));
-        user.updateTimestamp();
         userRepository.save(user);
     }
 
@@ -659,7 +679,6 @@ public class AuthServiceImpl implements AuthService {
             
             // Atualizar senha
             user.setPasswordHash(hashPassword(newPassword));
-            user.updateTimestamp();
             userRepository.save(user);
             
             // Invalidar token usado
@@ -710,6 +729,116 @@ public class AuthServiceImpl implements AuthService {
             logger.warn("Logout failed: {}", e.getMessage());
             throw new ValidationException("Erro durante logout: token pode estar inválido");
         }
+    }
+
+    private List<JwtService.TenantAccessClaim> toTenantClaims(List<TenantAccess> tenantAccess) {
+        if (tenantAccess == null || tenantAccess.isEmpty()) {
+            return List.of();
+        }
+        return tenantAccess.stream()
+                .map(access -> {
+                    java.util.LinkedHashSet<String> roleNames = new java.util.LinkedHashSet<>();
+                    java.util.LinkedHashSet<String> permissions = new java.util.LinkedHashSet<>();
+                    if (access.roles() != null) {
+                        for (TenantAccess.TenantRoleAccess roleAccess : access.roles()) {
+                            if (roleAccess == null) {
+                                continue;
+                            }
+                            if (roleAccess.roleName() != null && !roleAccess.roleName().isBlank()) {
+                                roleNames.add(roleAccess.roleName());
+                            }
+                            if (roleAccess.permissions() != null) {
+                                permissions.addAll(roleAccess.permissions());
+                            }
+                        }
+                    }
+                    return new JwtService.TenantAccessClaim(
+                            access.tenantId(),
+                            access.tenantName(),
+                            List.copyOf(roleNames),
+                            List.copyOf(permissions)
+                    );
+                })
+                .toList();
+    }
+
+    private TenantAccess resolvePrimaryTenant(List<TenantAccess> tenantAccess) {
+        if (tenantAccess == null || tenantAccess.isEmpty()) {
+            return null;
+        }
+        return tenantAccess.get(0);
+    }
+
+    private List<RolePermissionsResponse> toRoleResponses(List<TenantAccess> tenantAccess,
+                                                          List<String> aggregateRoles,
+                                                          List<String> aggregatePermissions) {
+        java.util.LinkedHashMap<String, java.util.LinkedHashSet<String>> permissionsByRole = new java.util.LinkedHashMap<>();
+
+        if (tenantAccess != null) {
+            for (TenantAccess access : tenantAccess) {
+                if (access == null || access.roles() == null) {
+                    continue;
+                }
+                for (TenantAccess.TenantRoleAccess roleAccess : access.roles()) {
+                    if (roleAccess == null || roleAccess.roleName() == null || roleAccess.roleName().isBlank()) {
+                        continue;
+                    }
+                    java.util.LinkedHashSet<String> rolePermissions = permissionsByRole.computeIfAbsent(
+                            roleAccess.roleName(), key -> new java.util.LinkedHashSet<>());
+                    if (roleAccess.permissions() != null) {
+                        for (String permission : roleAccess.permissions()) {
+                            if (permission != null && !permission.isBlank()) {
+                                rolePermissions.add(permission);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (aggregateRoles != null) {
+            for (String roleName : aggregateRoles) {
+                if (roleName == null || roleName.isBlank()) {
+                    continue;
+                }
+                permissionsByRole.computeIfAbsent(roleName, key -> new java.util.LinkedHashSet<>());
+            }
+        }
+
+        if (permissionsByRole.isEmpty() && aggregateRoles != null && !aggregateRoles.isEmpty()) {
+            java.util.LinkedHashSet<String> fallbackPermissions = new java.util.LinkedHashSet<>();
+            if (aggregatePermissions != null && !aggregatePermissions.isEmpty()) {
+                for (String permission : aggregatePermissions) {
+                    if (permission != null && !permission.isBlank()) {
+                        fallbackPermissions.add(permission);
+                    }
+                }
+            }
+            for (String roleName : aggregateRoles) {
+                permissionsByRole.put(roleName, new java.util.LinkedHashSet<>(fallbackPermissions));
+            }
+        } else if (aggregatePermissions != null && !aggregatePermissions.isEmpty()) {
+            for (java.util.LinkedHashSet<String> permissionSet : permissionsByRole.values()) {
+                if (permissionSet.isEmpty()) {
+                    for (String permission : aggregatePermissions) {
+                        if (permission != null && !permission.isBlank()) {
+                            permissionSet.add(permission);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (permissionsByRole.isEmpty()) {
+            return List.of();
+        }
+
+        return permissionsByRole.entrySet().stream()
+                .map(entry -> RolePermissionsResponse.builder()
+                        .roleName(entry.getKey())
+                        .permissions(List.copyOf(entry.getValue()))
+                        .build())
+                .toList();
     }
 
     // Métodos de validação privados

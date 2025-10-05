@@ -1,8 +1,10 @@
 package com.seccreto.service.auth.config;
 
+import com.seccreto.service.auth.service.authorization.AuthorizationService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -11,17 +13,18 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Aspect para processar anotações de autorização customizadas.
- * 
- * Processa @RequireRole e @RequirePermission para controle de acesso
- * baseado em roles e permissions do usuário autenticado.
+ * Aspect para controle de acesso baseado em anotações customizadas
  */
 @Aspect
 @Component
 public class AuthorizationAspect {
+
+    @Autowired
+    private AuthorizationService authorizationService;
 
     @Around("@annotation(requireRole)")
     public Object checkRole(ProceedingJoinPoint joinPoint, RequireRole requireRole) throws Throwable {
@@ -83,6 +86,84 @@ public class AuthorizationAspect {
 
         if (!hasAccess) {
             throw new AccessDeniedException("Acesso negado. Permissões necessárias: " + Arrays.toString(requiredPermissions));
+        }
+
+        return joinPoint.proceed();
+    }
+
+    @Around("@annotation(requireTenantAccess)")
+    public Object checkTenantAccess(ProceedingJoinPoint joinPoint, RequireTenantAccess requireTenantAccess) throws Throwable {
+        // Extrai o tenantId dos parâmetros do método
+        Object[] args = joinPoint.getArgs();
+        UUID tenantId = null;
+        
+        // Procura por tenantId nos parâmetros
+        for (Object arg : args) {
+            if (arg instanceof UUID) {
+                // Assumindo que o primeiro UUID é o tenantId
+                tenantId = (UUID) arg;
+                break;
+            }
+        }
+
+        if (tenantId == null) {
+            throw new AccessDeniedException("Tenant ID não encontrado nos parâmetros");
+        }
+
+        if (!authorizationService.hasTenantAccess(tenantId)) {
+            throw new AccessDeniedException("Acesso negado ao tenant: " + tenantId);
+        }
+
+        return joinPoint.proceed();
+    }
+
+    @Around("@annotation(requireOwnershipOrRole)")
+    public Object checkOwnershipOrRole(ProceedingJoinPoint joinPoint, RequireOwnershipOrRole requireOwnershipOrRole) throws Throwable {
+        // Extrai o userId dos parâmetros do método
+        Object[] args = joinPoint.getArgs();
+        UUID userId = null;
+        
+        // Procura por userId nos parâmetros
+        for (Object arg : args) {
+            if (arg instanceof UUID) {
+                // Assumindo que o primeiro UUID é o userId
+                userId = (UUID) arg;
+                break;
+            }
+        }
+
+        if (userId == null) {
+            throw new AccessDeniedException("User ID não encontrado nos parâmetros");
+        }
+
+        if (!authorizationService.hasOwnershipOrRole(userId, requireOwnershipOrRole.value())) {
+            throw new AccessDeniedException("Acesso negado. Você só pode acessar seus próprios dados ou ter roles: " + Arrays.toString(requireOwnershipOrRole.value()));
+        }
+
+        return joinPoint.proceed();
+    }
+
+    @Around("@annotation(requireSelfOnly)")
+    public Object checkSelfOnly(ProceedingJoinPoint joinPoint, RequireSelfOnly requireSelfOnly) throws Throwable {
+        // Extrai o userId dos parâmetros do método
+        Object[] args = joinPoint.getArgs();
+        UUID userId = null;
+        
+        // Procura por userId nos parâmetros
+        for (Object arg : args) {
+            if (arg instanceof UUID) {
+                // Assumindo que o primeiro UUID é o userId
+                userId = (UUID) arg;
+                break;
+            }
+        }
+
+        if (userId == null) {
+            throw new AccessDeniedException("User ID não encontrado nos parâmetros");
+        }
+
+        if (!authorizationService.isOwner(userId)) {
+            throw new AccessDeniedException("Acesso negado. Você só pode acessar seus próprios dados");
         }
 
         return joinPoint.proceed();

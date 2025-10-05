@@ -54,6 +54,8 @@ public class PolicyController {
     @PostMapping("/policies")
     public ResponseEntity<PolicyResponse> createPolicy(@Valid @RequestBody PolicyRequest request) {
         Policy policy = policyService.createPolicy(
+            request.getTenantId(),
+            request.getCode(),
             request.getName(), 
             request.getDescription(), 
             request.getEffect(), 
@@ -78,8 +80,8 @@ public class PolicyController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/policies")
-    public ResponseEntity<List<PolicyResponse>> getAllPolicies() {
-        List<PolicyResponse> policies = policyService.listAllPolicies().stream()
+    public ResponseEntity<List<PolicyResponse>> getAllPolicies(@RequestParam("tenantId") UUID tenantId) {
+        List<PolicyResponse> policies = policyService.listPolicies(tenantId).stream()
                 .map(PolicyMapper::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(policies);
@@ -101,8 +103,9 @@ public class PolicyController {
     })
     @GetMapping("/policies/{id}")
     public ResponseEntity<PolicyResponse> getPolicyDetails(
-            @Parameter(description = "ID da política") @PathVariable UUID id) {
-        return policyService.findPolicyById(id)
+            @Parameter(description = "ID da política") @PathVariable UUID id,
+            @RequestParam("tenantId") UUID tenantId) {
+        return policyService.findPolicyById(tenantId, id)
                 .map(PolicyMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -123,11 +126,12 @@ public class PolicyController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @PutMapping("/policies/{id}")
+    @PatchMapping("/policies/{id}")
     public ResponseEntity<PolicyResponse> updatePolicy(
             @Parameter(description = "ID da política") @PathVariable UUID id,
             @Valid @RequestBody PolicyRequest request) {
         Policy policy = policyService.updatePolicy(
+            request.getTenantId(),
             id, 
             request.getName(), 
             request.getDescription(), 
@@ -154,37 +158,13 @@ public class PolicyController {
     })
     @DeleteMapping("/policies/{id}")
     public ResponseEntity<Void> deactivatePolicy(
-            @Parameter(description = "ID da política") @PathVariable UUID id) {
-        policyService.deletePolicy(id);
+            @Parameter(description = "ID da política") @PathVariable UUID id,
+            @RequestParam("tenantId") UUID tenantId) {
+        policyService.deletePolicy(tenantId, id);
         return ResponseEntity.noContent().build();
     }
 
 
-    /**
-     * CASO DE USO: Sistema avalia política para usuário
-     * Endpoint semântico: POST /api/policy-management/policies/{id}/evaluate
-     */
-    @Operation(
-        summary = "Avaliar política", 
-        description = "Avalia se uma política se aplica a um usuário específico"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Avaliação realizada"),
-        @ApiResponse(responseCode = "404", description = "Política não encontrada"),
-        @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
-    })
-    @PostMapping("/policies/{id}/evaluate")
-    public ResponseEntity<Object> evaluatePolicy(
-            @Parameter(description = "ID da política") @PathVariable UUID id,
-            @Valid @RequestBody PolicyEvaluationRequest request) {
-        String result = policyService.evaluatePolicyEffect(policyService.findPolicyById(id).orElse(null), request.getContext().toString());
-        return ResponseEntity.ok(new Object() {
-            public final UUID policyId = id;
-            public final UUID userId = request.getUserId();
-            public final Boolean applies = "ALLOW".equals(result);
-            public final String resultValue = result;
-        });
-    }
 
     /**
      * CASO DE USO: Administrador busca políticas por critério
@@ -202,53 +182,15 @@ public class PolicyController {
     })
     @GetMapping("/policies/search")
     public ResponseEntity<List<PolicyResponse>> searchPolicies(
+            @RequestParam("tenantId") UUID tenantId,
             @Parameter(description = "Termo de busca") @RequestParam String query) {
-        List<PolicyResponse> policies = policyService.searchPolicies(query).stream()
+        List<PolicyResponse> policies = policyService.searchPolicies(tenantId, query).stream()
                 .map(PolicyMapper::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(policies);
     }
 
-    /**
-     * CASO DE USO: Administrador obtém estatísticas de políticas
-     * Endpoint semântico: GET /api/policy-management/policies/stats
-     */
-    @Operation(
-        summary = "Obter estatísticas de políticas", 
-        description = "Retorna estatísticas gerais das políticas do sistema"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Estatísticas obtidas"),
-        @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
-    })
-    @GetMapping("/policies/stats")
-    public ResponseEntity<Object> getPolicyStats() {
-        return ResponseEntity.ok(new Object() {
-            public final Long totalPolicies = policyService.countPolicies();
-            public final Long allowPolicies = (long) policyService.findPoliciesByEffect("allow").size();
-            public final Long denyPolicies = (long) policyService.findPoliciesByEffect("deny").size();
-        });
-    }
 
-    /**
-     * CASO DE USO: Sistema verifica saúde da gestão de políticas
-     * Endpoint semântico: GET /api/policy-management/health
-     */
-    @Operation(
-        summary = "Verificar saúde da gestão de políticas", 
-        description = "Retorna status do sistema de gestão de políticas"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Sistema funcionando normalmente")
-    })
-    @GetMapping("/health")
-    public ResponseEntity<Object> getPolicyManagementHealth() {
-        return ResponseEntity.ok(new Object() {
-            public final String status = "healthy";
-            public final String service = "policy-management";
-            public final Long totalPolicies = policyService.countPolicies();
-        });
-    }
 
     // ===== DTOs INTERNOS =====
     

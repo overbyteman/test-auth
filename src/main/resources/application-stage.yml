@@ -46,6 +46,5 @@ logging:
     root: WARN
     com.example: INFO
     org.springframework.orm.jpa: INFO
-    org.flywaydb: WARN
     org.postgresql: WARN
     io.undertow: WARN

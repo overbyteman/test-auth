@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Schema(description = "Response do refresh de token")
@@ -33,4 +34,13 @@ public class RefreshTokenResponse {
 
     @Schema(description = "Timestamp do refresh")
     private LocalDateTime refreshedAt;
+
+    @Schema(description = "ID do tenant ativo")
+    private UUID tenantId;
+
+    @Schema(description = "Nome do tenant ativo")
+    private String tenantName;
+
+    @Schema(description = "Roles do usuário com suas permissões")
+    private List<RolePermissionsResponse> roles;
 }

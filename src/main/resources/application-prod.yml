@@ -64,7 +64,6 @@ logging:
     root: WARN
     com.example: INFO
     org.springframework.jdbc.core: WARN
-    org.flywaydb: WARN
     org.postgresql: WARN
     com.zaxxer.hikari: WARN
     io.undertow: ERROR

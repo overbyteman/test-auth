@@ -25,4 +25,6 @@ public class RolesPermissionsResponse {
     @Schema(description = "ID da permissão", example = "550e8400-e29b-41d4-a716-446655440001")
     private UUID permissionId;
     
+    @Schema(description = "ID da policy dedicada (se houver)", example = "d2f5f4f9-9e16-4d7c-bb8a-8d9f5a9b1c1f")
+    private UUID policyId;
 }

@@ -3,8 +3,10 @@ package com.seccreto.service.auth.controller.users;
 import com.seccreto.service.auth.api.dto.users.UserRequest;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.api.mapper.users.UserMapper;
-import com.seccreto.service.auth.config.RequireRole;
+import com.seccreto.service.auth.config.RequireOwnershipOrRole;
 import com.seccreto.service.auth.config.RequirePermission;
+import com.seccreto.service.auth.config.RequireRole;
+import com.seccreto.service.auth.config.RequireSelfOnly;
 import com.seccreto.service.auth.model.users.User;
 import com.seccreto.service.auth.service.users.UserService;
 import com.seccreto.service.auth.service.users_tenants_roles.UsersTenantsRolesService;
@@ -59,7 +61,7 @@ public class UserController {
                     content = @Content(schema = @Schema(implementation = UserResponse.class)))
     })
     @GetMapping
-    // @RequirePermission("read:users") // Temporariamente removido para permitir testes
+    @RequirePermission("read:users")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         List<UserResponse> users = userService.listAllUsers().stream()
                 .map(UserMapper::toResponse)
@@ -78,6 +80,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     @GetMapping("/{id}")
+    @RequireOwnershipOrRole({"SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF"})
     public ResponseEntity<UserResponse> getUserById(
             @Parameter(description = "ID do usuário") @PathVariable UUID id) {
         return userService.findUserById(id)
@@ -99,7 +102,7 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
     @PostMapping
-    // @RequirePermission("create:users") // Temporariamente removido para permitir criação inicial de usuários
+    @RequirePermission("create:users")
     public ResponseEntity<UserResponse> createUser(
             @Valid @RequestBody UserRequest request,
             @Parameter(description = "ID do tenant (opcional)") @RequestParam(required = false) UUID tenantId) {
@@ -128,7 +131,8 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
+    @RequireOwnershipOrRole({"SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF"})
     public ResponseEntity<UserResponse> updateUser(
             @Parameter(description = "ID do usuário") @PathVariable UUID id,
             @Valid @RequestBody UserRequest request) {
@@ -136,21 +140,6 @@ public class UserController {
         return ResponseEntity.ok(UserMapper.toResponse(updated));
     }
 
-    /**
-     * Remove um usuário
-     * Consolidado de: UserRestController.deleteUser()
-     */
-    @Operation(summary = "Remover usuário", description = "Remove um usuário do sistema")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Usuário removido com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-    })
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(
-            @Parameter(description = "ID do usuário") @PathVariable UUID id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
-    }
 
     // ===== OPERAÇÕES DE BUSCA =====
 
@@ -172,94 +161,10 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    /**
-     * Busca usuário por email
-     * Consolidado de: UserRestController.getUserByEmail()
-     */
-    @Operation(summary = "Buscar usuário por email", description = "Retorna um usuário pelo seu email")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Usuário encontrado",
-                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-    })
-    @GetMapping("/email/{email}")
-    public ResponseEntity<UserResponse> getUserByEmail(
-            @Parameter(description = "Email do usuário") @PathVariable String email) {
-        return userService.findByEmail(email)
-                .map(UserMapper::toResponse)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    // ===== OPERAÇÕES POR TENANT =====
-
-    /**
-     * Lista usuários de um tenant
-     * Consolidado de: UserManagementController.getUsersByTenant()
-     */
-    @Operation(summary = "Listar usuários do tenant", description = "Retorna todos os usuários de um tenant específico")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de usuários do tenant",
-                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Tenant não encontrado")
-    })
-    @GetMapping("/tenants/{tenantId}")
-    public ResponseEntity<List<UserResponse>> getUsersByTenant(
-            @Parameter(description = "ID do tenant") @PathVariable UUID tenantId) {
-        List<UserResponse> users = userService.findUsersByTenant(tenantId).stream()
-                .map(UserMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(users);
-    }
 
     // ===== OPERAÇÕES DE GESTÃO AVANÇADA =====
 
-    /**
-     * Obtém perfil completo do usuário
-     * Consolidado de: UserManagementController.getUserProfile()
-     */
-    @Operation(summary = "Obter perfil do usuário", description = "Retorna perfil completo com estatísticas do usuário")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Perfil obtido com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-    })
-    @GetMapping("/{id}/profile")
-    public ResponseEntity<Object> getUserProfile(
-            @Parameter(description = "ID do usuário") @PathVariable UUID id) {
-        return userService.findUserById(id)
-                .map(user -> {
-                    Object userProfile = new Object() {
-                        public final UUID userId = user.getId();
-                        public final String name = user.getName();
-                        public final String email = user.getEmail();
-                        public final Boolean active = user.isActive();
-                        public final String createdAt = user.getCreatedAt().toString();
-                        public final String updatedAt = user.getUpdatedAt().toString();
-                        public final Long totalSessions = 0L; // TODO: Implement countSessionsByUser
-                        public final Long activeSessions = 0L; // TODO: Implement countActiveSessionsByUser
-                    };
-                    return ResponseEntity.ok(userProfile);
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
 
-    /**
-     * Suspende um usuário
-     * Consolidado de: UserManagementController.suspendUser()
-     */
-    @Operation(summary = "Suspender usuário", description = "Suspende um usuário e encerra suas sessões")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Usuário suspenso com sucesso"),
-            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-    })
-    @PostMapping("/{id}/suspend")
-    @RequireRole("ADMIN")
-    public ResponseEntity<Void> suspendUser(
-            @Parameter(description = "ID do usuário") @PathVariable UUID id) {
-        // TODO: Implement suspendUser method
-        sessionService.invalidateAllUserSessions(id);
-        return ResponseEntity.ok().build();
-    }
 
     /**
      * Ativa um usuário
@@ -271,27 +176,73 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     @PostMapping("/{id}/activate")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
     public ResponseEntity<Void> activateUser(
             @Parameter(description = "ID do usuário") @PathVariable UUID id) {
-        // TODO: Implement activateUser method
+        userService.activateUser(id);
         return ResponseEntity.ok().build();
     }
 
     /**
-     * Força logout do usuário
-     * Consolidado de: UserManagementController.forceLogoutUser()
+     * Desativa um usuário
      */
-    @Operation(summary = "Forçar logout", description = "Encerra todas as sessões ativas do usuário")
+    @Operation(summary = "Desativar usuário", description = "Desativa um usuário no sistema")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Logout forçado com sucesso"),
+            @ApiResponse(responseCode = "200", description = "Usuário desativado com sucesso"),
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
-    @PostMapping("/{id}/force-logout")
-    public ResponseEntity<Void> forceLogoutUser(
+    @PostMapping("/{id}/deactivate")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    public ResponseEntity<Void> deactivateUser(
             @Parameter(description = "ID do usuário") @PathVariable UUID id) {
-        sessionService.invalidateAllUserSessions(id);
+        userService.deactivateUser(id);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * Verifica e-mail usando token enviado por e-mail
+     */
+    @Operation(summary = "Verificar e-mail com token", description = "Verifica um e-mail usando o token enviado por e-mail")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "E-mail verificado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Token inválido ou expirado"),
+            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
+    })
+    @PostMapping("/verify-email")
+    @RequireSelfOnly
+    public ResponseEntity<Object> verifyEmail(
+            @Parameter(description = "ID do usuário") @RequestParam UUID userId,
+            @Parameter(description = "Token de verificação") @RequestParam String token) {
+        User verifiedUser = userService.verifyEmail(userId, token);
+        return ResponseEntity.ok(new Object() {
+            public final UUID userId = verifiedUser.getId();
+            public final String email = verifiedUser.getEmail();
+            public final boolean verified = true;
+            public final String verifiedAt = verifiedUser.getEmailVerifiedAt().toString();
+        });
+    }
+
+    /**
+     * Reenvia token de verificação de e-mail
+     */
+    @Operation(summary = "Reenviar token de verificação", description = "Reenvia um novo token de verificação para o e-mail do usuário")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token reenviado com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
+    })
+    @PostMapping("/{id}/resend-verification")
+    @RequireSelfOnly
+    public ResponseEntity<Object> resendVerificationEmail(
+            @Parameter(description = "ID do usuário") @PathVariable UUID id) {
+        User user = userService.resendVerificationEmail(id);
+        return ResponseEntity.ok(new Object() {
+            public final UUID userId = user.getId();
+            public final String email = user.getEmail();
+            public final boolean tokenSent = true;
+            public final String message = "Token de verificação reenviado para " + user.getEmail();
+        });
+    }
+
 
     /**
      * Lista sessões do usuário
@@ -319,24 +270,4 @@ public class UserController {
 
     // ===== ESTATÍSTICAS =====
 
-    /**
-     * Obtém estatísticas de usuários
-     * Consolidado de: UserRestController.getStats() + UserManagementController.getUserStats()
-     */
-    @Operation(summary = "Obter estatísticas", description = "Retorna estatísticas gerais dos usuários")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Estatísticas obtidas com sucesso")
-    })
-    @GetMapping("/stats")
-    @RequireRole({"ADMIN", "MANAGER"})
-    public ResponseEntity<Object> getUserStats() {
-        return ResponseEntity.ok(new Object() {
-            public final Long totalUsers = userService.countUsers();
-            public final Long activeUsers = userService.countActiveUsers();
-            public final Long suspendedUsers = 0L; // TODO: Implement countSuspendedUsers
-            public final Long totalSessions = sessionService.countActiveSessions();
-            public final String status = "online";
-            public final String version = "1.0.0";
-        });
-    }
 }

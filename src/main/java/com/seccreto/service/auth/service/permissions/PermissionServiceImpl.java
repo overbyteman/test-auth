@@ -100,7 +100,6 @@ public class PermissionServiceImpl implements PermissionService {
 
         permission.setAction(action.trim());
         permission.setResource(resource.trim());
-        permission.updateTimestamp();
 
         return permissionRepository.save(permission);
     }
@@ -151,7 +150,8 @@ public class PermissionServiceImpl implements PermissionService {
                     .map(row -> java.util.Map.of(
                         "id", row[0],
                         "name", row[1],
-                        "description", row[2]
+                        "description", row[2],
+                        "policyId", row[3]
                     ))
                     .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {

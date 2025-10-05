@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,6 +41,15 @@ public class LoginResponse {
     @Schema(description = "Email do usuário", example = "joao@exemplo.com")
     private String userEmail;
     
+    @Schema(description = "ID do tenant ativo", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID tenantId;
+
+    @Schema(description = "Nome do tenant ativo", example = "Tenant Principal")
+    private String tenantName;
+
     @Schema(description = "Data e hora do login")
     private LocalDateTime loginTime;
+
+    @Schema(description = "Roles do usuário com suas permissões")
+    private List<RolePermissionsResponse> roles;
 }

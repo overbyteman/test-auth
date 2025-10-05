@@ -1,6 +1,7 @@
 package com.seccreto.service.auth.repository.permissions;
 
 import com.seccreto.service.auth.model.permissions.Permission;
+import com.seccreto.service.auth.model.roles_permissions.RolesPermissions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -62,15 +63,14 @@ public interface PermissionRepository extends JpaRepository<Permission, UUID> {
     @Query("SELECT p.resource, COUNT(p) FROM Permission p GROUP BY p.resource")
     List<Object[]> getResourceDistribution();
     
-    @Query("SELECT COUNT(DISTINCT rp.roleId) FROM RolesPermissions rp WHERE rp.permissionId = :permissionId")
-    long countRolesByPermission(@Param("permissionId") UUID permissionId);
+       @Query("SELECT COUNT(DISTINCT rp.role.id) FROM RolesPermissions rp WHERE rp.permission.id = :permissionId")
+       long countRolesByPermission(@Param("permissionId") UUID permissionId);
 
     // ========================================
     // QUERIES PARA SUBSTITUIR JDBC
     // ========================================
     
-    @Query("SELECT r.id, r.name, r.description FROM Role r " +
-           "JOIN RolesPermissions rp ON r.id = rp.roleId " +
-           "WHERE rp.permissionId = :permissionId ORDER BY r.name")
+    @Query("SELECT r.id, r.name, r.description, rp.policy.id FROM RolesPermissions rp " +
+           "JOIN rp.role r WHERE rp.permission.id = :permissionId ORDER BY r.name")
     List<Object[]> getPermissionRolesDetails(@Param("permissionId") UUID permissionId);
 }

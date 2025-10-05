@@ -22,11 +22,11 @@ public final class UsersTenantsRolesMapper {
             return null;
         }
         
-        return UsersTenantsRoles.builder()
-                .userId(request.getUserId())
-                .tenantId(request.getTenantId())
-                .roleId(request.getRoleId())
-                .build();
+    return UsersTenantsRoles.createNew(
+        request.getUserId(),
+        request.getTenantId(),
+        request.getRoleId()
+    );
     }
 
     /**
@@ -68,5 +68,8 @@ public final class UsersTenantsRolesMapper {
         usersTenantsRoles.setUserId(request.getUserId());
         usersTenantsRoles.setTenantId(request.getTenantId());
         usersTenantsRoles.setRoleId(request.getRoleId());
+        usersTenantsRoles.setUser(null);
+        usersTenantsRoles.setTenant(null);
+        usersTenantsRoles.setRole(null);
     }
 }

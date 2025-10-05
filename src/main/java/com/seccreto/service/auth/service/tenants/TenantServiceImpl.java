@@ -50,7 +50,7 @@ public class TenantServiceImpl implements TenantService {
         validateName(name);
 
         // Verificar se já existe um tenant com este nome (idempotência)
-        Optional<Tenant> existingTenant = tenantRepository.findByNameExact(name.trim());
+    Optional<Tenant> existingTenant = tenantRepository.findByName(name.trim());
         if (existingTenant.isPresent()) {
             return existingTenant.get(); // Retorna o tenant existente (idempotência)
         }
@@ -84,7 +84,7 @@ public class TenantServiceImpl implements TenantService {
     @Timed(value = "tenants.find", description = "Time taken to find tenant by exact name")
     public Optional<Tenant> findTenantByNameExact(String name) {
         validateName(name);
-        return tenantRepository.findByNameExact(name);
+    return tenantRepository.findByName(name.trim());
     }
 
     @Override
@@ -98,14 +98,13 @@ public class TenantServiceImpl implements TenantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
 
         // Verificar se nome já existe em outro tenant
-        Optional<Tenant> existingTenant = tenantRepository.findByNameExact(name.trim());
+    Optional<Tenant> existingTenant = tenantRepository.findByName(name.trim());
         if (existingTenant.isPresent() && !existingTenant.get().getId().equals(id)) {
             throw new ConflictException("Nome já está em uso por outro tenant");
         }
 
         tenant.setName(name.trim());
         tenant.setConfig(config);
-        tenant.updateTimestamp();
 
         return tenantRepository.save(tenant);
     }
@@ -149,7 +148,6 @@ public class TenantServiceImpl implements TenantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
         
         tenant.setConfig(config);
-        tenant.updateTimestamp();
         
         return tenantRepository.save(tenant);
     }
