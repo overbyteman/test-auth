@@ -74,6 +74,8 @@ public interface JwtService {
     record TenantAccessClaim(
         UUID tenantId,
         String tenantName,
+        UUID landlordId,
+        String landlordName,
         List<String> roles,
         List<String> permissions
     ) {}

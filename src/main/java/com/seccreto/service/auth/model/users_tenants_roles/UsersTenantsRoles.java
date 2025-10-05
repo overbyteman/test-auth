@@ -129,6 +129,10 @@ public class UsersTenantsRoles implements Serializable {
         this.tenant = tenant;
         if (tenant != null) {
             this.tenantId = tenant.getId();
+            if (this.role != null && this.role.getLandlord() != null && tenant.getLandlord() != null
+                    && !this.role.getLandlord().getId().equals(tenant.getLandlord().getId())) {
+                throw new IllegalArgumentException("Role e Tenant pertencem a landlords diferentes");
+            }
         }
     }
 
@@ -136,6 +140,10 @@ public class UsersTenantsRoles implements Serializable {
         this.role = role;
         if (role != null) {
             this.roleId = role.getId();
+            if (this.tenant != null && role.getLandlord() != null && this.tenant.getLandlord() != null
+                    && !role.getLandlord().getId().equals(this.tenant.getLandlord().getId())) {
+                throw new IllegalArgumentException("Role e Tenant pertencem a landlords diferentes");
+            }
         }
     }
 }

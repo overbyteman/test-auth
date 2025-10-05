@@ -1,7 +1,13 @@
 package com.seccreto.service.auth.service.tenants;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.tenants.TenantResponse;
+import com.seccreto.service.auth.api.mapper.tenants.TenantMapper;
+import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.tenants.Tenant;
+import com.seccreto.service.auth.repository.landlords.LandlordRepository;
 import com.seccreto.service.auth.repository.tenants.TenantRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
@@ -16,6 +22,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para tenants.
@@ -36,26 +47,41 @@ import java.util.UUID;
 public class TenantServiceImpl implements TenantService {
 
     private final TenantRepository tenantRepository;
+    private final LandlordRepository landlordRepository;
     private final UsageService usageService;
-    public TenantServiceImpl(TenantRepository tenantRepository, 
+    public TenantServiceImpl(TenantRepository tenantRepository,
+                            LandlordRepository landlordRepository,
                             UsageService usageService) {
         this.tenantRepository = tenantRepository;
+        this.landlordRepository = landlordRepository;
         this.usageService = usageService;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "tenants.create", description = "Time taken to create a tenant")
-    public Tenant createTenant(String name, JsonNode config) {
+    public Tenant createTenant(String name, JsonNode config, UUID landlordId) {
         validateName(name);
+        validateId(landlordId);
+
+        Landlord landlord = landlordRepository.findById(landlordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Landlord não encontrado com ID: " + landlordId));
 
         // Verificar se já existe um tenant com este nome (idempotência)
     Optional<Tenant> existingTenant = tenantRepository.findByName(name.trim());
         if (existingTenant.isPresent()) {
-            return existingTenant.get(); // Retorna o tenant existente (idempotência)
+            Tenant tenant = existingTenant.get();
+            if (tenant.getLandlord() == null) {
+                tenant.setLandlord(landlord);
+                return tenantRepository.save(tenant);
+            }
+            if (!tenant.getLandlord().getId().equals(landlordId)) {
+                throw new ConflictException("Tenant já existe associado a outro landlord");
+            }
+            return tenant; // Retorna o tenant existente (idempotência)
         }
 
-        Tenant tenant = Tenant.createNew(name.trim(), config);
+        Tenant tenant = Tenant.createNew(name.trim(), config, landlord);
         return tenantRepository.save(tenant);
     }
 
@@ -81,6 +107,18 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Override
+    public List<Tenant> findTenantsByLandlordId(UUID landlordId) {
+        validateId(landlordId);
+        return tenantRepository.findByLandlordId(landlordId);
+    }
+
+    @Override
+    public long countTenantsByLandlordId(UUID landlordId) {
+        validateId(landlordId);
+        return tenantRepository.countByLandlordId(landlordId);
+    }
+
+    @Override
     @Timed(value = "tenants.find", description = "Time taken to find tenant by exact name")
     public Optional<Tenant> findTenantByNameExact(String name) {
         validateName(name);
@@ -90,9 +128,13 @@ public class TenantServiceImpl implements TenantService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "tenants.update", description = "Time taken to update tenant")
-    public Tenant updateTenant(UUID id, String name, JsonNode config) {
+    public Tenant updateTenant(UUID id, String name, JsonNode config, UUID landlordId) {
         validateId(id);
         validateName(name);
+        validateId(landlordId);
+
+        Landlord landlord = landlordRepository.findById(landlordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Landlord não encontrado com ID: " + landlordId));
 
         Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
@@ -105,6 +147,7 @@ public class TenantServiceImpl implements TenantService {
 
         tenant.setName(name.trim());
         tenant.setConfig(config);
+        tenant.setLandlord(landlord);
 
         return tenantRepository.save(tenant);
     }
@@ -163,6 +206,35 @@ public class TenantServiceImpl implements TenantService {
     @Override
     public List<Tenant> searchTenants(String query) {
         return tenantRepository.search(query);
+    }
+
+    @Override
+    public Pagination<TenantResponse> searchTenants(SearchQuery searchQuery) {
+        try {
+            // Create Pageable for pagination
+            Pageable pageable = PageRequest.of(
+                searchQuery.page() - 1, // Spring uses 0-based indexing
+                searchQuery.perPage(),
+                Sort.by(Sort.Direction.fromString(searchQuery.direction()), searchQuery.sort())
+            );
+            
+            // Get paginated results using existing repository method
+            Page<Tenant> tenantPage = tenantRepository.search(searchQuery.terms(), pageable);
+            
+            // Convert to response DTOs
+            List<TenantResponse> tenantResponses = tenantPage.getContent().stream()
+                .map(TenantMapper::toResponse)
+                .collect(Collectors.toList());
+            
+            return new Pagination<>(
+                searchQuery.page(),
+                searchQuery.perPage(),
+                tenantPage.getTotalElements(),
+                tenantResponses
+            );
+        } catch (Exception e) {
+            return new Pagination<>(searchQuery.page(), searchQuery.perPage(), 0, List.of());
+        }
     }
 
     @Override
@@ -226,7 +298,7 @@ public class TenantServiceImpl implements TenantService {
     // Métodos de validação privados
     private void validateId(UUID id) {
         if (id == null) {
-            throw new ValidationException("ID do tenant não pode ser nulo");
+            throw new ValidationException("Identificador não pode ser nulo");
         }
     }
 

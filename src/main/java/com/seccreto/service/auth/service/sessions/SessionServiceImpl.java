@@ -1,5 +1,9 @@
 package com.seccreto.service.auth.service.sessions;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.sessions.SessionResponse;
+import com.seccreto.service.auth.api.mapper.sessions.SessionMapper;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.repository.sessions.SessionRepository;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
@@ -16,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para sessões.
@@ -261,6 +266,67 @@ public class SessionServiceImpl implements SessionService {
             return sessionRepository.search(inetAddress, userAgent, userId);
         } catch (Exception e) {
             return List.of();
+        }
+    }
+
+    @Override
+    public Pagination<SessionResponse> searchSessions(SearchQuery searchQuery, String ipAddress, String userAgent, UUID userId) {
+        try {
+            InetAddress inetAddress = ipAddress != null ? InetAddress.getByName(ipAddress) : null;
+            
+            // Get all matching sessions first (since SessionRepository doesn't have paginated search)
+            List<Session> allSessions = sessionRepository.search(inetAddress, userAgent, userId);
+            
+            // Apply text search filter if terms are provided
+            List<Session> filteredSessions = allSessions;
+            if (searchQuery.terms() != null && !searchQuery.terms().trim().isEmpty()) {
+                String terms = searchQuery.terms().toLowerCase();
+                filteredSessions = allSessions.stream()
+                    .filter(session -> 
+                        session.getUserAgent() != null && session.getUserAgent().toLowerCase().contains(terms) ||
+                        session.getIpAddress() != null && session.getIpAddress().getHostAddress().toLowerCase().contains(terms)
+                    )
+                    .collect(Collectors.toList());
+            }
+            
+            // Apply sorting
+            filteredSessions.sort((s1, s2) -> {
+                int comparison = 0;
+                switch (searchQuery.sort()) {
+                    case "createdAt":
+                        comparison = s1.getCreatedAt().compareTo(s2.getCreatedAt());
+                        break;
+                    case "expiresAt":
+                        comparison = s1.getExpiresAt().compareTo(s2.getExpiresAt());
+                        break;
+                    case "userAgent":
+                        comparison = (s1.getUserAgent() != null ? s1.getUserAgent() : "").compareTo(s2.getUserAgent() != null ? s2.getUserAgent() : "");
+                        break;
+                    default:
+                        comparison = s1.getCreatedAt().compareTo(s2.getCreatedAt());
+                }
+                return "desc".equals(searchQuery.direction()) ? -comparison : comparison;
+            });
+            
+            // Apply pagination
+            int startIndex = (searchQuery.page() - 1) * searchQuery.perPage();
+            int endIndex = Math.min(startIndex + searchQuery.perPage(), filteredSessions.size());
+            
+            List<Session> paginatedSessions = filteredSessions.subList(startIndex, endIndex);
+            
+            // Convert to response DTOs
+            List<SessionResponse> sessionResponses = paginatedSessions.stream()
+                .map(SessionMapper::toResponse)
+                .collect(Collectors.toList());
+            
+            return new Pagination<>(
+                searchQuery.page(),
+                searchQuery.perPage(),
+                filteredSessions.size(),
+                sessionResponses
+            );
+        } catch (Exception e) {
+            return new Pagination<>(searchQuery.page(), searchQuery.perPage(), 0, List.of());
         }
     }
 

@@ -1,7 +1,7 @@
 package com.seccreto.service.auth.repository.roles;
 
+import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.roles.Role;
-import com.seccreto.service.auth.model.tenants.Tenant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,39 +33,39 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     /**
      * Busca role por nome e tenant (usa índice UNIQUE idx_roles_name_tenant)
      */
-    Optional<Role> findByNameAndTenant(String name, Tenant tenant);
+       Optional<Role> findByNameAndLandlord(String name, Landlord landlord);
 
-       Optional<Role> findByNameAndTenantId(String name, UUID tenantId);
+       Optional<Role> findByNameAndLandlordId(String name, UUID landlordId);
 
     /**
      * Verifica existência (usa índice UNIQUE, mais rápido que SELECT *)
      */
-    boolean existsByNameAndTenant(String name, Tenant tenant);
+       boolean existsByNameAndLandlord(String name, Landlord landlord);
 
-       boolean existsByNameAndTenantId(String name, UUID tenantId);
+       boolean existsByNameAndLandlordId(String name, UUID landlordId);
 
-       Optional<Role> findByCodeAndTenant(String code, Tenant tenant);
+       Optional<Role> findByCodeAndLandlord(String code, Landlord landlord);
 
-       Optional<Role> findByCodeAndTenantId(String code, UUID tenantId);
+       Optional<Role> findByCodeAndLandlordId(String code, UUID landlordId);
 
-       boolean existsByCodeAndTenant(String code, Tenant tenant);
+       boolean existsByCodeAndLandlord(String code, Landlord landlord);
 
-       boolean existsByCodeAndTenantId(String code, UUID tenantId);
+       boolean existsByCodeAndLandlordId(String code, UUID landlordId);
 
     /**
      * Lista roles por tenant (usa índice FK tenant_id)
      */
-    List<Role> findByTenant(Tenant tenant);
+       List<Role> findByLandlord(Landlord landlord);
 
     /**
      * Lista roles por tenant ID (usa índice FK tenant_id)
      */
-    List<Role> findByTenantId(UUID tenantId);
+       List<Role> findByLandlordId(UUID landlordId);
 
        /**
         * Busca case-insensitive dentro de um tenant específico (usa índice funcional se criado)
         */
-       List<Role> findByNameContainingIgnoreCaseAndTenantId(String name, UUID tenantId);
+       List<Role> findByNameContainingIgnoreCaseAndLandlordId(String name, UUID landlordId);
 
     // ========================================
     // QUERIES OTIMIZADAS COM ENTITYGRAPH (evita N+1)
@@ -75,21 +75,21 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
      * Busca role com permissions em uma única query (JOIN FETCH)
      * Evita N+1 problem
      */
-              @EntityGraph(attributePaths = {"rolePermissions", "rolePermissions.permission", "rolePermissions.policy"})
+       @EntityGraph(attributePaths = {"rolePermissions", "rolePermissions.permission", "rolePermissions.policy"})
     @Query("SELECT r FROM Role r WHERE r.id = :id")
     Optional<Role> findByIdWithPermissions(@Param("id") UUID id);
 
     /**
      * Busca role com tenant em uma única query (JOIN FETCH)
      */
-       @EntityGraph(attributePaths = {"tenant"})
+       @EntityGraph(attributePaths = {"landlord"})
     @Query("SELECT r FROM Role r WHERE r.id = :id")
     Optional<Role> findByIdWithTenant(@Param("id") UUID id);
 
     /**
      * Busca role com tenant E permissions em uma única query
      */
-              @EntityGraph(attributePaths = {"tenant", "rolePermissions", "rolePermissions.permission", "rolePermissions.policy"})
+       @EntityGraph(attributePaths = {"landlord", "rolePermissions", "rolePermissions.permission", "rolePermissions.policy"})
     @Query("SELECT r FROM Role r WHERE r.id = :id")
     Optional<Role> findByIdWithTenantAndPermissions(@Param("id") UUID id);
 
@@ -103,18 +103,18 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     /**
      * Busca full-text em nome e descrição (usa índices se existirem)
      */
-    @Query("SELECT r FROM Role r WHERE r.tenant.id = :tenantId AND (" +
+    @Query("SELECT r FROM Role r WHERE r.landlord.id = :landlordId AND (" +
            "LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(r.description) LIKE LOWER(CONCAT('%', :query, '%')))")
-    List<Role> search(@Param("tenantId") UUID tenantId, @Param("query") String query);
+    List<Role> search(@Param("landlordId") UUID landlordId, @Param("query") String query);
     
     /**
      * Busca paginada (usa índices + LIMIT/OFFSET otimizado)
      */
-    @Query("SELECT r FROM Role r WHERE r.tenant.id = :tenantId AND (" +
+    @Query("SELECT r FROM Role r WHERE r.landlord.id = :landlordId AND (" +
            "LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(r.description) LIKE LOWER(CONCAT('%', :query, '%')))")
-    Page<Role> search(@Param("tenantId") UUID tenantId, @Param("query") String query, Pageable pageable);
+    Page<Role> search(@Param("landlordId") UUID landlordId, @Param("query") String query, Pageable pageable);
 
     // ========================================
     // QUERIES AGREGADAS (usa tabela pivot)
@@ -153,8 +153,8 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     /**
      * Conta roles por tenant (usa índice FK)
      */
-    @Query("SELECT COUNT(r) FROM Role r WHERE r.tenant.id = :tenantId")
-    long countByTenantId(@Param("tenantId") UUID tenantId);
+       @Query("SELECT COUNT(r) FROM Role r WHERE r.landlord.id = :landlordId")
+       long countByLandlordId(@Param("landlordId") UUID landlordId);
 
     // ========================================
     // QUERIES VIA PIVOT TABLE (roles_permissions)
@@ -201,13 +201,13 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
      * Busca roles de um tenant com contagem de permissions
      * Query otimizada com LEFT JOIN na pivot
      */
-    @Query(value = "SELECT r.id, r.name, r.description, COUNT(rp.permission_id) as perm_count " +
+       @Query(value = "SELECT r.id, r.name, r.description, COUNT(rp.permission_id) as perm_count " +
                    "FROM roles r " +
                    "LEFT JOIN roles_permissions rp ON r.id = rp.role_id " +
-                   "WHERE r.tenant_id = :tenantId " +
+                               "WHERE r.landlord_id = :landlordId " +
                    "GROUP BY r.id, r.name, r.description " +
                    "ORDER BY r.name",
            nativeQuery = true)
-    List<Object[]> findByTenantIdWithPermissionCount(@Param("tenantId") UUID tenantId);
+       List<Object[]> findByLandlordIdWithPermissionCount(@Param("landlordId") UUID landlordId);
 }
 

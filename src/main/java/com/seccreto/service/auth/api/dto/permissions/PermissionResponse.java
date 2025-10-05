@@ -24,10 +24,15 @@ public class PermissionResponse {
     
     @Schema(description = "Ação da permissão", example = "create")
     private String action;
-    
+
     @Schema(description = "Recurso da permissão", example = "users")
     private String resource;
-    
+
+    @Schema(description = "Identificador do landlord ao qual a permissão pertence", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID landlordId;
+
+    @Schema(description = "Nome do landlord ao qual a permissão pertence", example = "Acme Holdings")
+    private String landlordName;
     
     @Schema(description = "Permissão no formato 'action:resource'", example = "create:users")
     private String permissionString;

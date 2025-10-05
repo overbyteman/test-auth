@@ -1,5 +1,8 @@
 package com.seccreto.service.auth.service.users;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.users.User;
 
 import java.time.LocalDate;
@@ -36,6 +39,7 @@ public interface UserService {
     // Operações de busca e filtros
     List<User> findUsersByTenant(UUID tenantId);
     List<User> searchUsers(String query);
+    Pagination<UserResponse> searchUsers(SearchQuery searchQuery);
     List<User> findTopActiveUsers(int limit);
     
     // Métricas e estatísticas

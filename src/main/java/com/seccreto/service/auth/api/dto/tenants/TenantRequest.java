@@ -7,7 +7,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -34,6 +37,10 @@ public class TenantRequest {
     
     @Schema(description = "Configuração específica do tenant em formato JSON")
     private JsonNode config;
+
+    @Schema(description = "Identificador do landlord proprietário", example = "11111111-1111-1111-1111-111111111111")
+    @NotNull(message = "Landlord é obrigatório")
+    private UUID landlordId;
     
     public String getDescription() {
         return description;
@@ -49,5 +56,13 @@ public class TenantRequest {
     
     public void setDomain(String domain) {
         this.domain = domain;
+    }
+
+    public UUID getLandlordId() {
+        return landlordId;
+    }
+
+    public void setLandlordId(UUID landlordId) {
+        this.landlordId = landlordId;
     }
 }

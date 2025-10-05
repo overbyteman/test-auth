@@ -23,29 +23,35 @@ public interface PolicyRepository extends JpaRepository<Policy, UUID> {
     // ========================================
     // QUERIES DERIVADAS AUTOMÁTICAS (JPA)
     // ========================================
-    
-       Optional<Policy> findByTenantIdAndCode(UUID tenantId, String code);
 
-       Optional<Policy> findByTenantIdAndName(UUID tenantId, String name);
+    Optional<Policy> findByTenantIdAndCode(UUID tenantId, String code);
 
-       List<Policy> findByTenantId(UUID tenantId);
+    Optional<Policy> findByTenantIdAndName(UUID tenantId, String name);
 
-       List<Policy> findByTenantIdAndEffect(UUID tenantId, PolicyEffect effect);
+    List<Policy> findByTenantId(UUID tenantId);
 
-       List<Policy> findByTenantIdAndNameContainingIgnoreCase(UUID tenantId, String name);
+    List<Policy> findByTenantIdAndEffect(UUID tenantId, PolicyEffect effect);
 
-       List<Policy> findByTenantIdAndCreatedAtBetween(UUID tenantId, LocalDateTime start, LocalDateTime end);
+    List<Policy> findByTenantIdAndNameContainingIgnoreCase(UUID tenantId, String name);
 
-       boolean existsByTenantIdAndCode(UUID tenantId, String code);
+    List<Policy> findByTenantIdAndCreatedAtBetween(UUID tenantId, LocalDateTime start, LocalDateTime end);
 
-       boolean existsByTenantIdAndName(UUID tenantId, String name);
+    boolean existsByTenantIdAndCode(UUID tenantId, String code);
 
-              long countByTenantId(UUID tenantId);
+    boolean existsByTenantIdAndName(UUID tenantId, String name);
+
+    long countByTenantId(UUID tenantId);
+
+    @Query("SELECT COUNT(p) FROM Policy p WHERE p.tenant.landlord.id = :landlordId")
+    long countByLandlordId(@Param("landlordId") UUID landlordId);
+
+    @Query("SELECT p FROM Policy p WHERE p.tenant.landlord.id = :landlordId")
+    List<Policy> findByLandlordId(@Param("landlordId") UUID landlordId);
 
     // ========================================
     // QUERIES CUSTOMIZADAS COM @Query
     // ========================================
-    
+
     @Query("SELECT p FROM Policy p WHERE p.tenant.id = :tenantId AND (" +
            "LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')))")
@@ -62,49 +68,49 @@ public interface PolicyRepository extends JpaRepository<Policy, UUID> {
     // ========================================
     // QUERIES PARA EFEITOS E ESTATÍSTICAS
     // ========================================
-    
-       @Query("SELECT p.effect, COUNT(p) FROM Policy p WHERE p.tenant.id = :tenantId GROUP BY p.effect")
-       List<Object[]> getPolicyEffectDistribution(@Param("tenantId") UUID tenantId);
 
-       @Query("SELECT COUNT(p) FROM Policy p WHERE p.tenant.id = :tenantId AND p.effect = :effect")
-       long countByEffect(@Param("tenantId") UUID tenantId, @Param("effect") PolicyEffect effect);
+    @Query("SELECT p.effect, COUNT(p) FROM Policy p WHERE p.tenant.id = :tenantId GROUP BY p.effect")
+    List<Object[]> getPolicyEffectDistribution(@Param("tenantId") UUID tenantId);
 
-       @Query("SELECT COUNT(p) FROM Policy p WHERE p.tenant.id = :tenantId AND p.createdAt >= :since")
-       long countPoliciesCreatedSince(@Param("tenantId") UUID tenantId, @Param("since") LocalDateTime since);
+    @Query("SELECT COUNT(p) FROM Policy p WHERE p.tenant.id = :tenantId AND p.effect = :effect")
+    long countByEffect(@Param("tenantId") UUID tenantId, @Param("effect") PolicyEffect effect);
+
+    @Query("SELECT COUNT(p) FROM Policy p WHERE p.tenant.id = :tenantId AND p.createdAt >= :since")
+    long countPoliciesCreatedSince(@Param("tenantId") UUID tenantId, @Param("since") LocalDateTime since);
 
     // ========================================
     // QUERIES NATIVAS PARA JSON (PostgreSQL/H2)
     // ========================================
-    
+
     /**
      * Busca policies que contêm uma ação específica no array JSON
      */
     @Query(value = "SELECT * FROM policies WHERE tenant_id = :tenantId AND JSON_SEARCH(actions, 'one', :action) IS NOT NULL",
            nativeQuery = true)
     List<Policy> findByAction(@Param("tenantId") UUID tenantId, @Param("action") String action);
-    
+
     /**
      * Busca policies que contêm um recurso específico no array JSON
      */
     @Query(value = "SELECT * FROM policies WHERE tenant_id = :tenantId AND JSON_SEARCH(resources, 'one', :resource) IS NOT NULL",
            nativeQuery = true)
     List<Policy> findByResource(@Param("tenantId") UUID tenantId, @Param("resource") String resource);
-    
+
     /**
      * Busca policies que contêm tanto a ação quanto o recurso
      */
-       @Query(value = "SELECT * FROM policies WHERE tenant_id = :tenantId AND " +
-                               "JSON_SEARCH(actions, 'one', :action) IS NOT NULL AND " +
-                               "JSON_SEARCH(resources, 'one', :resource) IS NOT NULL",
+    @Query(value = "SELECT * FROM policies WHERE tenant_id = :tenantId AND " +
+                   "JSON_SEARCH(actions, 'one', :action) IS NOT NULL AND " +
+                   "JSON_SEARCH(resources, 'one', :resource) IS NOT NULL",
            nativeQuery = true)
-       List<Policy> findByActionAndResource(@Param("tenantId") UUID tenantId, @Param("action") String action, @Param("resource") String resource);
+    List<Policy> findByActionAndResource(@Param("tenantId") UUID tenantId, @Param("action") String action, @Param("resource") String resource);
 
     // ========================================
     // MÉTODOS ADICIONAIS PARA SERVICES
     // ========================================
-    
-       @Query("SELECT p FROM Policy p WHERE p.tenant.id = :tenantId AND p.effect = :effect AND CAST(p.conditions AS string) LIKE %:conditions%")
-       List<Policy> findByEffectAndConditions(@Param("tenantId") UUID tenantId,
-                                                                         @Param("effect") PolicyEffect effect,
-                                                                         @Param("conditions") String conditions);
+
+    @Query("SELECT p FROM Policy p WHERE p.tenant.id = :tenantId AND p.effect = :effect AND CAST(p.conditions AS string) LIKE %:conditions%")
+    List<Policy> findByEffectAndConditions(@Param("tenantId") UUID tenantId,
+                                           @Param("effect") PolicyEffect effect,
+                                           @Param("conditions") String conditions);
 }

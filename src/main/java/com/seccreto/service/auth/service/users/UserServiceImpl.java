@@ -1,5 +1,9 @@
 package com.seccreto.service.auth.service.users;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.users.UserResponse;
+import com.seccreto.service.auth.api.mapper.users.UserMapper;
 import com.seccreto.service.auth.model.users.User;
 import com.seccreto.service.auth.repository.users.UserRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
@@ -15,6 +19,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -269,6 +278,35 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> searchUsers(String query) {
         return userRepository.search(query);
+    }
+
+    @Override
+    public Pagination<UserResponse> searchUsers(SearchQuery searchQuery) {
+        try {
+            // Create Pageable for pagination
+            Pageable pageable = PageRequest.of(
+                searchQuery.page() - 1, // Spring uses 0-based indexing
+                searchQuery.perPage(),
+                Sort.by(Sort.Direction.fromString(searchQuery.direction()), searchQuery.sort())
+            );
+            
+            // Get paginated results using existing repository method
+            Page<User> userPage = userRepository.search(searchQuery.terms(), pageable);
+            
+            // Convert to response DTOs
+            List<UserResponse> userResponses = userPage.getContent().stream()
+                .map(UserMapper::toResponse)
+                .collect(Collectors.toList());
+            
+            return new Pagination<>(
+                searchQuery.page(),
+                searchQuery.perPage(),
+                userPage.getTotalElements(),
+                userResponses
+            );
+        } catch (Exception e) {
+            return new Pagination<>(searchQuery.page(), searchQuery.perPage(), 0, List.of());
+        }
     }
 
     @Override

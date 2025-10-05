@@ -7,7 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.util.UUID;
 
 /**
  * DTO para requisições de criação/atualização de permissão.
@@ -26,6 +29,10 @@ public class PermissionRequest {
     @Schema(description = "Descrição da permissão", example = "Permite criar novos usuários no sistema")
     @Size(max = 500, message = "Descrição deve ter no máximo 500 caracteres")
     private String description;
+
+    @Schema(description = "Identificador do landlord ao qual a permissão pertence", example = "550e8400-e29b-41d4-a716-446655440000")
+    @NotNull(message = "LandlordId é obrigatório")
+    private UUID landlordId;
 
     @Schema(description = "Ação da permissão", example = "create")
     @NotBlank(message = "Ação não pode ser vazia")

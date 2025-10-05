@@ -21,14 +21,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoleRequest {
-    @Schema(description = "Código único do role dentro do tenant", example = "staff")
+    @Schema(description = "Código único do role dentro do landlord", example = "staff")
     @NotBlank(message = "Código não pode ser vazio")
     @Size(min = 2, max = 100, message = "Código deve ter entre 2 e 100 caracteres")
     private String code;
 
-    @Schema(description = "Identificador do tenant ao qual o role pertence", example = "550e8400-e29b-41d4-a716-446655440000")
-    @NotNull(message = "TenantId é obrigatório")
-    private UUID tenantId;
+    @Schema(description = "Identificador do landlord ao qual o role pertence", example = "550e8400-e29b-41d4-a716-446655440000")
+    @NotNull(message = "LandlordId é obrigatório")
+    private UUID landlordId;
 
     @Schema(description = "Nome do role", example = "ADMIN")
     @NotBlank(message = "Nome não pode ser vazio")

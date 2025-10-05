@@ -1,7 +1,6 @@
 package com.seccreto.service.auth.repository.permissions;
 
 import com.seccreto.service.auth.model.permissions.Permission;
-import com.seccreto.service.auth.model.roles_permissions.RolesPermissions;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,29 +22,33 @@ public interface PermissionRepository extends JpaRepository<Permission, UUID> {
     // QUERIES DERIVADAS AUTOMÁTICAS (JPA)
     // ========================================
     
-    List<Permission> findByAction(String action);
-    
-    List<Permission> findByResource(String resource);
-    
-    Optional<Permission> findByActionAndResource(String action, String resource);
-    
-    List<Permission> findByActionContainingIgnoreCase(String action);
-    
-    List<Permission> findByResourceContainingIgnoreCase(String resource);
-    
-    boolean existsByActionAndResource(String action, String resource);
+       List<Permission> findByLandlordId(UUID landlordId);
+
+       List<Permission> findByLandlordIdAndAction(UUID landlordId, String action);
+
+       List<Permission> findByLandlordIdAndResource(UUID landlordId, String resource);
+
+       Optional<Permission> findByLandlordIdAndActionAndResource(UUID landlordId, String action, String resource);
+
+       List<Permission> findByLandlordIdAndActionContainingIgnoreCase(UUID landlordId, String action);
+
+       List<Permission> findByLandlordIdAndResourceContainingIgnoreCase(UUID landlordId, String resource);
+
+       boolean existsByLandlordIdAndActionAndResource(UUID landlordId, String action, String resource);
+
+              long countByLandlordId(UUID landlordId);
 
     // ========================================
     // QUERIES CUSTOMIZADAS COM @Query
     // ========================================
     
-    @Query("SELECT p FROM Permission p WHERE LOWER(p.action) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(p.resource) LIKE LOWER(CONCAT('%', :query, '%'))")
-    List<Permission> search(@Param("query") String query);
+    @Query("SELECT p FROM Permission p WHERE p.landlord.id = :landlordId AND (LOWER(p.action) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.resource) LIKE LOWER(CONCAT('%', :query, '%')))")
+    List<Permission> search(@Param("landlordId") UUID landlordId, @Param("query") String query);
     
-    @Query("SELECT p FROM Permission p WHERE LOWER(p.action) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(p.resource) LIKE LOWER(CONCAT('%', :query, '%'))")
-    Page<Permission> search(@Param("query") String query, Pageable pageable);
+    @Query("SELECT p FROM Permission p WHERE p.landlord.id = :landlordId AND (LOWER(p.action) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.resource) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Permission> search(@Param("landlordId") UUID landlordId, @Param("query") String query, Pageable pageable);
     
     @Query("SELECT DISTINCT p.action FROM Permission p ORDER BY p.action")
     List<String> findAllActions();
@@ -57,14 +60,14 @@ public interface PermissionRepository extends JpaRepository<Permission, UUID> {
     // QUERIES DE MÉTRICAS E RELATÓRIOS
     // ========================================
     
-    @Query("SELECT p.action, COUNT(p) FROM Permission p GROUP BY p.action")
-    List<Object[]> getActionDistribution();
-    
-    @Query("SELECT p.resource, COUNT(p) FROM Permission p GROUP BY p.resource")
-    List<Object[]> getResourceDistribution();
-    
-       @Query("SELECT COUNT(DISTINCT rp.role.id) FROM RolesPermissions rp WHERE rp.permission.id = :permissionId")
-       long countRolesByPermission(@Param("permissionId") UUID permissionId);
+              @Query("SELECT p.action, COUNT(p) FROM Permission p WHERE p.landlord.id = :landlordId GROUP BY p.action")
+              List<Object[]> getActionDistribution(@Param("landlordId") UUID landlordId);
+
+              @Query("SELECT p.resource, COUNT(p) FROM Permission p WHERE p.landlord.id = :landlordId GROUP BY p.resource")
+              List<Object[]> getResourceDistribution(@Param("landlordId") UUID landlordId);
+
+              @Query("SELECT COUNT(DISTINCT rp.role.id) FROM RolesPermissions rp WHERE rp.permission.id = :permissionId")
+              long countRolesByPermission(@Param("permissionId") UUID permissionId);
 
     // ========================================
     // QUERIES PARA SUBSTITUIR JDBC

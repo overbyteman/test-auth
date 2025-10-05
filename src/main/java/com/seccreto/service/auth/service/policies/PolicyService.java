@@ -1,6 +1,9 @@
 package com.seccreto.service.auth.service.policies;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.policies.PolicyResponse;
 import com.seccreto.service.auth.model.policies.Policy;
 import com.seccreto.service.auth.model.policies.PolicyEffect;
 
@@ -30,6 +33,7 @@ public interface PolicyService {
     
     // Operações de busca
     List<Policy> searchPolicies(UUID tenantId, String query);
+    Pagination<PolicyResponse> searchPolicies(UUID tenantId, SearchQuery searchQuery);
     
     // Operações de validação
     boolean isPolicyValid(Policy policy);

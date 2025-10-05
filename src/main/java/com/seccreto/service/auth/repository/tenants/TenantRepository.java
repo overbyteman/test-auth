@@ -35,8 +35,13 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     List<Tenant> findByNameContainingIgnoreCase(String name);
     
     List<Tenant> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    List<Tenant> findByLandlordId(UUID landlordId);
     
     boolean existsByName(String name);
+
+    @Query("SELECT COUNT(t) FROM Tenant t WHERE t.landlord.id = :landlordId")
+    long countByLandlordId(@Param("landlordId") UUID landlordId);
 
     // ========================================
     // QUERIES CUSTOMIZADAS COM @Query

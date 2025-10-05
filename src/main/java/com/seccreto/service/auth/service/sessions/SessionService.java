@@ -1,5 +1,8 @@
 package com.seccreto.service.auth.service.sessions;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.sessions.SessionResponse;
 import com.seccreto.service.auth.model.sessions.Session;
 
 import java.net.InetAddress;
@@ -56,6 +59,7 @@ public interface SessionService {
     
     // Operações de busca
     List<Session> searchSessions(String ipAddress, String userAgent, UUID userId);
+    Pagination<SessionResponse> searchSessions(SearchQuery searchQuery, String ipAddress, String userAgent, UUID userId);
     String findLastLoginByUser(UUID userId);
     
     // Operações de validação

@@ -1,9 +1,9 @@
 package com.seccreto.service.auth.service.roles;
 
+import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.roles.Role;
-import com.seccreto.service.auth.model.tenants.Tenant;
 import com.seccreto.service.auth.repository.roles.RoleRepository;
-import com.seccreto.service.auth.repository.tenants.TenantRepository;
+import com.seccreto.service.auth.repository.landlords.LandlordRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import io.micrometer.core.annotation.Timed;
@@ -28,69 +28,69 @@ import java.util.stream.Collectors;
 public class RoleServiceImpl implements RoleService {
 
     private final RoleRepository roleRepository;
-    private final TenantRepository tenantRepository;
+    private final LandlordRepository landlordRepository;
 
-    public RoleServiceImpl(RoleRepository roleRepository, TenantRepository tenantRepository) {
+    public RoleServiceImpl(RoleRepository roleRepository, LandlordRepository landlordRepository) {
         this.roleRepository = roleRepository;
-        this.tenantRepository = tenantRepository;
+        this.landlordRepository = landlordRepository;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "roles.create", description = "Time taken to create a role")
-    public Role createRole(UUID tenantId, String code, String name, String description) {
-        validateTenantId(tenantId);
+    public Role createRole(UUID landlordId, String code, String name, String description) {
+        validateLandlordId(landlordId);
         validateCode(code);
         validateName(name);
 
-        Tenant tenant = findTenant(tenantId);
+        Landlord landlord = findLandlord(landlordId);
 
-        roleRepository.findByCodeAndTenantId(code.trim(), tenantId)
-                .ifPresent(existing -> { throw new ConflictException("Code já está em uso para este tenant"); });
+        roleRepository.findByCodeAndLandlordId(code.trim(), landlordId)
+                .ifPresent(existing -> { throw new ConflictException("Code já está em uso para este landlord"); });
 
-        roleRepository.findByNameAndTenantId(name.trim(), tenantId)
-                .ifPresent(existing -> { throw new ConflictException("Nome já está em uso para este tenant"); });
+        roleRepository.findByNameAndLandlordId(name.trim(), landlordId)
+                .ifPresent(existing -> { throw new ConflictException("Nome já está em uso para este landlord"); });
 
-        Role role = Role.createNew(code.trim(), name.trim(), description, tenant);
+        Role role = Role.createNew(code.trim(), name.trim(), description, landlord);
         return roleRepository.save(role);
     }
 
     @Override
     @Timed(value = "roles.list", description = "Time taken to list roles")
-    public List<Role> listRoles(UUID tenantId) {
-        validateTenantId(tenantId);
-        return roleRepository.findByTenantId(tenantId);
+    public List<Role> listRoles(UUID landlordId) {
+        validateLandlordId(landlordId);
+        return roleRepository.findByLandlordId(landlordId);
     }
 
     @Override
     @Timed(value = "roles.find", description = "Time taken to find role by id")
-    public Optional<Role> findRoleById(UUID tenantId, UUID id) {
-        validateTenantId(tenantId);
+    public Optional<Role> findRoleById(UUID landlordId, UUID id) {
+        validateLandlordId(landlordId);
         validateId(id);
         return roleRepository.findById(id)
-                .filter(role -> role.getTenant() != null && tenantId.equals(role.getTenant().getId()));
+                .filter(role -> role.getLandlord() != null && landlordId.equals(role.getLandlord().getId()));
     }
 
     @Override
-    public Optional<Role> findRoleByCode(UUID tenantId, String code) {
-        validateTenantId(tenantId);
+    public Optional<Role> findRoleByCode(UUID landlordId, String code) {
+        validateLandlordId(landlordId);
         validateCode(code);
-        return roleRepository.findByCodeAndTenantId(code.trim(), tenantId);
+        return roleRepository.findByCodeAndLandlordId(code.trim(), landlordId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "roles.update", description = "Time taken to update role")
-    public Role updateRole(UUID tenantId, UUID id, String name, String description) {
-        validateTenantId(tenantId);
+    public Role updateRole(UUID landlordId, UUID id, String name, String description) {
+        validateLandlordId(landlordId);
         validateId(id);
         validateName(name);
 
-        Role role = requireRole(tenantId, id);
+        Role role = requireRole(landlordId, id);
 
-        roleRepository.findByNameAndTenantId(name.trim(), tenantId)
+        roleRepository.findByNameAndLandlordId(name.trim(), landlordId)
                 .filter(existing -> !existing.getId().equals(id))
-                .ifPresent(existing -> { throw new ConflictException("Nome já está em uso para este tenant"); });
+                .ifPresent(existing -> { throw new ConflictException("Nome já está em uso para este landlord"); });
 
         if (description != null && description.trim().isEmpty()) {
             description = null;
@@ -105,50 +105,50 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "roles.delete", description = "Time taken to delete role")
-    public boolean deleteRole(UUID tenantId, UUID id) {
-        validateTenantId(tenantId);
+    public boolean deleteRole(UUID landlordId, UUID id) {
+        validateLandlordId(landlordId);
         validateId(id);
 
-        Role role = requireRole(tenantId, id);
+        Role role = requireRole(landlordId, id);
         roleRepository.delete(role);
         return true;
     }
 
     @Override
-    public boolean existsRoleById(UUID tenantId, UUID id) {
-        validateTenantId(tenantId);
+    public boolean existsRoleById(UUID landlordId, UUID id) {
+        validateLandlordId(landlordId);
         validateId(id);
         return roleRepository.findById(id)
-                .map(role -> role.getTenant() != null && tenantId.equals(role.getTenant().getId()))
+                .map(role -> role.getLandlord() != null && landlordId.equals(role.getLandlord().getId()))
                 .orElse(false);
     }
 
     @Override
-    public boolean existsRoleByCode(UUID tenantId, String code) {
-        validateTenantId(tenantId);
+    public boolean existsRoleByCode(UUID landlordId, String code) {
+        validateLandlordId(landlordId);
         validateCode(code);
-        return roleRepository.existsByCodeAndTenantId(code.trim(), tenantId);
+        return roleRepository.existsByCodeAndLandlordId(code.trim(), landlordId);
     }
 
     @Override
     @Timed(value = "roles.count", description = "Time taken to count roles")
-    public long countRoles(UUID tenantId) {
-        validateTenantId(tenantId);
-        return roleRepository.countByTenantId(tenantId);
+    public long countRoles(UUID landlordId) {
+        validateLandlordId(landlordId);
+        return roleRepository.countByLandlordId(landlordId);
     }
 
     @Override
-    public List<Role> searchRoles(UUID tenantId, String query) {
-        validateTenantId(tenantId);
+    public List<Role> searchRoles(UUID landlordId, String query) {
+        validateLandlordId(landlordId);
         if (query == null || query.trim().isEmpty()) {
             return List.of();
         }
-        return roleRepository.search(tenantId, query.trim());
+        return roleRepository.search(landlordId, query.trim());
     }
 
     @Override
-    public List<Object> getRolePermissions(UUID tenantId, UUID roleId) {
-        Role role = requireRole(tenantId, roleId);
+    public List<Object> getRolePermissions(UUID landlordId, UUID roleId) {
+        Role role = requireRole(landlordId, roleId);
         try {
             List<Object[]> results = roleRepository.getRolePermissionsDetails(role.getId());
             return results.stream()
@@ -165,8 +165,8 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public boolean roleHasPermission(UUID tenantId, UUID roleId, String action, String resource) {
-        Role role = requireRole(tenantId, roleId);
+    public boolean roleHasPermission(UUID landlordId, UUID roleId, String action, String resource) {
+        Role role = requireRole(landlordId, roleId);
         try {
             return roleRepository.roleHasPermission(role.getId(), action, resource);
         } catch (Exception e) {
@@ -175,8 +175,8 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public long countRolePermissions(UUID tenantId, UUID roleId) {
-        Role role = requireRole(tenantId, roleId);
+    public long countRolePermissions(UUID landlordId, UUID roleId) {
+        Role role = requireRole(landlordId, roleId);
         try {
             return roleRepository.countPermissionsByRole(role.getId());
         } catch (Exception e) {
@@ -185,8 +185,8 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public List<Object> getRoleUsers(UUID tenantId, UUID roleId) {
-        Role role = requireRole(tenantId, roleId);
+    public List<Object> getRoleUsers(UUID landlordId, UUID roleId) {
+        Role role = requireRole(landlordId, roleId);
         try {
             List<Object[]> results = roleRepository.getRoleUsersDetails(role.getId());
             return results.stream()
@@ -203,8 +203,8 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public long countRoleUsers(UUID tenantId, UUID roleId) {
-        Role role = requireRole(tenantId, roleId);
+    public long countRoleUsers(UUID landlordId, UUID roleId) {
+        Role role = requireRole(landlordId, roleId);
         try {
             return roleRepository.countUsersByRole(role.getId());
         } catch (Exception e) {
@@ -213,9 +213,9 @@ public class RoleServiceImpl implements RoleService {
     }
 
     // Métodos de validação privados
-    private void validateTenantId(UUID tenantId) {
-        if (tenantId == null) {
-            throw new IllegalArgumentException("TenantId não pode ser nulo");
+    private void validateLandlordId(UUID landlordId) {
+        if (landlordId == null) {
+            throw new IllegalArgumentException("LandlordId não pode ser nulo");
         }
     }
 
@@ -243,15 +243,15 @@ public class RoleServiceImpl implements RoleService {
         }
     }
 
-    private Tenant findTenant(UUID tenantId) {
-        return tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + tenantId));
+    private Landlord findLandlord(UUID landlordId) {
+        return landlordRepository.findById(landlordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Landlord não encontrado com ID: " + landlordId));
     }
 
-    private Role requireRole(UUID tenantId, UUID roleId) {
+    private Role requireRole(UUID landlordId, UUID roleId) {
         return roleRepository.findById(roleId)
-                .filter(role -> role.getTenant() != null && tenantId.equals(role.getTenant().getId()))
+                .filter(role -> role.getLandlord() != null && landlordId.equals(role.getLandlord().getId()))
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Role não encontrado para o tenant informado (tenantId=" + tenantId + ", roleId=" + roleId + ")"));
+                        "Role não encontrado para o landlord informado (landlordId=" + landlordId + ", roleId=" + roleId + ")"));
     }
 }

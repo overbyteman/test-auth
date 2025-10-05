@@ -1,6 +1,9 @@
 package com.seccreto.service.auth.service.tenants;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.tenants.TenantResponse;
 import com.seccreto.service.auth.model.tenants.Tenant;
 
 import java.time.LocalDate;
@@ -16,12 +19,14 @@ import java.util.UUID;
 public interface TenantService {
     
     // Operações básicas CRUD
-    Tenant createTenant(String name, JsonNode config);
+    Tenant createTenant(String name, JsonNode config, UUID landlordId);
     List<Tenant> listAllTenants();
     Optional<Tenant> findTenantById(UUID id);
     List<Tenant> findTenantsByName(String name);
     Optional<Tenant> findTenantByNameExact(String name);
-    Tenant updateTenant(UUID id, String name, JsonNode config);
+    List<Tenant> findTenantsByLandlordId(UUID landlordId);
+    long countTenantsByLandlordId(UUID landlordId);
+    Tenant updateTenant(UUID id, String name, JsonNode config, UUID landlordId);
     boolean deleteTenant(UUID id);
     boolean existsTenantById(UUID id);
     boolean existsTenantByName(String name);
@@ -33,6 +38,7 @@ public interface TenantService {
     
     // Operações de busca e filtros
     List<Tenant> searchTenants(String query);
+    Pagination<TenantResponse> searchTenants(SearchQuery searchQuery);
     
     // Métricas e estatísticas
     long countTenantsCreatedToday();

@@ -125,6 +125,12 @@ public class UserRolePermissionServiceImpl implements UserRolePermissionService 
 
             if (association.getTenant() != null) {
                 tenantAggregation.setTenantNameIfAbsent(association.getTenant().getName());
+                if (association.getTenant().getLandlord() != null) {
+                    tenantAggregation.setLandlordIfAbsent(
+                            association.getTenant().getLandlord().getId(),
+                            association.getTenant().getLandlord().getName()
+                    );
+                }
             }
 
             Role role = association.getRole();
@@ -140,11 +146,22 @@ public class UserRolePermissionServiceImpl implements UserRolePermissionService 
 
     private static final class TenantAggregation {
         private String tenantName;
+        private UUID landlordId;
+        private String landlordName;
         private final Map<String, RoleAggregation> roles = new LinkedHashMap<>();
 
         void setTenantNameIfAbsent(String name) {
             if (this.tenantName == null && name != null && !name.isBlank()) {
                 this.tenantName = name;
+            }
+        }
+
+        void setLandlordIfAbsent(UUID landlordId, String landlordName) {
+            if (this.landlordId == null && landlordId != null) {
+                this.landlordId = landlordId;
+            }
+            if (this.landlordName == null && landlordName != null && !landlordName.isBlank()) {
+                this.landlordName = landlordName;
             }
         }
 
@@ -167,7 +184,7 @@ public class UserRolePermissionServiceImpl implements UserRolePermissionService 
             List<TenantAccess.TenantRoleAccess> roleAccesses = roles.values().stream()
                     .map(RoleAggregation::toTenantRoleAccess)
                     .toList();
-            return new TenantAccess(tenantId, tenantName, roleAccesses);
+            return new TenantAccess(tenantId, tenantName, landlordId, landlordName, roleAccesses);
         }
     }
 

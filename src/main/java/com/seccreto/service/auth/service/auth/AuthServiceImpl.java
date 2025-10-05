@@ -142,6 +142,8 @@ public class AuthServiceImpl implements AuthService {
                 .userEmail(user.getEmail())
         .tenantId(primaryTenant != null ? primaryTenant.tenantId() : null)
         .tenantName(primaryTenant != null ? primaryTenant.tenantName() : null)
+    .landlordId(primaryTenant != null ? primaryTenant.landlordId() : null)
+    .landlordName(primaryTenant != null ? primaryTenant.landlordName() : null)
                 .loginTime(LocalDateTime.now())
                 .roles(List.copyOf(roleResponses))
                 .build();
@@ -475,16 +477,18 @@ public class AuthServiceImpl implements AuthService {
         String newRefreshToken = jwtService.generateRefreshToken(user.getId(), validationResult.sessionId());
         
     return RefreshTokenResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
-                .tokenType("Bearer")
-                .expiresIn(3600L)
-                .userId(user.getId())
-                .refreshedAt(LocalDateTime.now())
-        .tenantId(primaryTenant != null ? primaryTenant.tenantId() : null)
-        .tenantName(primaryTenant != null ? primaryTenant.tenantName() : null)
-                .roles(List.copyOf(roleResponses))
-                .build();
+        .accessToken(newAccessToken)
+        .refreshToken(newRefreshToken)
+        .tokenType("Bearer")
+        .expiresIn(3600L)
+        .userId(user.getId())
+        .refreshedAt(LocalDateTime.now())
+    .tenantId(primaryTenant != null ? primaryTenant.tenantId() : null)
+    .tenantName(primaryTenant != null ? primaryTenant.tenantName() : null)
+    .landlordId(primaryTenant != null ? primaryTenant.landlordId() : null)
+    .landlordName(primaryTenant != null ? primaryTenant.landlordName() : null)
+        .roles(List.copyOf(roleResponses))
+        .build();
     }
 
     @Override
@@ -752,12 +756,14 @@ public class AuthServiceImpl implements AuthService {
                             }
                         }
                     }
-                    return new JwtService.TenantAccessClaim(
-                            access.tenantId(),
-                            access.tenantName(),
-                            List.copyOf(roleNames),
-                            List.copyOf(permissions)
-                    );
+            return new JwtService.TenantAccessClaim(
+                access.tenantId(),
+                access.tenantName(),
+                access.landlordId(),
+                access.landlordName(),
+                List.copyOf(roleNames),
+                List.copyOf(permissions)
+            );
                 })
                 .toList();
     }

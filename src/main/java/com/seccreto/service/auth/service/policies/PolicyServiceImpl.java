@@ -1,6 +1,10 @@
 package com.seccreto.service.auth.service.policies;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.policies.PolicyResponse;
+import com.seccreto.service.auth.api.mapper.policies.PolicyMapper;
 import com.seccreto.service.auth.model.policies.Policy;
 import com.seccreto.service.auth.model.policies.PolicyEffect;
 import com.seccreto.service.auth.model.tenants.Tenant;
@@ -17,6 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para policies.
@@ -170,6 +179,37 @@ public class PolicyServiceImpl implements PolicyService {
             return List.of();
         }
         return policyRepository.search(tenantId, query.trim());
+    }
+
+    @Override
+    public Pagination<PolicyResponse> searchPolicies(UUID tenantId, SearchQuery searchQuery) {
+        validateTenantId(tenantId);
+        
+        try {
+            // Create Pageable for pagination
+            Pageable pageable = PageRequest.of(
+                searchQuery.page() - 1, // Spring uses 0-based indexing
+                searchQuery.perPage(),
+                Sort.by(Sort.Direction.fromString(searchQuery.direction()), searchQuery.sort())
+            );
+            
+            // Get paginated results using existing repository method
+            Page<Policy> policyPage = policyRepository.search(tenantId, searchQuery.terms(), pageable);
+            
+            // Convert to response DTOs
+            List<PolicyResponse> policyResponses = policyPage.getContent().stream()
+                .map(PolicyMapper::toResponse)
+                .collect(Collectors.toList());
+            
+            return new Pagination<>(
+                searchQuery.page(),
+                searchQuery.perPage(),
+                policyPage.getTotalElements(),
+                policyResponses
+            );
+        } catch (Exception e) {
+            return new Pagination<>(searchQuery.page(), searchQuery.perPage(), 0, List.of());
+        }
     }
 
     @Override

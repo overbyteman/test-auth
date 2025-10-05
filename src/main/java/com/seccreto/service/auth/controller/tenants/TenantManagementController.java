@@ -1,5 +1,8 @@
 package com.seccreto.service.auth.controller.tenants;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.common.SearchResponse;
 import com.seccreto.service.auth.api.dto.tenants.TenantRequest;
 import com.seccreto.service.auth.api.dto.tenants.TenantResponse;
 import com.seccreto.service.auth.api.mapper.tenants.TenantMapper;
@@ -57,8 +60,9 @@ public class TenantManagementController {
     @PostMapping("/tenants")
     public ResponseEntity<TenantResponse> createTenant(@Valid @RequestBody TenantRequest request) {
         Tenant tenant = tenantService.createTenant(
-            request.getName(), 
-            request.getConfig()
+            request.getName(),
+            request.getConfig(),
+            request.getLandlordId()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(TenantMapper.toResponse(tenant));
     }
@@ -126,7 +130,7 @@ public class TenantManagementController {
     public ResponseEntity<TenantResponse> updateTenant(
             @Parameter(description = "ID do tenant") @PathVariable UUID id,
             @Valid @RequestBody TenantRequest request) {
-        Tenant tenant = tenantService.updateTenant(id, request.getName(), request.getConfig());
+    Tenant tenant = tenantService.updateTenant(id, request.getName(), request.getConfig(), request.getLandlordId());
         return ResponseEntity.ok(TenantMapper.toResponse(tenant));
     }
 
@@ -173,31 +177,6 @@ public class TenantManagementController {
         return ResponseEntity.ok(TenantMapper.toResponse(tenant));
     }
 
-    /**
-     * CASO DE USO: Administrador obtém estatísticas do tenant
-     * Endpoint semântico: GET /api/tenant-management/tenants/{id}/stats
-     */
-    @Operation(
-        summary = "Obter estatísticas do tenant", 
-        description = "Retorna estatísticas e métricas de um tenant específico"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Estatísticas obtidas"),
-        @ApiResponse(responseCode = "404", description = "Tenant não encontrado"),
-        @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
-    })
-    @GetMapping("/tenants/{id}/stats")
-    public ResponseEntity<Object> getTenantStats(
-            @Parameter(description = "ID do tenant") @PathVariable UUID id) {
-        return ResponseEntity.ok(new Object() {
-            public final UUID tenantId = id;
-            public final Long totalUsers = userService.countUsersByTenant(id);
-            public final Long activeUsers = userService.countActiveUsersByTenant(id);
-            public final String status = tenantService.findTenantById(id)
-                    .map(t -> "active") // TODO: Implement getActive method
-                    .orElse("not_found");
-        });
-    }
 
     /**
      * CASO DE USO: Administrador busca tenants por nome
@@ -205,21 +184,30 @@ public class TenantManagementController {
      */
     @Operation(
         summary = "Buscar tenants", 
-        description = "Busca tenants por nome ou domínio"
+        description = "Busca tenants por nome ou domínio com paginação"
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Busca realizada",
-                content = @Content(schema = @Schema(implementation = TenantResponse.class))),
+                content = @Content(schema = @Schema(implementation = SearchResponse.class))),
         @ApiResponse(responseCode = "400", description = "Parâmetro de busca inválido"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/tenants/search")
-    public ResponseEntity<List<TenantResponse>> searchTenants(
-            @Parameter(description = "Termo de busca") @RequestParam String query) {
-        List<TenantResponse> tenants = tenantService.searchTenants(query).stream()
-                .map(TenantMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(tenants);
+    public ResponseEntity<SearchResponse<TenantResponse>> searchTenants(
+            @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Itens por página") @RequestParam(defaultValue = "10") int perPage,
+            @Parameter(description = "Termos de busca") @RequestParam(required = false) String terms,
+            @Parameter(description = "Campo para ordenação") @RequestParam(defaultValue = "name") String sort,
+            @Parameter(description = "Direção da ordenação") @RequestParam(defaultValue = "asc") String direction) {
+        
+        long startTime = System.currentTimeMillis();
+        
+        SearchQuery searchQuery = new SearchQuery(page, perPage, terms, sort, direction);
+        Pagination<TenantResponse> pagination = tenantService.searchTenants(searchQuery);
+        
+        long executionTime = System.currentTimeMillis() - startTime;
+        
+        return ResponseEntity.ok(SearchResponse.of(pagination, executionTime));
     }
 
     /**

@@ -14,22 +14,22 @@ import java.util.UUID;
 public interface PermissionService {
     
     // Operações básicas CRUD
-    Permission createPermission(String action, String resource);
-    List<Permission> listAllPermissions();
-    Optional<Permission> findPermissionById(UUID id);
-    List<Permission> findPermissionsByAction(String action);
-    List<Permission> findPermissionsByResource(String resource);
-    Optional<Permission> findPermissionByActionAndResource(String action, String resource);
-    Permission updatePermission(UUID id, String action, String resource);
-    boolean deletePermission(UUID id);
-    boolean existsPermissionById(UUID id);
-    boolean existsPermissionByActionAndResource(String action, String resource);
-    long countPermissions();
+    Permission createPermission(UUID landlordId, String action, String resource);
+    List<Permission> listPermissions(UUID landlordId);
+    Optional<Permission> findPermissionById(UUID landlordId, UUID id);
+    List<Permission> findPermissionsByAction(UUID landlordId, String action);
+    List<Permission> findPermissionsByResource(UUID landlordId, String resource);
+    Optional<Permission> findPermissionByActionAndResource(UUID landlordId, String action, String resource);
+    Permission updatePermission(UUID landlordId, UUID id, String action, String resource);
+    boolean deletePermission(UUID landlordId, UUID id);
+    boolean existsPermissionById(UUID landlordId, UUID id);
+    boolean existsPermissionByActionAndResource(UUID landlordId, String action, String resource);
+    long countPermissions(UUID landlordId);
     
     // Operações de busca
-    List<Permission> searchPermissions(String query);
+    List<Permission> searchPermissions(UUID landlordId, String query);
     
     // Operações de roles
-    List<Object> getPermissionRoles(UUID permissionId);
-    long countPermissionRoles(UUID permissionId);
+    List<Object> getPermissionRoles(UUID landlordId, UUID permissionId);
+    long countPermissionRoles(UUID landlordId, UUID permissionId);
 }

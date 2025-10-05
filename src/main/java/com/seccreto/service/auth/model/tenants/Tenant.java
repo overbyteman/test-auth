@@ -2,20 +2,18 @@ package com.seccreto.service.auth.model.tenants;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.seccreto.service.auth.model.roles.Role;
+import com.seccreto.service.auth.model.landlords.Landlord;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -24,18 +22,15 @@ import java.util.UUID;
  * ESTRUTURA NORMALIZADA (3NF):
  * - PK: id (UUID)
  * - UNIQUE: name
- * - Relacionamento 1:N com Role (um tenant tem vários roles)
  * - JSONB para config (dados semi-estruturados)
- *
+
  * MULTI-TENANCY:
  * - Isolamento total de dados entre tenants
- * - Cada tenant tem seus próprios roles
  * - Config personalizável via JSONB
  *
  * OTIMIZAÇÕES:
  * - Cache L2 (tenants mudam raramente)
  * - Índices: PK, UNIQUE(name), GIN(config)
- * - Cascade apropriado para roles (orphanRemoval)
  */
 @Entity
 @Table(name = "tenants",
@@ -50,7 +45,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@ToString(exclude = {"roles"})
+@ToString
 public class Tenant {
 
     @Id
@@ -74,14 +69,12 @@ public class Tenant {
     private JsonNode config;
 
     /**
-     * Relacionamento 1:N com Role
-     * Cascade ALL + orphanRemoval: quando tenant é deletado, roles também são
+     * Referência ao landlord (matriz) que controla este tenant (filial)
      */
-    @OneToMany(mappedBy = "tenant", fetch = FetchType.LAZY,
-               cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    @Schema(description = "Roles pertencentes a este tenant")
-    private Set<Role> roles = new HashSet<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "landlord_id", nullable = false)
+    @Schema(description = "Landlord proprietário deste tenant")
+    private Landlord landlord;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -99,11 +92,11 @@ public class Tenant {
     // FACTORY METHODS
     // ========================================
 
-    public static Tenant createNew(String name, JsonNode config) {
+    public static Tenant createNew(String name, JsonNode config, Landlord landlord) {
         return Tenant.builder()
                 .name(name)
                 .config(config)
-                .roles(new HashSet<>())
+                .landlord(landlord)
                 .build();
     }
 
@@ -111,27 +104,13 @@ public class Tenant {
     // MÉTODOS DE NEGÓCIO
     // ========================================
 
-    public void addRole(Role role) {
-        if (this.roles == null) {
-            this.roles = new HashSet<>();
+    public void setLandlord(Landlord landlord) {
+        if (this.landlord != null && this.landlord != landlord) {
+            this.landlord.getTenants().remove(this);
         }
-        this.roles.add(role);
-        role.setTenant(this);
-    }
-
-    public void removeRole(Role role) {
-        if (this.roles != null) {
-            this.roles.remove(role);
-            role.setTenant(null);
+        this.landlord = landlord;
+        if (landlord != null && !landlord.getTenants().contains(this)) {
+            landlord.getTenants().add(this);
         }
-    }
-
-    public boolean hasRole(String roleName) {
-        if (this.roles == null) return false;
-        return this.roles.stream().anyMatch(r -> r.getName().equals(roleName));
-    }
-
-    public int getRoleCount() {
-        return this.roles != null ? this.roles.size() : 0;
     }
 }

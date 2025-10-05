@@ -9,6 +9,8 @@ import java.util.UUID;
 public record TenantAccess(
         UUID tenantId,
         String tenantName,
+        UUID landlordId,
+        String landlordName,
         List<TenantRoleAccess> roles
 ) {
 

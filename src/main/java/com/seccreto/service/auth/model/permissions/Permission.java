@@ -1,5 +1,6 @@
 package com.seccreto.service.auth.model.permissions;
 
+import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.policies.Policy;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.seccreto.service.auth.model.roles.Role;
@@ -29,7 +30,7 @@ import java.util.stream.Collectors;
  */
 @Entity
 @Table(name = "permissions", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"action", "resource"})
+    @UniqueConstraint(columnNames = {"landlord_id", "action", "resource"})
 })
 @Schema(description = "Entidade que representa uma permissão no sistema para RBAC com policies")
 @Data
@@ -54,6 +55,11 @@ public class Permission {
     @Schema(description = "Recurso da permissão", example = "users")
     private String resource;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "landlord_id", nullable = false)
+    @Schema(description = "Landlord proprietário desta permissão")
+    private Landlord landlord;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "policy_id")
     @Schema(description = "Policy associada a esta permission (ABAC)")
@@ -69,10 +75,11 @@ public class Permission {
     /**
      * Construtor para criação de novas permissões com valores padrão
      */
-    public static Permission createNew(String action, String resource) {
+    public static Permission createNew(String action, String resource, Landlord landlord) {
         return Permission.builder()
                 .action(action)
                 .resource(resource)
+                .landlord(landlord)
                 .rolePermissions(new HashSet<>())
                 .build();
     }
@@ -80,11 +87,12 @@ public class Permission {
     /**
      * Construtor para criação de novas permissões com policy
      */
-    public static Permission createNew(String action, String resource, Policy policy) {
+    public static Permission createNew(String action, String resource, Policy policy, Landlord landlord) {
         return Permission.builder()
                 .action(action)
                 .resource(resource)
                 .policy(policy)
+                .landlord(landlord)
                 .rolePermissions(new HashSet<>())
                 .build();
     }

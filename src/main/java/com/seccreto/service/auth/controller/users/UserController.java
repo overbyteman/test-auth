@@ -1,5 +1,8 @@
 package com.seccreto.service.auth.controller.users;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.common.SearchResponse;
 import com.seccreto.service.auth.api.dto.users.UserRequest;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.api.mapper.users.UserMapper;
@@ -147,18 +150,27 @@ public class UserController {
      * Busca usuários por nome
      * Consolidado de: UserRestController.searchUsers() + UserManagementController.searchUsers()
      */
-    @Operation(summary = "Buscar usuários", description = "Busca usuários por nome ou termo de busca")
+    @Operation(summary = "Buscar usuários", description = "Busca usuários por nome ou termo de busca com paginação")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso",
-                    content = @Content(schema = @Schema(implementation = UserResponse.class)))
+                    content = @Content(schema = @Schema(implementation = SearchResponse.class)))
     })
     @GetMapping("/search")
-    public ResponseEntity<List<UserResponse>> searchUsers(
-            @Parameter(description = "Nome ou termo de busca") @RequestParam String query) {
-        List<UserResponse> users = userService.searchUsers(query).stream()
-                .map(UserMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(users);
+    public ResponseEntity<SearchResponse<UserResponse>> searchUsers(
+            @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Itens por página") @RequestParam(defaultValue = "10") int perPage,
+            @Parameter(description = "Termos de busca") @RequestParam(required = false) String terms,
+            @Parameter(description = "Campo para ordenação") @RequestParam(defaultValue = "name") String sort,
+            @Parameter(description = "Direção da ordenação") @RequestParam(defaultValue = "asc") String direction) {
+        
+        long startTime = System.currentTimeMillis();
+        
+        SearchQuery searchQuery = new SearchQuery(page, perPage, terms, sort, direction);
+        Pagination<UserResponse> pagination = userService.searchUsers(searchQuery);
+        
+        long executionTime = System.currentTimeMillis() - startTime;
+        
+        return ResponseEntity.ok(SearchResponse.of(pagination, executionTime));
     }
 
 

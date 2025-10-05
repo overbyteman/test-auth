@@ -41,6 +41,12 @@ public class RefreshTokenResponse {
     @Schema(description = "Nome do tenant ativo")
     private String tenantName;
 
+    @Schema(description = "ID do landlord associado ao tenant")
+    private UUID landlordId;
+
+    @Schema(description = "Nome do landlord associado")
+    private String landlordName;
+
     @Schema(description = "Roles do usuário com suas permissões")
     private List<RolePermissionsResponse> roles;
 }

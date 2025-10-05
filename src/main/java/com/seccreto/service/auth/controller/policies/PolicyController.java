@@ -1,5 +1,8 @@
 package com.seccreto.service.auth.controller.policies;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.common.SearchResponse;
 import com.seccreto.service.auth.api.dto.policies.PolicyRequest;
 import com.seccreto.service.auth.api.dto.policies.PolicyResponse;
 import com.seccreto.service.auth.api.mapper.policies.PolicyMapper;
@@ -172,22 +175,31 @@ public class PolicyController {
      */
     @Operation(
         summary = "Buscar políticas", 
-        description = "Busca políticas por nome, descrição ou efeito"
+        description = "Busca políticas por nome, descrição ou efeito com paginação"
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Busca realizada",
-                content = @Content(schema = @Schema(implementation = PolicyResponse.class))),
+                content = @Content(schema = @Schema(implementation = SearchResponse.class))),
         @ApiResponse(responseCode = "400", description = "Critério de busca inválido"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/policies/search")
-    public ResponseEntity<List<PolicyResponse>> searchPolicies(
+    public ResponseEntity<SearchResponse<PolicyResponse>> searchPolicies(
             @RequestParam("tenantId") UUID tenantId,
-            @Parameter(description = "Termo de busca") @RequestParam String query) {
-        List<PolicyResponse> policies = policyService.searchPolicies(tenantId, query).stream()
-                .map(PolicyMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(policies);
+            @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Itens por página") @RequestParam(defaultValue = "10") int perPage,
+            @Parameter(description = "Termos de busca") @RequestParam(required = false) String terms,
+            @Parameter(description = "Campo para ordenação") @RequestParam(defaultValue = "name") String sort,
+            @Parameter(description = "Direção da ordenação") @RequestParam(defaultValue = "asc") String direction) {
+        
+        long startTime = System.currentTimeMillis();
+        
+        SearchQuery searchQuery = new SearchQuery(page, perPage, terms, sort, direction);
+        Pagination<PolicyResponse> pagination = policyService.searchPolicies(tenantId, searchQuery);
+        
+        long executionTime = System.currentTimeMillis() - startTime;
+        
+        return ResponseEntity.ok(SearchResponse.of(pagination, executionTime));
     }
 
 

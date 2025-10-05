@@ -1,5 +1,8 @@
 package com.seccreto.service.auth.controller.sessions;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.common.SearchResponse;
 import com.seccreto.service.auth.api.dto.sessions.SessionResponse;
 import com.seccreto.service.auth.api.mapper.sessions.SessionMapper;
 import com.seccreto.service.auth.model.sessions.Session;
@@ -164,27 +167,6 @@ public class SessionController {
         });
     }
 
-    /**
-     * CASO DE USO: Administrador obtém estatísticas de sessões
-     * Endpoint semântico: GET /api/session-management/sessions/stats
-     */
-    @Operation(
-        summary = "Obter estatísticas de sessões", 
-        description = "Retorna estatísticas gerais das sessões do sistema"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Estatísticas obtidas"),
-        @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
-    })
-    @GetMapping("/sessions/stats")
-    public ResponseEntity<Object> getSessionStats() {
-        return ResponseEntity.ok(new Object() {
-            public final Long totalSessions = sessionService.countSessions();
-            public final Long activeSessions = sessionService.countActiveSessions();
-            public final Long expiredSessions = sessionService.countExpiredSessions();
-            public final Long sessionsToday = sessionService.countSessionsToday();
-        });
-    }
 
     /**
      * CASO DE USO: Administrador busca sessões por critério
@@ -192,43 +174,33 @@ public class SessionController {
      */
     @Operation(
         summary = "Buscar sessões", 
-        description = "Busca sessões por IP, user agent ou outros critérios"
+        description = "Busca sessões por IP, user agent ou outros critérios com paginação"
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Busca realizada",
-                content = @Content(schema = @Schema(implementation = SessionResponse.class))),
+                content = @Content(schema = @Schema(implementation = SearchResponse.class))),
         @ApiResponse(responseCode = "400", description = "Critério de busca inválido"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/sessions/search")
-    public ResponseEntity<List<SessionResponse>> searchSessions(
+    public ResponseEntity<SearchResponse<SessionResponse>> searchSessions(
+            @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "Itens por página") @RequestParam(defaultValue = "10") int perPage,
+            @Parameter(description = "Termos de busca") @RequestParam(required = false) String terms,
+            @Parameter(description = "Campo para ordenação") @RequestParam(defaultValue = "createdAt") String sort,
+            @Parameter(description = "Direção da ordenação") @RequestParam(defaultValue = "desc") String direction,
             @Parameter(description = "IP address") @RequestParam(required = false) String ipAddress,
             @Parameter(description = "User agent") @RequestParam(required = false) String userAgent,
             @Parameter(description = "User ID") @RequestParam(required = false) UUID userId) {
-        List<SessionResponse> sessions = sessionService.searchSessions(ipAddress, userAgent, userId).stream()
-                .map(SessionMapper::toResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(sessions);
+        
+        long startTime = System.currentTimeMillis();
+        
+        SearchQuery searchQuery = new SearchQuery(page, perPage, terms, sort, direction);
+        Pagination<SessionResponse> pagination = sessionService.searchSessions(searchQuery, ipAddress, userAgent, userId);
+        
+        long executionTime = System.currentTimeMillis() - startTime;
+        
+        return ResponseEntity.ok(SearchResponse.of(pagination, executionTime));
     }
 
-    /**
-     * CASO DE USO: Sistema verifica saúde da gestão de sessões
-     * Endpoint semântico: GET /api/session-management/health
-     */
-    @Operation(
-        summary = "Verificar saúde da gestão de sessões", 
-        description = "Retorna status do sistema de gestão de sessões"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Sistema funcionando normalmente")
-    })
-    @GetMapping("/health")
-    public ResponseEntity<Object> getSessionManagementHealth() {
-        return ResponseEntity.ok(new Object() {
-            public final String status = "healthy";
-            public final String service = "session-management";
-            public final Long activeSessions = sessionService.countActiveSessions();
-            public final Long expiredSessions = sessionService.countExpiredSessions();
-        });
-    }
 }

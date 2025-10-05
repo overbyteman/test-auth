@@ -1,7 +1,9 @@
 package com.seccreto.service.auth.service.permissions;
 
+import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.permissions.Permission;
 import com.seccreto.service.auth.repository.permissions.PermissionRepository;
+import com.seccreto.service.auth.repository.landlords.LandlordRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
@@ -25,77 +27,93 @@ import java.util.UUID;
 public class PermissionServiceImpl implements PermissionService {
 
     private final PermissionRepository permissionRepository;
-    public PermissionServiceImpl(PermissionRepository permissionRepository) {
+    private final LandlordRepository landlordRepository;
+
+    public PermissionServiceImpl(PermissionRepository permissionRepository,
+                                 LandlordRepository landlordRepository) {
         this.permissionRepository = permissionRepository;
+        this.landlordRepository = landlordRepository;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "permissions.create", description = "Time taken to create a permission")
-    public Permission createPermission(String action, String resource) {
+    public Permission createPermission(UUID landlordId, String action, String resource) {
+        validateLandlordId(landlordId);
         validateAction(action);
         validateResource(resource);
 
+        Landlord landlord = findLandlord(landlordId);
+
         // Verificar se já existe uma permissão com esta ação e recurso (idempotência)
-        Optional<Permission> existingPermission = permissionRepository.findByActionAndResource(action.trim(), resource.trim());
+        Optional<Permission> existingPermission = permissionRepository.findByLandlordIdAndActionAndResource(
+                landlordId, action.trim(), resource.trim());
         if (existingPermission.isPresent()) {
             return existingPermission.get(); // Retorna a permissão existente (idempotência)
         }
 
-        Permission permission = Permission.createNew(action.trim(), resource.trim());
+        Permission permission = Permission.createNew(action.trim(), resource.trim(), landlord);
         return permissionRepository.save(permission);
     }
 
     @Override
     @Timed(value = "permissions.list", description = "Time taken to list permissions")
-    public List<Permission> listAllPermissions() {
-        return permissionRepository.findAll();
+    public List<Permission> listPermissions(UUID landlordId) {
+        validateLandlordId(landlordId);
+        return permissionRepository.findByLandlordId(landlordId);
     }
 
     @Override
     @Timed(value = "permissions.find", description = "Time taken to find permission by id")
-    public Optional<Permission> findPermissionById(UUID id) {
+    public Optional<Permission> findPermissionById(UUID landlordId, UUID id) {
+        validateLandlordId(landlordId);
         validateId(id);
-        return permissionRepository.findById(id);
+        return permissionRepository.findById(id)
+                .filter(permission -> permission.getLandlord() != null && landlordId.equals(permission.getLandlord().getId()));
     }
 
     @Override
     @Timed(value = "permissions.find", description = "Time taken to find permissions by action")
-    public List<Permission> findPermissionsByAction(String action) {
+    public List<Permission> findPermissionsByAction(UUID landlordId, String action) {
+        validateLandlordId(landlordId);
         validateAction(action);
-        return permissionRepository.findByAction(action);
+        return permissionRepository.findByLandlordIdAndAction(landlordId, action);
     }
 
     @Override
     @Timed(value = "permissions.find", description = "Time taken to find permissions by resource")
-    public List<Permission> findPermissionsByResource(String resource) {
+    public List<Permission> findPermissionsByResource(UUID landlordId, String resource) {
+        validateLandlordId(landlordId);
         validateResource(resource);
-        return permissionRepository.findByResource(resource);
+        return permissionRepository.findByLandlordIdAndResource(landlordId, resource);
     }
 
     @Override
     @Timed(value = "permissions.find", description = "Time taken to find permission by action and resource")
-    public Optional<Permission> findPermissionByActionAndResource(String action, String resource) {
+    public Optional<Permission> findPermissionByActionAndResource(UUID landlordId, String action, String resource) {
+        validateLandlordId(landlordId);
         validateAction(action);
         validateResource(resource);
-        return permissionRepository.findByActionAndResource(action, resource);
+        return permissionRepository.findByLandlordIdAndActionAndResource(landlordId, action, resource);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "permissions.update", description = "Time taken to update permission")
-    public Permission updatePermission(UUID id, String action, String resource) {
+    public Permission updatePermission(UUID landlordId, UUID id, String action, String resource) {
+        validateLandlordId(landlordId);
         validateId(id);
         validateAction(action);
         validateResource(resource);
 
         Permission permission = permissionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada com ID: " + id));
+                .filter(existing -> existing.getLandlord() != null && landlordId.equals(existing.getLandlord().getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada para o landlord informado"));
 
         // Verificar se ação e recurso já existem em outra permissão
-        Optional<Permission> existingPermission = permissionRepository.findByActionAndResource(action.trim(), resource.trim());
+        Optional<Permission> existingPermission = permissionRepository.findByLandlordIdAndActionAndResource(landlordId, action.trim(), resource.trim());
         if (existingPermission.isPresent() && !existingPermission.get().getId().equals(id)) {
-            throw new ConflictException("Ação e recurso já estão em uso por outra permissão");
+            throw new ConflictException("Ação e recurso já estão em uso por outra permissão deste landlord");
         }
 
         permission.setAction(action.trim());
@@ -107,45 +125,59 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Timed(value = "permissions.delete", description = "Time taken to delete permission")
-    public boolean deletePermission(UUID id) {
+    public boolean deletePermission(UUID landlordId, UUID id) {
+        validateLandlordId(landlordId);
         validateId(id);
-        
-        if (!permissionRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Permissão não encontrada com ID: " + id);
-        }
 
-        permissionRepository.deleteById(id);
+        Permission permission = permissionRepository.findById(id)
+                .filter(existing -> existing.getLandlord() != null && landlordId.equals(existing.getLandlord().getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada para o landlord informado"));
+
+        permissionRepository.delete(permission);
         return true;
     }
 
     @Override
-    public boolean existsPermissionById(UUID id) {
+    public boolean existsPermissionById(UUID landlordId, UUID id) {
+        validateLandlordId(landlordId);
         validateId(id);
-        return permissionRepository.existsById(id);
+        return permissionRepository.findById(id)
+                .map(permission -> permission.getLandlord() != null && landlordId.equals(permission.getLandlord().getId()))
+                .orElse(false);
     }
 
     @Override
-    public boolean existsPermissionByActionAndResource(String action, String resource) {
+    public boolean existsPermissionByActionAndResource(UUID landlordId, String action, String resource) {
+        validateLandlordId(landlordId);
         validateAction(action);
         validateResource(resource);
-        return permissionRepository.existsByActionAndResource(action, resource);
+        return permissionRepository.existsByLandlordIdAndActionAndResource(landlordId, action, resource);
     }
 
     @Override
     @Timed(value = "permissions.count", description = "Time taken to count permissions")
-    public long countPermissions() {
-        return permissionRepository.count();
+    public long countPermissions(UUID landlordId) {
+        validateLandlordId(landlordId);
+    return permissionRepository.countByLandlordId(landlordId);
     }
 
     @Override
-    public List<Permission> searchPermissions(String query) {
-        return permissionRepository.search(query);
+    public List<Permission> searchPermissions(UUID landlordId, String query) {
+        validateLandlordId(landlordId);
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+        return permissionRepository.search(landlordId, query.trim());
     }
 
     @Override
-    public List<Object> getPermissionRoles(UUID permissionId) {
+    public List<Object> getPermissionRoles(UUID landlordId, UUID permissionId) {
+        validateLandlordId(landlordId);
         try {
-            List<Object[]> results = permissionRepository.getPermissionRolesDetails(permissionId);
+            Permission permission = permissionRepository.findById(permissionId)
+                    .filter(p -> p.getLandlord() != null && landlordId.equals(p.getLandlord().getId()))
+                    .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada para o landlord informado"));
+            List<Object[]> results = permissionRepository.getPermissionRolesDetails(permission.getId());
             return results.stream()
                     .map(row -> java.util.Map.of(
                         "id", row[0],
@@ -160,9 +192,13 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    public long countPermissionRoles(UUID permissionId) {
+    public long countPermissionRoles(UUID landlordId, UUID permissionId) {
+        validateLandlordId(landlordId);
         try {
-            return permissionRepository.countRolesByPermission(permissionId);
+            Permission permission = permissionRepository.findById(permissionId)
+                    .filter(p -> p.getLandlord() != null && landlordId.equals(p.getLandlord().getId()))
+                    .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada para o landlord informado"));
+            return permissionRepository.countRolesByPermission(permission.getId());
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar roles da permissão: " + e.getMessage(), e);
         }
@@ -173,6 +209,17 @@ public class PermissionServiceImpl implements PermissionService {
         if (id == null) {
             throw new ValidationException("ID da permissão não pode ser nulo");
         }
+    }
+
+    private void validateLandlordId(UUID landlordId) {
+        if (landlordId == null) {
+            throw new ValidationException("ID do landlord é obrigatório");
+        }
+    }
+
+    private Landlord findLandlord(UUID landlordId) {
+        return landlordRepository.findById(landlordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Landlord não encontrado com ID: " + landlordId));
     }
 
     private void validateAction(String action) {

@@ -14,25 +14,25 @@ import java.util.UUID;
 public interface RoleService {
     
     // Operações básicas CRUD
-    Role createRole(UUID tenantId, String code, String name, String description);
-    List<Role> listRoles(UUID tenantId);
-    Optional<Role> findRoleById(UUID tenantId, UUID id);
-    Optional<Role> findRoleByCode(UUID tenantId, String code);
-    Role updateRole(UUID tenantId, UUID id, String name, String description);
-    boolean deleteRole(UUID tenantId, UUID id);
-    boolean existsRoleById(UUID tenantId, UUID id);
-    boolean existsRoleByCode(UUID tenantId, String code);
-    long countRoles(UUID tenantId);
+    Role createRole(UUID landlordId, String code, String name, String description);
+    List<Role> listRoles(UUID landlordId);
+    Optional<Role> findRoleById(UUID landlordId, UUID id);
+    Optional<Role> findRoleByCode(UUID landlordId, String code);
+    Role updateRole(UUID landlordId, UUID id, String name, String description);
+    boolean deleteRole(UUID landlordId, UUID id);
+    boolean existsRoleById(UUID landlordId, UUID id);
+    boolean existsRoleByCode(UUID landlordId, String code);
+    long countRoles(UUID landlordId);
     
     // Operações de busca
-    List<Role> searchRoles(UUID tenantId, String query);
+    List<Role> searchRoles(UUID landlordId, String query);
     
     // Operações de permissões
-    List<Object> getRolePermissions(UUID tenantId, UUID roleId);
-    boolean roleHasPermission(UUID tenantId, UUID roleId, String action, String resource);
-    long countRolePermissions(UUID tenantId, UUID roleId);
+    List<Object> getRolePermissions(UUID landlordId, UUID roleId);
+    boolean roleHasPermission(UUID landlordId, UUID roleId, String action, String resource);
+    long countRolePermissions(UUID landlordId, UUID roleId);
     
     // Operações de usuários
-    List<Object> getRoleUsers(UUID tenantId, UUID roleId);
-    long countRoleUsers(UUID tenantId, UUID roleId);
+    List<Object> getRoleUsers(UUID landlordId, UUID roleId);
+    long countRoleUsers(UUID landlordId, UUID roleId);
 }

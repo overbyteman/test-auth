@@ -40,6 +40,8 @@ public final class PermissionMapper {
                 .id(permission.getId())
                 .action(permission.getAction())
                 .resource(permission.getResource())
+        .landlordId(permission.getLandlord() != null ? permission.getLandlord().getId() : null)
+        .landlordName(permission.getLandlord() != null ? permission.getLandlord().getName() : null)
                 .permissionString(permission.getPermissionString())
                 .build();
     }

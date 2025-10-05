@@ -255,6 +255,10 @@ public class JwtServiceImpl implements JwtService {
             map.put("tenantId", claim.tenantId().toString());
         }
         map.put("tenantName", claim.tenantName());
+        if (claim.landlordId() != null) {
+            map.put("landlordId", claim.landlordId().toString());
+        }
+        map.put("landlordName", claim.landlordName());
         map.put("roles", claim.roles() != null ? claim.roles() : List.of());
         map.put("permissions", claim.permissions() != null ? claim.permissions() : List.of());
         return map;
@@ -290,6 +294,7 @@ public class JwtServiceImpl implements JwtService {
         }
 
         UUID tenantId = null;
+        UUID landlordId = null;
         Object tenantIdValue = map.get("tenantId");
         if (tenantIdValue != null && !tenantIdValue.toString().isBlank()) {
             try {
@@ -300,9 +305,18 @@ public class JwtServiceImpl implements JwtService {
         }
 
         String tenantName = Objects.toString(map.get("tenantName"), null);
+        Object landlordIdValue = map.get("landlordId");
+        if (landlordIdValue != null && !landlordIdValue.toString().isBlank()) {
+            try {
+                landlordId = UUID.fromString(landlordIdValue.toString());
+            } catch (IllegalArgumentException ignored) {
+                landlordId = null;
+            }
+        }
+        String landlordName = Objects.toString(map.get("landlordName"), null);
         List<String> roles = extractStringList(map.get("roles"));
         List<String> permissions = extractStringList(map.get("permissions"));
 
-        return new TenantAccessClaim(tenantId, tenantName, roles, permissions);
+        return new TenantAccessClaim(tenantId, tenantName, landlordId, landlordName, roles, permissions);
     }
 }

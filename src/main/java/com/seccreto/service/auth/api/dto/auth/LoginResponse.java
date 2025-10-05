@@ -47,6 +47,12 @@ public class LoginResponse {
     @Schema(description = "Nome do tenant ativo", example = "Tenant Principal")
     private String tenantName;
 
+    @Schema(description = "ID do landlord associado ao tenant", example = "11111111-1111-1111-1111-111111111111")
+    private UUID landlordId;
+
+    @Schema(description = "Nome do landlord associado ao tenant")
+    private String landlordName;
+
     @Schema(description = "Data e hora do login")
     private LocalDateTime loginTime;
 

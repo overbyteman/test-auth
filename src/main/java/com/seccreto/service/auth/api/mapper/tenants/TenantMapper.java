@@ -40,6 +40,8 @@ public final class TenantMapper {
                 .id(tenant.getId())
                 .name(tenant.getName())
                 .config(tenant.getConfig())
+                .landlordId(tenant.getLandlord() != null ? tenant.getLandlord().getId() : null)
+                .landlordName(tenant.getLandlord() != null ? tenant.getLandlord().getName() : null)
                 .build();
     }
 
