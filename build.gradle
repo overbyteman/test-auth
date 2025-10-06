@@ -127,6 +127,11 @@ jacocoTestReport {
     }
 }
 
+tasks.named('bootRun') {
+    def activeProfile = System.getenv('SPRING_PROFILES_ACTIVE') ?: 'dev'
+    systemProperty 'spring.profiles.active', activeProfile
+}
+
 // Configuração dos JARs
 jar {
     archiveFileName = 'app.jar'
