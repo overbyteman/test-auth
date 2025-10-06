@@ -156,6 +156,7 @@ public class UserController {
                     content = @Content(schema = @Schema(implementation = SearchResponse.class)))
     })
     @GetMapping("/search")
+        @RequirePermission("read:users")
     public ResponseEntity<SearchResponse<UserResponse>> searchUsers(
             @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "Itens por página") @RequestParam(defaultValue = "10") int perPage,
@@ -266,6 +267,8 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
     })
     @GetMapping("/{id}/sessions")
+    @RequireOwnershipOrRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:sessions")
     public ResponseEntity<List<Object>> getUserSessions(
             @Parameter(description = "ID do usuário") @PathVariable UUID id) {
         List<Object> sessions = sessionService.findActiveSessionsByUser(id).stream()

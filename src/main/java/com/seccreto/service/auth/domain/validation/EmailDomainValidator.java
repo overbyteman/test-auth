@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintValidatorContext;
 
 import java.util.Arrays;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Validador para domínios de email
@@ -37,8 +38,13 @@ public class EmailDomainValidator implements ConstraintValidator<EmailDomain, St
 
     @Override
     public void initialize(EmailDomain constraintAnnotation) {
-        this.allowedDomains = Set.of(constraintAnnotation.allowedDomains());
-        this.blockedDomains = Set.of(constraintAnnotation.blockedDomains());
+        // Normalize domains to lower-case to ensure case-insensitive checks
+        this.allowedDomains = Arrays.stream(constraintAnnotation.allowedDomains())
+            .map(String::toLowerCase)
+            .collect(Collectors.toSet());
+        this.blockedDomains = Arrays.stream(constraintAnnotation.blockedDomains())
+            .map(String::toLowerCase)
+            .collect(Collectors.toSet());
         this.blockTemporaryEmails = constraintAnnotation.blockTemporaryEmails();
         this.corporateOnly = constraintAnnotation.corporateOnly();
     }

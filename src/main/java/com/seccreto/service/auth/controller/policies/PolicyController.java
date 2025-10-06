@@ -6,6 +6,9 @@ import com.seccreto.service.auth.api.dto.common.SearchResponse;
 import com.seccreto.service.auth.api.dto.policies.PolicyRequest;
 import com.seccreto.service.auth.api.dto.policies.PolicyResponse;
 import com.seccreto.service.auth.api.mapper.policies.PolicyMapper;
+import com.seccreto.service.auth.config.RequirePermission;
+import com.seccreto.service.auth.config.RequireRole;
+import com.seccreto.service.auth.config.RequireTenantAccess;
 import com.seccreto.service.auth.model.policies.Policy;
 import com.seccreto.service.auth.service.policies.PolicyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,6 +58,8 @@ public class PolicyController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @PostMapping("/policies")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("create:policies")
     public ResponseEntity<PolicyResponse> createPolicy(@Valid @RequestBody PolicyRequest request) {
         Policy policy = policyService.createPolicy(
             request.getTenantId(),
@@ -83,6 +88,8 @@ public class PolicyController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/policies")
+    @RequirePermission("read:policies")
+    @RequireTenantAccess
     public ResponseEntity<List<PolicyResponse>> getAllPolicies(@RequestParam("tenantId") UUID tenantId) {
         List<PolicyResponse> policies = policyService.listPolicies(tenantId).stream()
                 .map(PolicyMapper::toResponse)
@@ -105,9 +112,11 @@ public class PolicyController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/policies/{id}")
+    @RequirePermission("read:policies")
+    @RequireTenantAccess
     public ResponseEntity<PolicyResponse> getPolicyDetails(
-            @Parameter(description = "ID da política") @PathVariable UUID id,
-            @RequestParam("tenantId") UUID tenantId) {
+        @RequestParam("tenantId") UUID tenantId,
+        @Parameter(description = "ID da política") @PathVariable UUID id) {
         return policyService.findPolicyById(tenantId, id)
                 .map(PolicyMapper::toResponse)
                 .map(ResponseEntity::ok)
@@ -130,6 +139,8 @@ public class PolicyController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @PatchMapping("/policies/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("update:policies")
     public ResponseEntity<PolicyResponse> updatePolicy(
             @Parameter(description = "ID da política") @PathVariable UUID id,
             @Valid @RequestBody PolicyRequest request) {
@@ -160,9 +171,12 @@ public class PolicyController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @DeleteMapping("/policies/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("delete:policies")
+    @RequireTenantAccess
     public ResponseEntity<Void> deactivatePolicy(
-            @Parameter(description = "ID da política") @PathVariable UUID id,
-            @RequestParam("tenantId") UUID tenantId) {
+            @RequestParam("tenantId") UUID tenantId,
+            @Parameter(description = "ID da política") @PathVariable UUID id) {
         policyService.deletePolicy(tenantId, id);
         return ResponseEntity.noContent().build();
     }
@@ -184,6 +198,8 @@ public class PolicyController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/policies/search")
+    @RequirePermission("read:policies")
+    @RequireTenantAccess
     public ResponseEntity<SearchResponse<PolicyResponse>> searchPolicies(
             @RequestParam("tenantId") UUID tenantId,
             @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,

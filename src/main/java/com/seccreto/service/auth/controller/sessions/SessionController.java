@@ -5,6 +5,9 @@ import com.seccreto.service.auth.api.dto.common.SearchQuery;
 import com.seccreto.service.auth.api.dto.common.SearchResponse;
 import com.seccreto.service.auth.api.dto.sessions.SessionResponse;
 import com.seccreto.service.auth.api.mapper.sessions.SessionMapper;
+import com.seccreto.service.auth.config.RequireOwnershipOrRole;
+import com.seccreto.service.auth.config.RequirePermission;
+import com.seccreto.service.auth.config.RequireRole;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.service.sessions.SessionService;
 import com.seccreto.service.auth.service.users.UserService;
@@ -53,6 +56,8 @@ public class SessionController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/sessions")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("read:sessions")
     public ResponseEntity<List<SessionResponse>> getAllActiveSessions() {
         List<SessionResponse> sessions = sessionService.listActiveSessions().stream()
                 .map(SessionMapper::toResponse)
@@ -75,6 +80,8 @@ public class SessionController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/users/{userId}/sessions")
+    @RequireOwnershipOrRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:sessions")
     public ResponseEntity<List<SessionResponse>> getUserSessions(
             @Parameter(description = "ID do usuário") @PathVariable UUID userId) {
         List<SessionResponse> sessions = sessionService.findActiveSessionsByUser(userId).stream()
@@ -98,6 +105,8 @@ public class SessionController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/sessions/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:sessions")
     public ResponseEntity<SessionResponse> getSessionDetails(
             @Parameter(description = "ID da sessão") @PathVariable UUID id) {
         return sessionService.findSessionById(id)
@@ -120,6 +129,8 @@ public class SessionController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @DeleteMapping("/sessions/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("delete:sessions")
     public ResponseEntity<Void> terminateSession(
             @Parameter(description = "ID da sessão") @PathVariable UUID id) {
         sessionService.terminateSession(id);
@@ -140,6 +151,8 @@ public class SessionController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @DeleteMapping("/users/{userId}/sessions")
+    @RequireOwnershipOrRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("delete:sessions")
     public ResponseEntity<Void> terminateAllUserSessions(
             @Parameter(description = "ID do usuário") @PathVariable UUID userId) {
         sessionService.invalidateAllUserSessions(userId);
@@ -159,6 +172,8 @@ public class SessionController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @PostMapping("/sessions/cleanup")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("delete:sessions")
     public ResponseEntity<Object> cleanupExpiredSessions() {
         int cleanedCount = sessionService.cleanupExpiredSessions();
         return ResponseEntity.ok(new Object() {
@@ -183,6 +198,8 @@ public class SessionController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/sessions/search")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("read:sessions")
     public ResponseEntity<SearchResponse<SessionResponse>> searchSessions(
             @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "Itens por página") @RequestParam(defaultValue = "10") int perPage,

@@ -88,14 +88,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         
         // Pular filtro para endpoints públicos
-        return path.startsWith("/actuator/") ||
-               path.startsWith("/swagger-ui/") ||
-               path.startsWith("/v3/api-docs") ||
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
+        return path.equals("/actuator/health") ||
+               path.startsWith("/actuator/health/") ||
                path.equals("/api/auth/login") ||
                path.equals("/api/auth/register") ||
                path.equals("/api/auth/forgot-password") ||
                path.equals("/api/auth/reset-password") ||
-               path.equals("/api/auth/refresh-token") ||
-               path.endsWith("/health");
+               path.equals("/api/auth/refresh-token");
     }
 }

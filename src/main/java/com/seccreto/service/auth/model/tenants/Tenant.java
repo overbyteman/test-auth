@@ -4,7 +4,22 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.seccreto.service.auth.model.landlords.Landlord;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
@@ -12,7 +27,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -59,6 +73,15 @@ public class Tenant {
     @Schema(description = "Nome único do tenant", example = "Empresa ABC")
     private String name;
 
+    @Column(name = "is_active", nullable = false)
+    @Schema(description = "Indica se o tenant está ativo")
+    @Builder.Default
+    private boolean active = true;
+
+    @Column(name = "deactivated_at")
+    @Schema(description = "Data da última desativação")
+    private LocalDateTime deactivatedAt;
+
     /**
      * JSONB PostgreSQL para configurações flexíveis
      * GIN index criado manualmente via migration
@@ -97,6 +120,7 @@ public class Tenant {
                 .name(name)
                 .config(config)
                 .landlord(landlord)
+                .active(true)
                 .build();
     }
 
@@ -112,5 +136,15 @@ public class Tenant {
         if (landlord != null && !landlord.getTenants().contains(this)) {
             landlord.getTenants().add(this);
         }
+    }
+
+    public void deactivate() {
+        this.active = false;
+        this.deactivatedAt = LocalDateTime.now();
+    }
+
+    public void activate() {
+        this.active = true;
+        this.deactivatedAt = null;
     }
 }

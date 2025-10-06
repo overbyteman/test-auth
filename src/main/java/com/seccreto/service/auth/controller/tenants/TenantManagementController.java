@@ -6,6 +6,8 @@ import com.seccreto.service.auth.api.dto.common.SearchResponse;
 import com.seccreto.service.auth.api.dto.tenants.TenantRequest;
 import com.seccreto.service.auth.api.dto.tenants.TenantResponse;
 import com.seccreto.service.auth.api.mapper.tenants.TenantMapper;
+import com.seccreto.service.auth.config.RequirePermission;
+import com.seccreto.service.auth.config.RequireRole;
 import com.seccreto.service.auth.model.tenants.Tenant;
 import com.seccreto.service.auth.service.tenants.TenantService;
 import com.seccreto.service.auth.service.users.UserService;
@@ -58,6 +60,8 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @PostMapping("/tenants")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("create:tenants")
     public ResponseEntity<TenantResponse> createTenant(@Valid @RequestBody TenantRequest request) {
         Tenant tenant = tenantService.createTenant(
             request.getName(),
@@ -81,6 +85,8 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/tenants")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:tenants")
     public ResponseEntity<List<TenantResponse>> getAllTenants() {
         List<TenantResponse> tenants = tenantService.listAllTenants().stream()
                 .map(TenantMapper::toResponse)
@@ -103,6 +109,8 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/tenants/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:tenants")
     public ResponseEntity<TenantResponse> getTenantDetails(
             @Parameter(description = "ID do tenant") @PathVariable UUID id) {
         return tenantService.findTenantById(id)
@@ -127,6 +135,8 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @PatchMapping("/tenants/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("update:tenants")
     public ResponseEntity<TenantResponse> updateTenant(
             @Parameter(description = "ID do tenant") @PathVariable UUID id,
             @Valid @RequestBody TenantRequest request) {
@@ -148,10 +158,11 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @DeleteMapping("/tenants/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("delete:tenants")
     public ResponseEntity<Void> deactivateTenant(
             @Parameter(description = "ID do tenant") @PathVariable UUID id) {
-        // TODO: Implement deactivateTenant method
-        tenantService.deleteTenant(id);
+        tenantService.deactivateTenant(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -170,10 +181,11 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @PostMapping("/tenants/{id}/activate")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("update:tenants")
     public ResponseEntity<TenantResponse> activateTenant(
             @Parameter(description = "ID do tenant") @PathVariable UUID id) {
-        // TODO: Implement activateTenant method
-        Tenant tenant = tenantService.findTenantById(id).orElse(null);
+        Tenant tenant = tenantService.activateTenant(id);
         return ResponseEntity.ok(TenantMapper.toResponse(tenant));
     }
 
@@ -193,6 +205,8 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
     @GetMapping("/tenants/search")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:tenants")
     public ResponseEntity<SearchResponse<TenantResponse>> searchTenants(
             @Parameter(description = "Página atual") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "Itens por página") @RequestParam(defaultValue = "10") int perPage,
@@ -222,6 +236,8 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "200", description = "Sistema funcionando normalmente")
     })
     @GetMapping("/health")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("read:tenants")
     public ResponseEntity<Object> getTenantManagementHealth() {
         return ResponseEntity.ok(new Object() {
             public final String status = "healthy";

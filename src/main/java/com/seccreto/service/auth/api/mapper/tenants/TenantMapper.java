@@ -42,6 +42,8 @@ public final class TenantMapper {
                 .config(tenant.getConfig())
                 .landlordId(tenant.getLandlord() != null ? tenant.getLandlord().getId() : null)
                 .landlordName(tenant.getLandlord() != null ? tenant.getLandlord().getName() : null)
+        .active(tenant.isActive())
+        .deactivatedAt(tenant.getDeactivatedAt())
                 .build();
     }
 

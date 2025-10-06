@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.0'
     id 'io.spring.dependency-management' version '1.1.4'
+    id 'jacoco'
 }
 
 group = 'com.seccreto.service.auth'
@@ -44,10 +45,6 @@ dependencies {
     // Database
     runtimeOnly 'org.postgresql:postgresql'
     
-    // H2 Database for testing
-    testImplementation 'com.h2database:h2'
-    testRuntimeOnly 'com.h2database:h2'
-    
     // JWT and Security
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
@@ -86,9 +83,14 @@ dependencies {
     
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:postgresql'
+    // Observação: dependências relacionadas a Testcontainers foram comentadas
+    // para evitar download/execução de containers em ambientes locais.
+    // Para reativar testes de integração com containers, descomente as linhas abaixo.
+    // testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    // testImplementation platform('org.testcontainers:testcontainers-bom:1.19.4')
+    // testImplementation 'org.testcontainers:testcontainers'
+    // testImplementation 'org.testcontainers:junit-jupiter'
+    // testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.assertj:assertj-core'
@@ -109,6 +111,20 @@ compileTestJava {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// JaCoCo configuration: basic setup to generate HTML and XML reports
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+jacocoTestReport {
+    dependsOn test // tests are required to run before generating the report
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true
+    }
 }
 
 // Configuração dos JARs

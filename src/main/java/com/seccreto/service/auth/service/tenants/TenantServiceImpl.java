@@ -88,14 +88,14 @@ public class TenantServiceImpl implements TenantService {
     @Override
     @Timed(value = "tenants.list", description = "Time taken to list tenants")
     public List<Tenant> listAllTenants() {
-        return tenantRepository.findAll();
+        return tenantRepository.findAllWithLandlord();
     }
 
     @Override
     @Timed(value = "tenants.find", description = "Time taken to find tenant by id")
     public Optional<Tenant> findTenantById(UUID id) {
         validateId(id);
-        return tenantRepository.findById(id);
+        return tenantRepository.findByIdWithLandlord(id);
     }
 
     @Override
@@ -136,7 +136,7 @@ public class TenantServiceImpl implements TenantService {
         Landlord landlord = landlordRepository.findById(landlordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Landlord não encontrado com ID: " + landlordId));
 
-        Tenant tenant = tenantRepository.findById(id)
+        Tenant tenant = tenantRepository.findByIdWithLandlord(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
 
         // Verificar se nome já existe em outro tenant
@@ -164,6 +164,40 @@ public class TenantServiceImpl implements TenantService {
 
         tenantRepository.deleteById(id);
         return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @Timed(value = "tenants.deactivate", description = "Time taken to deactivate tenant")
+    public Tenant deactivateTenant(UUID id) {
+        validateId(id);
+
+    Tenant tenant = tenantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
+
+        if (!tenant.isActive()) {
+            return tenant;
+        }
+
+        tenant.deactivate();
+        return tenantRepository.save(tenant);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @Timed(value = "tenants.activate", description = "Time taken to activate tenant")
+    public Tenant activateTenant(UUID id) {
+        validateId(id);
+
+    Tenant tenant = tenantRepository.findByIdWithLandlord(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Tenant não encontrado com ID: " + id));
+
+        if (tenant.isActive()) {
+            return tenant;
+        }
+
+        tenant.activate();
+        return tenantRepository.save(tenant);
     }
 
     @Override

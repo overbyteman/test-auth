@@ -48,3 +48,12 @@ logging:
     org.springframework.orm.jpa: INFO
     org.postgresql: WARN
     io.undertow: WARN
+
+app:
+  security:
+    allow-swagger: false
+    public-health-enabled: false
+    cors:
+      allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:https://stage.yourdomain.com}
+      allowed-methods: ${APP_SECURITY_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+      allowed-headers: ${APP_SECURITY_ALLOWED_HEADERS:Authorization,Content-Type,X-Requested-With,Accept,Origin}

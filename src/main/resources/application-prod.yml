@@ -67,3 +67,18 @@ logging:
     org.postgresql: WARN
     com.zaxxer.hikari: WARN
     io.undertow: ERROR
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+app:
+  security:
+    allow-swagger: false
+    public-health-enabled: false
+    cors:
+      allowed-origins: ${APP_SECURITY_ALLOWED_ORIGINS:https://yourdomain.com}
+      allowed-methods: ${APP_SECURITY_ALLOWED_METHODS:GET,POST}
+      allowed-headers: ${APP_SECURITY_ALLOWED_HEADERS:Authorization,Content-Type,X-Requested-With,Accept,Origin}

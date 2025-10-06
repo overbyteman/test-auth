@@ -9,6 +9,8 @@ import com.seccreto.service.auth.api.dto.tenants.TenantRequest;
 import com.seccreto.service.auth.api.dto.tenants.TenantResponse;
 import com.seccreto.service.auth.api.mapper.landlords.LandlordMapper;
 import com.seccreto.service.auth.api.mapper.tenants.TenantMapper;
+import com.seccreto.service.auth.config.RequirePermission;
+import com.seccreto.service.auth.config.RequireRole;
 import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.tenants.Tenant;
 import com.seccreto.service.auth.service.landlords.LandlordService;
@@ -65,6 +67,8 @@ public class SetupController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
     @PostMapping("/network")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("manage:setup")
     public ResponseEntity<LandlordResponse> createNetwork(@Valid @RequestBody NetworkSetupRequest request) {
         long startTime = System.currentTimeMillis();
         
@@ -97,6 +101,8 @@ public class SetupController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
     @PostMapping("/network/{landlordId}/tenant")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("manage:setup")
     public ResponseEntity<TenantResponse> addTenantToNetwork(
             @Parameter(description = "ID do landlord") @PathVariable UUID landlordId,
             @Valid @RequestBody TenantRequest request) {
@@ -126,6 +132,8 @@ public class SetupController {
         @ApiResponse(responseCode = "409", description = "Roles já existem para este landlord")
     })
     @PostMapping("/network/{landlordId}/roles")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("manage:setup")
     public ResponseEntity<Object> setupDefaultRoles(
             @Parameter(description = "ID do landlord") @PathVariable UUID landlordId) {
         
@@ -155,6 +163,8 @@ public class SetupController {
         @ApiResponse(responseCode = "404", description = "Landlord não encontrado")
     })
     @GetMapping("/network/{landlordId}/status")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("manage:setup")
     public ResponseEntity<Object> getNetworkStatus(
             @Parameter(description = "ID do landlord") @PathVariable UUID landlordId) {
         
@@ -182,6 +192,8 @@ public class SetupController {
         @ApiResponse(responseCode = "200", description = "Lista de redes retornada")
     })
     @GetMapping("/networks")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("manage:setup")
     public ResponseEntity<List<LandlordResponse>> listNetworks() {
         long startTime = System.currentTimeMillis();
         
@@ -210,6 +222,8 @@ public class SetupController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
     @PostMapping("/network/complete")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("manage:setup")
     public ResponseEntity<Object> createCompleteNetwork(@Valid @RequestBody CompleteNetworkRequest request) {
         long startTime = System.currentTimeMillis();
         

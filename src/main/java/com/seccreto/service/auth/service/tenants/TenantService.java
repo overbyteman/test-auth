@@ -28,6 +28,8 @@ public interface TenantService {
     long countTenantsByLandlordId(UUID landlordId);
     Tenant updateTenant(UUID id, String name, JsonNode config, UUID landlordId);
     boolean deleteTenant(UUID id);
+    Tenant deactivateTenant(UUID id);
+    Tenant activateTenant(UUID id);
     boolean existsTenantById(UUID id);
     boolean existsTenantByName(String name);
     long countTenants();

@@ -27,6 +27,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.net.UnknownHostException;
 import java.sql.SQLException;
@@ -85,6 +86,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                 .collect(Collectors.toList());
         return buildError(HttpStatus.BAD_REQUEST, "Violação de restrições", request.getRequestURI(), details);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return buildError(HttpStatus.FORBIDDEN, "Permissões insuficientes", request.getRequestURI(),
+                List.of(ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

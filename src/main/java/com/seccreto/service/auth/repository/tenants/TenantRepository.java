@@ -3,6 +3,7 @@ package com.seccreto.service.auth.repository.tenants;
 import com.seccreto.service.auth.model.tenants.Tenant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -42,6 +43,14 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
 
     @Query("SELECT COUNT(t) FROM Tenant t WHERE t.landlord.id = :landlordId")
     long countByLandlordId(@Param("landlordId") UUID landlordId);
+
+    @EntityGraph(attributePaths = "landlord")
+    @Query("SELECT t FROM Tenant t WHERE t.id = :id")
+    Optional<Tenant> findByIdWithLandlord(@Param("id") UUID id);
+
+    @EntityGraph(attributePaths = "landlord")
+    @Query("SELECT t FROM Tenant t")
+    List<Tenant> findAllWithLandlord();
 
     // ========================================
     // QUERIES CUSTOMIZADAS COM @Query

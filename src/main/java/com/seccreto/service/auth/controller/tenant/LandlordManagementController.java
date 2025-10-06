@@ -3,6 +3,8 @@ package com.seccreto.service.auth.controller.tenant;
 import com.seccreto.service.auth.api.dto.landlords.LandlordRequest;
 import com.seccreto.service.auth.api.dto.landlords.LandlordResponse;
 import com.seccreto.service.auth.api.mapper.landlords.LandlordMapper;
+import com.seccreto.service.auth.config.RequirePermission;
+import com.seccreto.service.auth.config.RequireRole;
 import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.service.landlords.LandlordService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,6 +46,8 @@ public class LandlordManagementController {
                     content = @Content(schema = @Schema(implementation = LandlordResponse.class)))
     })
     @PostMapping
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("create:landlords")
     public ResponseEntity<LandlordResponse> create(@Valid @RequestBody LandlordRequest request) {
         Landlord landlord = landlordService.createLandlord(request.getName(), request.getConfig());
         return ResponseEntity.status(HttpStatus.CREATED).body(LandlordMapper.toResponse(landlord));
@@ -51,6 +55,8 @@ public class LandlordManagementController {
 
     @Operation(summary = "Listar landlords")
     @GetMapping
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:landlords")
     public ResponseEntity<List<LandlordResponse>> list() {
         List<LandlordResponse> responses = landlordService.listAllLandlords().stream()
                 .map(LandlordMapper::toResponse)
@@ -60,6 +66,8 @@ public class LandlordManagementController {
 
     @Operation(summary = "Atualizar landlord")
     @PutMapping("/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("update:landlords")
     public ResponseEntity<LandlordResponse> update(@PathVariable UUID id,
                                                    @Valid @RequestBody LandlordRequest request) {
         Landlord landlord = landlordService.updateLandlord(id, request.getName(), request.getConfig());
@@ -68,6 +76,8 @@ public class LandlordManagementController {
 
     @Operation(summary = "Remover landlord")
     @DeleteMapping("/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN"})
+    @RequirePermission("delete:landlords")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         landlordService.deleteLandlord(id);
         return ResponseEntity.noContent().build();
@@ -75,6 +85,8 @@ public class LandlordManagementController {
 
     @Operation(summary = "Obter landlord por ID")
     @GetMapping("/{id}")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("read:landlords")
     public ResponseEntity<LandlordResponse> get(@PathVariable UUID id) {
         return landlordService.findLandlordById(id)
                 .map(LandlordMapper::toResponse)
