@@ -109,7 +109,9 @@ public class Role {
      * Adiciona uma permission a este role mantendo a associação pivot
      */
     public void addPermission(Permission permission) {
-        addPermission(permission, null);
+        com.seccreto.service.auth.model.policies.Policy defaultPolicy =
+                permission != null ? permission.getPolicy() : null;
+        addPermission(permission, defaultPolicy);
     }
 
     public void addPermission(Permission permission, com.seccreto.service.auth.model.policies.Policy policy) {
@@ -124,16 +126,18 @@ public class Role {
         } else if (!permission.getLandlord().equals(this.landlord)) {
             throw new IllegalArgumentException("Permissão pertence a outro landlord e não pode ser associada a este role");
         }
+        com.seccreto.service.auth.model.policies.Policy effectivePolicy =
+                policy != null ? policy : permission.getPolicy();
         RolesPermissions association = this.rolePermissions.stream()
                 .filter(link -> link.getPermission().equals(permission))
                 .findFirst()
                 .orElse(null);
 
         if (association == null) {
-            association = RolesPermissions.of(this, permission, policy);
+            association = RolesPermissions.of(this, permission, effectivePolicy);
             this.rolePermissions.add(association);
-        } else if (policy != null) {
-            association.attachPolicy(policy);
+        } else if (effectivePolicy != null) {
+            association.attachPolicy(effectivePolicy);
         }
     }
 

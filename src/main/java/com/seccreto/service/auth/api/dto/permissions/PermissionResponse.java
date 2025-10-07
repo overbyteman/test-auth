@@ -36,4 +36,13 @@ public class PermissionResponse {
     
     @Schema(description = "Permissão no formato 'action:resource'", example = "create:users")
     private String permissionString;
+
+    @Schema(description = "Identificador da policy associada à permissão", example = "bbbbbbbb-cccc-dddd-eeee-aaaa00000001")
+    private UUID policyId;
+
+    @Schema(description = "Código da policy associada", example = "admin-full-access")
+    private String policyCode;
+
+    @Schema(description = "Nome da policy associada", example = "Admin Full Access")
+    private String policyName;
 }

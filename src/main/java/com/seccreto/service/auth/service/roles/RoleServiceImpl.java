@@ -4,10 +4,13 @@ import com.seccreto.service.auth.api.dto.common.Pagination;
 import com.seccreto.service.auth.api.dto.common.SearchQuery;
 import com.seccreto.service.auth.api.dto.roles.RoleResponse;
 import com.seccreto.service.auth.api.mapper.roles.RoleMapper;
+import com.seccreto.service.auth.api.mapper.roles_permissions.RolesPermissionsMapper;
+import com.seccreto.service.auth.api.dto.roles_permissions.RolesPermissionsResponse;
 import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.roles.Role;
-import com.seccreto.service.auth.repository.roles.RoleRepository;
 import com.seccreto.service.auth.repository.landlords.LandlordRepository;
+import com.seccreto.service.auth.repository.roles.RoleRepository;
+import com.seccreto.service.auth.repository.roles_permissions.RolesPermissionsRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import io.micrometer.core.annotation.Timed;
@@ -37,10 +40,14 @@ public class RoleServiceImpl implements RoleService {
 
     private final RoleRepository roleRepository;
     private final LandlordRepository landlordRepository;
+    private final RolesPermissionsRepository rolesPermissionsRepository;
 
-    public RoleServiceImpl(RoleRepository roleRepository, LandlordRepository landlordRepository) {
+    public RoleServiceImpl(RoleRepository roleRepository,
+                           LandlordRepository landlordRepository,
+                           RolesPermissionsRepository rolesPermissionsRepository) {
         this.roleRepository = roleRepository;
         this.landlordRepository = landlordRepository;
+        this.rolesPermissionsRepository = rolesPermissionsRepository;
     }
 
     @Override
@@ -183,18 +190,12 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public List<Object> getRolePermissions(UUID landlordId, UUID roleId) {
+    public List<RolesPermissionsResponse> getRolePermissions(UUID landlordId, UUID roleId) {
         Role role = requireRole(landlordId, roleId);
         try {
-            List<Object[]> results = roleRepository.getRolePermissionsDetails(role.getId());
-            return results.stream()
-                    .map(row -> Map.of(
-                            "id", row[0],
-                            "action", row[1],
-                            "resource", row[2],
-                            "policyId", row[3]
-                    ))
-                    .collect(Collectors.toList());
+        return RolesPermissionsMapper.toResponseList(
+            rolesPermissionsRepository.findByRoleId(role.getId())
+        );
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter permissões do role: " + e.getMessage(), e);
         }

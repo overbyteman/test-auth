@@ -3,9 +3,11 @@ package com.seccreto.service.auth.api.mapper.permissions;
 import com.seccreto.service.auth.api.dto.permissions.PermissionRequest;
 import com.seccreto.service.auth.api.dto.permissions.PermissionResponse;
 import com.seccreto.service.auth.model.permissions.Permission;
+import com.seccreto.service.auth.model.policies.Policy;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 /**
  * Mapper para conversão entre DTOs e entidades de Permission.
@@ -43,6 +45,9 @@ public final class PermissionMapper {
         .landlordId(permission.getLandlord() != null ? permission.getLandlord().getId() : null)
         .landlordName(permission.getLandlord() != null ? permission.getLandlord().getName() : null)
                 .permissionString(permission.getPermissionString())
+        .policyId(extractPolicyId(permission))
+        .policyCode(extractPolicyCode(permission))
+        .policyName(extractPolicyName(permission))
                 .build();
     }
 
@@ -69,5 +74,20 @@ public final class PermissionMapper {
         
         permission.setAction(request.getAction());
         permission.setResource(request.getResource());
+    }
+
+    private static UUID extractPolicyId(Permission permission) {
+        Policy policy = permission.getPolicy();
+        return policy != null ? policy.getId() : null;
+    }
+
+    private static String extractPolicyCode(Permission permission) {
+        Policy policy = permission.getPolicy();
+        return policy != null ? policy.getCode() : null;
+    }
+
+    private static String extractPolicyName(Permission permission) {
+        Policy policy = permission.getPolicy();
+        return policy != null ? policy.getName() : null;
     }
 }

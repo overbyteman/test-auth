@@ -3,6 +3,7 @@ package com.seccreto.service.auth.service.roles;
 import com.seccreto.service.auth.api.dto.common.Pagination;
 import com.seccreto.service.auth.api.dto.common.SearchQuery;
 import com.seccreto.service.auth.api.dto.roles.RoleResponse;
+import com.seccreto.service.auth.api.dto.roles_permissions.RolesPermissionsResponse;
 import com.seccreto.service.auth.model.roles.Role;
 
 import java.util.List;
@@ -32,7 +33,7 @@ public interface RoleService {
     Pagination<RoleResponse> searchRoles(UUID landlordId, SearchQuery searchQuery);
     
     // Operações de permissões
-    List<Object> getRolePermissions(UUID landlordId, UUID roleId);
+    List<RolesPermissionsResponse> getRolePermissions(UUID landlordId, UUID roleId);
     boolean roleHasPermission(UUID landlordId, UUID roleId, String action, String resource);
     long countRolePermissions(UUID landlordId, UUID roleId);
     

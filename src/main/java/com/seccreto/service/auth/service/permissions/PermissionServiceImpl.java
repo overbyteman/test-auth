@@ -1,20 +1,33 @@
 package com.seccreto.service.auth.service.permissions;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.permissions.PermissionPolicyPresetResponse;
+import com.seccreto.service.auth.api.dto.permissions.PermissionResponse;
+import com.seccreto.service.auth.api.dto.roles_permissions.RolesPermissionsResponse;
+import com.seccreto.service.auth.api.mapper.roles_permissions.RolesPermissionsMapper;
+import com.seccreto.service.auth.api.mapper.permissions.PermissionMapper;
 import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.permissions.Permission;
-import com.seccreto.service.auth.repository.permissions.PermissionRepository;
 import com.seccreto.service.auth.repository.landlords.LandlordRepository;
+import com.seccreto.service.auth.repository.permissions.PermissionRepository;
+import com.seccreto.service.auth.repository.roles_permissions.RolesPermissionsRepository;
 import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import com.seccreto.service.auth.service.exception.ValidationException;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementação da camada de serviço contendo regras de negócio para permissions.
@@ -28,11 +41,14 @@ public class PermissionServiceImpl implements PermissionService {
 
     private final PermissionRepository permissionRepository;
     private final LandlordRepository landlordRepository;
+    private final RolesPermissionsRepository rolesPermissionsRepository;
 
     public PermissionServiceImpl(PermissionRepository permissionRepository,
-                                 LandlordRepository landlordRepository) {
+                                 LandlordRepository landlordRepository,
+                                 RolesPermissionsRepository rolesPermissionsRepository) {
         this.permissionRepository = permissionRepository;
         this.landlordRepository = landlordRepository;
+        this.rolesPermissionsRepository = rolesPermissionsRepository;
     }
 
     @Override
@@ -171,21 +187,49 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    public List<Object> getPermissionRoles(UUID landlordId, UUID permissionId) {
+    public Pagination<PermissionResponse> searchPermissions(UUID landlordId, SearchQuery searchQuery) {
+        validateLandlordId(landlordId);
+
+        try {
+            Pageable pageable = PageRequest.of(
+                    Math.max(searchQuery.page() - 1, 0),
+                    searchQuery.perPage(),
+                    Sort.by(Sort.Direction.fromString(searchQuery.direction()), searchQuery.sort())
+            );
+
+            String terms = searchQuery.terms();
+            if (terms == null) {
+                terms = "";
+            }
+
+            Page<Permission> permissionPage = permissionRepository.search(landlordId, terms.trim(), pageable);
+
+            List<PermissionResponse> permissionResponses = permissionPage.getContent().stream()
+                    .map(PermissionMapper::toResponse)
+                    .collect(Collectors.toList());
+
+            return new Pagination<>(
+                    searchQuery.page(),
+                    searchQuery.perPage(),
+                    permissionPage.getTotalElements(),
+                    permissionResponses
+            );
+        } catch (Exception e) {
+            return new Pagination<>(searchQuery.page(), searchQuery.perPage(), 0, List.of());
+        }
+    }
+
+    @Override
+    public List<RolesPermissionsResponse> getPermissionRoles(UUID landlordId, UUID permissionId) {
         validateLandlordId(landlordId);
         try {
-            Permission permission = permissionRepository.findById(permissionId)
-                    .filter(p -> p.getLandlord() != null && landlordId.equals(p.getLandlord().getId()))
-                    .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada para o landlord informado"));
-            List<Object[]> results = permissionRepository.getPermissionRolesDetails(permission.getId());
-            return results.stream()
-                    .map(row -> java.util.Map.of(
-                        "id", row[0],
-                        "name", row[1],
-                        "description", row[2],
-                        "policyId", row[3]
-                    ))
-                    .collect(java.util.stream.Collectors.toList());
+        Permission permission = permissionRepository.findById(permissionId)
+            .filter(p -> p.getLandlord() != null && landlordId.equals(p.getLandlord().getId()))
+            .orElseThrow(() -> new ResourceNotFoundException("Permissão não encontrada para o landlord informado"));
+
+        return RolesPermissionsMapper.toResponseList(
+            rolesPermissionsRepository.findByPermissionId(permission.getId())
+        );
         } catch (Exception e) {
             throw new RuntimeException("Erro ao obter roles da permissão: " + e.getMessage(), e);
         }
@@ -202,6 +246,11 @@ public class PermissionServiceImpl implements PermissionService {
         } catch (Exception e) {
             throw new RuntimeException("Erro ao contar roles da permissão: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public List<PermissionPolicyPresetResponse> listPolicyPresets() {
+        return SecurityPolicyPreset.toResponseList();
     }
 
     // Métodos de validação privados

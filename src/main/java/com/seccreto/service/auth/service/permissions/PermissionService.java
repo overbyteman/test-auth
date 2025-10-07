@@ -1,5 +1,10 @@
 package com.seccreto.service.auth.service.permissions;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.permissions.PermissionPolicyPresetResponse;
+import com.seccreto.service.auth.api.dto.permissions.PermissionResponse;
+import com.seccreto.service.auth.api.dto.roles_permissions.RolesPermissionsResponse;
 import com.seccreto.service.auth.model.permissions.Permission;
 
 import java.util.List;
@@ -28,8 +33,12 @@ public interface PermissionService {
     
     // Operações de busca
     List<Permission> searchPermissions(UUID landlordId, String query);
+    Pagination<PermissionResponse> searchPermissions(UUID landlordId, SearchQuery searchQuery);
     
     // Operações de roles
-    List<Object> getPermissionRoles(UUID landlordId, UUID permissionId);
+    List<RolesPermissionsResponse> getPermissionRoles(UUID landlordId, UUID permissionId);
     long countPermissionRoles(UUID landlordId, UUID permissionId);
+
+    // Catálogo fixo de policies
+    List<PermissionPolicyPresetResponse> listPolicyPresets();
 }

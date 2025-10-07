@@ -67,6 +67,10 @@ public class AuthorizationAspect {
             throw new AccessDeniedException("Usuário não autenticado");
         }
 
+        if (authorizationService.hasRole("SUPER_ADMIN")) {
+            return joinPoint.proceed();
+        }
+
         Set<String> userPermissions = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(authority -> !authority.startsWith("ROLE_"))
