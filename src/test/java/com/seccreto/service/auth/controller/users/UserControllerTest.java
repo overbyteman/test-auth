@@ -5,11 +5,14 @@ import com.seccreto.service.auth.api.dto.common.Pagination;
 import com.seccreto.service.auth.api.dto.common.SearchQuery;
 import com.seccreto.service.auth.api.dto.users.UserRequest;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
+import com.seccreto.service.auth.api.dto.users.UserRoleAssignmentRequest;
 import com.seccreto.service.auth.api.mapper.users.UserMapper;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.model.users.User;
 import com.seccreto.service.auth.service.sessions.SessionService;
 import com.seccreto.service.auth.service.users.UserService;
+import com.seccreto.service.auth.service.users.assignments.UserAssignmentService;
+import com.seccreto.service.auth.service.users_tenants_permissions.UsersTenantsPermissionsService;
 import com.seccreto.service.auth.service.users_tenants_roles.UsersTenantsRolesService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +29,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,7 +39,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,8 +53,14 @@ class UserControllerTest {
     @Mock
     private UsersTenantsRolesService usersTenantsRolesService;
 
+        @Mock
+        private UsersTenantsPermissionsService usersTenantsPermissionsService;
+
     @Mock
     private SessionService sessionService;
+
+        @Mock
+        private UserAssignmentService userAssignmentService;
 
     @InjectMocks
     private UserController userController;
@@ -159,7 +169,7 @@ class UserControllerTest {
         when(userService.updateUser(userId, "John Updated", "john.updated@example.com"))
                 .thenReturn(updatedUser);
 
-        mockMvc.perform(patch("/api/users/{id}", userId)
+        mockMvc.perform(put("/api/users/{id}", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -265,6 +275,58 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("Token de verificação reenviado para jane@example.com"));
 
         verify(userService).resendVerificationEmail(userId);
+    }
+
+    @Test
+    void shouldAssignRolesToUser() throws Exception {
+    UUID userId = UUID.randomUUID();
+    UUID tenantId = UUID.randomUUID();
+    UUID roleId = UUID.randomUUID();
+    UUID permissionId = UUID.randomUUID();
+
+    UserRoleAssignmentRequest request = UserRoleAssignmentRequest.builder()
+        .roleIds(List.of(roleId))
+        .build();
+
+    UserAssignmentService.AssignmentResult assignmentResult = new UserAssignmentService.AssignmentResult(
+        userId,
+        tenantId,
+        List.of(roleId),
+        List.of(roleId),
+        List.of(),
+        List.of(),
+        List.of(permissionId),
+        List.of(),
+        List.of(permissionId)
+    );
+
+    when(userAssignmentService.assignRoles(userId, tenantId, List.of(roleId))).thenReturn(assignmentResult);
+    when(usersTenantsRolesService.getUserTenantRolesDetails(userId, tenantId)).thenReturn(List.of(
+        Map.of("id", roleId, "name", "ADMIN", "description", "Administrador")
+    ));
+    when(usersTenantsRolesService.countRolesByUserAndTenant(userId, tenantId)).thenReturn(1L);
+    when(usersTenantsPermissionsService.getUserTenantPermissionsDetails(userId, tenantId)).thenReturn(List.of(
+        Map.of("id", permissionId, "action", "manage", "resource", "users")
+    ));
+    when(usersTenantsPermissionsService.countPermissionsByUserAndTenant(userId, tenantId)).thenReturn(1L);
+
+    mockMvc.perform(post("/api/users/{id}/tenants/{tenantId}/roles", userId, tenantId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.userId").value(userId.toString()))
+        .andExpect(jsonPath("$.tenantId").value(tenantId.toString()))
+        .andExpect(jsonPath("$.requestedRoleIds[0]").value(roleId.toString()))
+        .andExpect(jsonPath("$.newlyAssignedRoleIds[0]").value(roleId.toString()))
+        .andExpect(jsonPath("$.propagatedPermissionIds[0]").value(permissionId.toString()))
+        .andExpect(jsonPath("$.tenantRoles[0].name").value("ADMIN"))
+        .andExpect(jsonPath("$.tenantPermissions[0].action").value("manage"))
+        .andExpect(jsonPath("$.totalRolesForUserInTenant").value(1))
+        .andExpect(jsonPath("$.totalDirectPermissionsForUserInTenant").value(1));
+
+    verify(userAssignmentService).assignRoles(userId, tenantId, List.of(roleId));
+    verify(usersTenantsRolesService).getUserTenantRolesDetails(userId, tenantId);
+    verify(usersTenantsPermissionsService).getUserTenantPermissionsDetails(userId, tenantId);
     }
 
     @Test

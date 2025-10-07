@@ -1,5 +1,8 @@
 package com.seccreto.service.auth.service.roles;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.roles.RoleResponse;
 import com.seccreto.service.auth.model.roles.Role;
 
 import java.util.List;
@@ -26,6 +29,7 @@ public interface RoleService {
     
     // Operações de busca
     List<Role> searchRoles(UUID landlordId, String query);
+    Pagination<RoleResponse> searchRoles(UUID landlordId, SearchQuery searchQuery);
     
     // Operações de permissões
     List<Object> getRolePermissions(UUID landlordId, UUID roleId);

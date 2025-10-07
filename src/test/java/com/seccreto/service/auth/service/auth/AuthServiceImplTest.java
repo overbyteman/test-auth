@@ -3,7 +3,7 @@ package com.seccreto.service.auth.service.auth;
 import com.seccreto.service.auth.api.dto.auth.LoginResponse;
 import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
-import com.seccreto.service.auth.api.dto.auth.RolePermissionsResponse;
+import com.seccreto.service.auth.api.dto.roles.MyRolesResponse;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.model.users.User;
 import com.seccreto.service.auth.repository.sessions.SessionRepository;
@@ -76,7 +76,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void authenticateUserShouldReturnTokensWithRoles() {
+        void authenticateUserShouldReturnTokensWithTenantInfo() {
         when(userRepository.findByEmail(activeUser.getEmail())).thenReturn(Optional.of(activeUser));
         when(passwordMigrationService.verifyAndMigratePassword(STRONG_PASSWORD, activeUser.getPasswordHash(), userId))
                 .thenReturn(true);
@@ -107,10 +107,9 @@ class AuthServiceImplTest {
         assertThat(response.getTokenType()).isEqualTo("Bearer");
         assertThat(response.getUserId()).isEqualTo(userId);
         assertThat(response.getTenantId()).isEqualTo(tenantId);
+        assertThat(response.getTenantName()).isEqualTo("Tenant Principal");
         assertThat(response.getLandlordId()).isEqualTo(landlordId);
-        assertThat(response.getRoles())
-                .extracting(RolePermissionsResponse::getRoleName)
-                .containsExactly("ADMIN");
+        assertThat(response.getLandlordName()).isEqualTo("Landlord X");
 
         verify(auditService).logLogin(userId, true, null);
         verify(passwordMigrationService).verifyAndMigratePassword(STRONG_PASSWORD, activeUser.getPasswordHash(), userId);
@@ -200,6 +199,99 @@ class AuthServiceImplTest {
 
         assertThat(response.getValid()).isFalse();
         assertThat(response.getReason()).isEqualTo("Token não fornecido");
+    }
+
+    @Test
+    void getCurrentUserRolesShouldReturnTenantAccessEntries() {
+        UUID otherTenantId = UUID.randomUUID();
+        UUID otherLandlordId = UUID.randomUUID();
+
+        JwtService.JwtValidationResult valid = new JwtService.JwtValidationResult(
+                true,
+                userId,
+                sessionId,
+                tenantId,
+                List.of("ADMIN"),
+                List.of("manage:users", "read:dashboard"),
+                List.of(
+                        new JwtService.TenantAccessClaim(
+                                tenantId,
+                                "Tenant Principal",
+                                landlordId,
+                                "Landlord X",
+                                List.of("ADMIN"),
+                                List.of("manage:users", "read:dashboard")
+                        ),
+                        new JwtService.TenantAccessClaim(
+                                otherTenantId,
+                                "Tenant Secundário",
+                                otherLandlordId,
+                                "Landlord Y",
+                                List.of("COACH"),
+                                List.of("read:dashboard")
+                        )
+                ),
+                LocalDateTime.now().plusHours(1),
+                null
+        );
+        when(jwtService.validateToken("token")).thenReturn(valid);
+
+        List<MyRolesResponse> responses = authService.getCurrentUserRoles("Bearer token", null);
+
+        assertThat(responses).hasSize(2);
+        MyRolesResponse first = responses.get(0);
+        assertThat(first.getLandlordId()).isEqualTo(landlordId);
+        assertThat(first.getTenantId()).isEqualTo(tenantId);
+        assertThat(first.getRoles()).containsExactly("ADMIN");
+        assertThat(first.getPermissions()).containsExactly("manage:users", "read:dashboard");
+
+        List<MyRolesResponse> filtered = authService.getCurrentUserRoles("Bearer token", tenantId);
+        assertThat(filtered).hasSize(1);
+        assertThat(filtered.get(0).getTenantId()).isEqualTo(tenantId);
+    }
+
+    @Test
+    void getCurrentUserRolesShouldFallbackWhenTenantAccessMissing() {
+        JwtService.JwtValidationResult valid = new JwtService.JwtValidationResult(
+                true,
+                userId,
+                sessionId,
+                tenantId,
+                List.of("COACH"),
+                List.of("read:dashboard"),
+                List.of(),
+                LocalDateTime.now().plusHours(1),
+                null
+        );
+        when(jwtService.validateToken("token")).thenReturn(valid);
+
+        List<MyRolesResponse> responses = authService.getCurrentUserRoles("Bearer token", null);
+
+        assertThat(responses).hasSize(1);
+        MyRolesResponse first = responses.get(0);
+        assertThat(first.getTenantId()).isEqualTo(tenantId);
+        assertThat(first.getRoles()).containsExactly("COACH");
+        assertThat(first.getPermissions()).containsExactly("read:dashboard");
+    }
+
+    @Test
+    void getCurrentUserRolesShouldThrowWhenTokenInvalid() {
+        JwtService.JwtValidationResult invalid = new JwtService.JwtValidationResult(
+                false,
+                userId,
+                sessionId,
+                tenantId,
+                List.of(),
+                List.of(),
+                List.of(),
+                LocalDateTime.now(),
+                "expirado"
+        );
+        when(jwtService.validateToken("token")).thenReturn(invalid);
+
+        assertThatThrownBy(() -> authService.getCurrentUserRoles("Bearer token", null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("expirado");
     }
 
     @Test

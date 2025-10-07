@@ -1,14 +1,13 @@
 package com.seccreto.service.auth.service.setup;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.seccreto.service.auth.api.dto.landlords.LandlordResponse;
 import com.seccreto.service.auth.api.dto.tenants.TenantRequest;
 import com.seccreto.service.auth.api.dto.tenants.TenantResponse;
 import com.seccreto.service.auth.model.landlords.Landlord;
+import com.seccreto.service.auth.model.roles.Role;
 import com.seccreto.service.auth.model.permissions.Permission;
 import com.seccreto.service.auth.model.policies.Policy;
 import com.seccreto.service.auth.model.policies.PolicyEffect;
-import com.seccreto.service.auth.model.roles.Role;
 import com.seccreto.service.auth.model.tenants.Tenant;
 import com.seccreto.service.auth.repository.landlords.LandlordRepository;
 import com.seccreto.service.auth.repository.permissions.PermissionRepository;
@@ -16,10 +15,8 @@ import com.seccreto.service.auth.repository.policies.PolicyRepository;
 import com.seccreto.service.auth.repository.roles.RoleRepository;
 import com.seccreto.service.auth.repository.tenants.TenantRepository;
 import com.seccreto.service.auth.service.tenants.TenantService;
-import com.seccreto.service.auth.api.mapper.landlords.LandlordMapper;
 import com.seccreto.service.auth.api.mapper.tenants.TenantMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.seccreto.service.auth.service.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -57,36 +54,13 @@ public class SetupService {
     private static final String PRIMARY_TENANT_FLAG = "is_primary_tenant";
 
     /**
-     * Cria uma nova rede (landlord) com todos os roles padrões para academias de luta
-     */
-    @Transactional
-    public LandlordResponse createNetworkWithRoles(String name, String description, JsonNode config) {
-        log.info("🏢 Criando nova rede: {}", name);
-        
-        // Verificar se já existe
-        if (landlordRepository.findByName(name).isPresent()) {
-            throw new IllegalArgumentException("Rede com nome '" + name + "' já existe");
-        }
-
-        // Criar landlord
-        Landlord landlord = createDefaultLandlord(name, description, config);
-        landlordRepository.save(landlord);
-        log.info("✅ Landlord '{}' criado com ID: {}", name, landlord);
-
-        // Configurar roles padrões
-        setupDefaultRolesForLandlord(landlord.getId());
-        
-        return LandlordMapper.toResponse(landlord);
-    }
-
-    /**
      * Adiciona um tenant (filial) a uma rede existente
      */
     @Transactional
     public TenantResponse addTenantToNetwork(UUID landlordId, TenantRequest request) {
         log.info("🏢 Adicionando filial '{}' à rede {}", request.getName(), landlordId);
         
-        Landlord landlord = landlordRepository.findById(landlordId)
+        landlordRepository.findById(landlordId)
             .orElseThrow(() -> new IllegalArgumentException("Landlord não encontrado: " + landlordId));
 
         // Criar tenant
@@ -116,77 +90,15 @@ public class SetupService {
 
         Tenant primaryTenant = ensurePrimaryTenant(landlord);
 
-    SyncResult<Policy> policyResult = synchronizeDefaultPolicies(landlord, primaryTenant);
-    SyncResult<Permission> permissionResult = synchronizeDefaultPermissions(landlord, policyResult.entitiesByKey());
-    SyncResult<Role> roleResult = synchronizeDefaultRoles(landlord, permissionResult.entitiesByKey());
+        SyncResult<Policy> policyResult = synchronizeDefaultPolicies(landlord, primaryTenant);
+        SyncResult<Permission> permissionResult = synchronizeDefaultPermissions(landlord, policyResult.entitiesByKey());
+        SyncResult<Role> roleResult = synchronizeDefaultRoles(landlord, permissionResult.entitiesByKey());
 
         log.info("✅ Policies asseguradas: {} criadas, {} atualizadas", policyResult.created(), policyResult.updated());
         log.info("✅ Permissions asseguradas: {} criadas, {} atualizadas", permissionResult.created(), permissionResult.updated());
         log.info("✅ Roles asseguradas: {} criadas, {} atualizadas", roleResult.created(), roleResult.updated());
 
         return roleResult.created();
-    }
-
-    /**
-     * Verifica o status de configuração de uma rede
-     */
-    public NetworkStatus getNetworkStatus(UUID landlordId) {
-        Landlord landlord = landlordRepository.findById(landlordId)
-            .orElseThrow(() -> new IllegalArgumentException("Landlord não encontrado: " + landlordId));
-
-        NetworkStatus status = new NetworkStatus();
-        long rolesCount = roleRepository.countByLandlordId(landlordId);
-        long permissionsCount = permissionRepository.countByLandlordId(landlordId);
-        long policiesCount = policyRepository.countByLandlordId(landlordId);
-        long tenantsCount = tenantRepository.countByLandlordId(landlordId);
-
-        status.setHasRoles(rolesCount > 0);
-        status.setHasPolicies(policiesCount > 0);
-        status.setHasPermissions(permissionsCount > 0);
-        status.setRolesCount((int) rolesCount);
-        status.setTenantsCount((int) tenantsCount);
-        status.setPoliciesCount((int) policiesCount);
-        status.setPermissionsCount((int) permissionsCount);
-
-        return status;
-    }
-
-    /**
-     * Setup completo de uma nova rede com filial inicial
-     */
-    @Transactional
-    public CompleteNetworkResponse createCompleteNetwork(CompleteNetworkRequest request) {
-        log.info("🚀 Criando rede completa: {}", request.getNetworkName());
-        
-        long startTime = System.currentTimeMillis();
-
-        // 1. Criar landlord com roles
-        LandlordResponse landlord = createNetworkWithRoles(
-            request.getNetworkName(),
-            request.getNetworkDescription(),
-            request.getNetworkConfig()
-        );
-
-        // 2. Criar primeira filial
-        TenantRequest tenantRequest = new TenantRequest();
-        tenantRequest.setName(request.getFirstTenantName());
-        tenantRequest.setConfig(request.getTenantConfig());
-        
-        TenantResponse firstTenant = addTenantToNetwork(landlord.getId(), tenantRequest);
-
-        long totalExecutionTime = System.currentTimeMillis() - startTime;
-
-        CompleteNetworkResponse response = new CompleteNetworkResponse();
-        response.setLandlord(landlord);
-        response.setFirstTenant(firstTenant);
-        SetupService.NetworkStatus status = getNetworkStatus(landlord.getId());
-        response.setRolesCreated(status.getRolesCount());
-        response.setPoliciesCreated(status.getPoliciesCount());
-        response.setPermissionsCreated(status.getPermissionsCount());
-        response.setTotalExecutionTime(totalExecutionTime);
-
-        log.info("🎯 Rede completa criada em {}ms", totalExecutionTime);
-        return response;
     }
 
     // ===== MÉTODOS PRIVADOS =====
@@ -251,26 +163,6 @@ public class SetupService {
         bootstrap.put("existing_tenants", tenantsCount);
 
         return root;
-    }
-
-    private Landlord createDefaultLandlord(String name, String description, JsonNode config) {
-        if (config == null) {
-            config = objectMapper.createObjectNode()
-                .put("type", "martial_arts_academy")
-                .put("business_model", "franchise")
-                .put("default_currency", "BRL")
-                .put("timezone", "America/Sao_Paulo")
-                .put("description", description)
-                .set("features", objectMapper.createArrayNode()
-                    .add("member_management")
-                    .add("class_scheduling")
-                    .add("payment_processing")
-                    .add("instructor_management")
-                    .add("equipment_tracking")
-                    .add("competition_management"));
-        }
-
-        return Landlord.createNew(name, config);
     }
 
     private SyncResult<Policy> synchronizeDefaultPolicies(Landlord landlord, Tenant tenant) {
@@ -699,98 +591,9 @@ public class SetupService {
             entities = Collections.unmodifiableMap(new LinkedHashMap<>(entities));
         }
 
-        Collection<T> values() {
-            return entities.values();
-        }
-
         Map<String, T> entitiesByKey() {
             return entities;
         }
     }
 
-    // ===== CLASSES INTERNAS =====
-    
-    public static class NetworkStatus {
-        private boolean hasRoles;
-        private boolean hasPolicies;
-        private boolean hasPermissions;
-        private int rolesCount;
-        private int tenantsCount;
-        private int policiesCount;
-        private int permissionsCount;
-        
-        // Getters e Setters
-        public boolean isHasRoles() { return hasRoles; }
-        public void setHasRoles(boolean hasRoles) { this.hasRoles = hasRoles; }
-        
-        public boolean isHasPolicies() { return hasPolicies; }
-        public void setHasPolicies(boolean hasPolicies) { this.hasPolicies = hasPolicies; }
-        
-        public boolean isHasPermissions() { return hasPermissions; }
-        public void setHasPermissions(boolean hasPermissions) { this.hasPermissions = hasPermissions; }
-        
-        public int getRolesCount() { return rolesCount; }
-        public void setRolesCount(int rolesCount) { this.rolesCount = rolesCount; }
-        
-        public int getTenantsCount() { return tenantsCount; }
-        public void setTenantsCount(int tenantsCount) { this.tenantsCount = tenantsCount; }
-        
-        public int getPoliciesCount() { return policiesCount; }
-        public void setPoliciesCount(int policiesCount) { this.policiesCount = policiesCount; }
-        
-        public int getPermissionsCount() { return permissionsCount; }
-        public void setPermissionsCount(int permissionsCount) { this.permissionsCount = permissionsCount; }
-    }
-
-    public static class CompleteNetworkRequest {
-        private String networkName;
-        private String networkDescription;
-        private String firstTenantName;
-        private com.fasterxml.jackson.databind.JsonNode networkConfig;
-        private com.fasterxml.jackson.databind.JsonNode tenantConfig;
-        
-        // Getters e Setters
-        public String getNetworkName() { return networkName; }
-        public void setNetworkName(String networkName) { this.networkName = networkName; }
-        
-        public String getNetworkDescription() { return networkDescription; }
-        public void setNetworkDescription(String networkDescription) { this.networkDescription = networkDescription; }
-        
-        public String getFirstTenantName() { return firstTenantName; }
-        public void setFirstTenantName(String firstTenantName) { this.firstTenantName = firstTenantName; }
-        
-        public com.fasterxml.jackson.databind.JsonNode getNetworkConfig() { return networkConfig; }
-        public void setNetworkConfig(com.fasterxml.jackson.databind.JsonNode networkConfig) { this.networkConfig = networkConfig; }
-        
-        public com.fasterxml.jackson.databind.JsonNode getTenantConfig() { return tenantConfig; }
-        public void setTenantConfig(com.fasterxml.jackson.databind.JsonNode tenantConfig) { this.tenantConfig = tenantConfig; }
-    }
-
-    public static class CompleteNetworkResponse {
-        private com.seccreto.service.auth.api.dto.landlords.LandlordResponse landlord;
-        private com.seccreto.service.auth.api.dto.tenants.TenantResponse firstTenant;
-        private int rolesCreated;
-        private int policiesCreated;
-        private int permissionsCreated;
-        private long totalExecutionTime;
-        
-        // Getters e Setters
-        public com.seccreto.service.auth.api.dto.landlords.LandlordResponse getLandlord() { return landlord; }
-        public void setLandlord(com.seccreto.service.auth.api.dto.landlords.LandlordResponse landlord) { this.landlord = landlord; }
-        
-        public com.seccreto.service.auth.api.dto.tenants.TenantResponse getFirstTenant() { return firstTenant; }
-        public void setFirstTenant(com.seccreto.service.auth.api.dto.tenants.TenantResponse firstTenant) { this.firstTenant = firstTenant; }
-        
-        public int getRolesCreated() { return rolesCreated; }
-        public void setRolesCreated(int rolesCreated) { this.rolesCreated = rolesCreated; }
-        
-        public int getPoliciesCreated() { return policiesCreated; }
-        public void setPoliciesCreated(int policiesCreated) { this.policiesCreated = policiesCreated; }
-        
-        public int getPermissionsCreated() { return permissionsCreated; }
-        public void setPermissionsCreated(int permissionsCreated) { this.permissionsCreated = permissionsCreated; }
-        
-        public long getTotalExecutionTime() { return totalExecutionTime; }
-        public void setTotalExecutionTime(long totalExecutionTime) { this.totalExecutionTime = totalExecutionTime; }
-    }
 }

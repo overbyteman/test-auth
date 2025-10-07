@@ -6,49 +6,7 @@ Este guia apresenta todos os endpoints disponíveis para configurar novas redes 
 
 ## 🎯 Endpoints Disponíveis
 
-### 1. **Criar Nova Rede (Landlord + Roles)**
-```http
-POST /api/setup/network
-```
-
-**Descrição**: Cria um novo landlord (matriz) com todos os roles padrões para academias de luta.
-
-**Request Body**:
-```json
-{
-  "name": "Academia Central",
-  "description": "Rede de academias de artes marciais",
-  "config": {
-    "type": "martial_arts_academy",
-    "business_model": "franchise",
-    "default_currency": "BRL",
-    "timezone": "America/Sao_Paulo",
-    "features": [
-      "member_management",
-      "class_scheduling",
-      "payment_processing",
-      "instructor_management",
-      "equipment_tracking",
-      "competition_management"
-    ]
-  }
-}
-```
-
-**Response**:
-```json
-{
-  "id": "uuid-do-landlord",
-  "name": "Academia Central",
-  "config": { ... },
-  "createdAt": "2024-01-15T10:30:00",
-  "updatedAt": "2024-01-15T10:30:00",
-  "tenantsCount": 0,
-  "rolesCount": 11
-}
-```
-
-### 2. **Adicionar Filial à Rede**
+### 1. **Adicionar Filial à Rede**
 ```http
 POST /api/setup/network/{landlordId}/tenant
 ```
@@ -73,13 +31,16 @@ POST /api/setup/network/{landlordId}/tenant
 {
   "id": "uuid-do-tenant",
   "name": "Academia Centro",
+  "landlordId": "uuid-do-landlord",
+  "landlordName": "Academia Central",
+  "active": true,
   "config": { ... },
   "createdAt": "2024-01-15T10:35:00",
   "updatedAt": "2024-01-15T10:35:00"
 }
 ```
 
-### 3. **Configurar Roles Padrões**
+### 2. **Configurar Roles Padrões**
 ```http
 POST /api/setup/network/{landlordId}/roles
 ```
@@ -90,35 +51,12 @@ POST /api/setup/network/{landlordId}/roles
 ```json
 {
   "message": "Roles padrões configurados com sucesso",
-  "rolesCreated": 11,
+  "rolesCreatedCount": 11,
   "executionTimeMs": 250
 }
 ```
 
-### 4. **Verificar Status da Rede**
-```http
-GET /api/setup/network/{landlordId}/status
-```
-
-**Descrição**: Retorna informações sobre o status de configuração de uma rede.
-
-**Response**:
-```json
-{
-  "networkStatus": {
-    "hasRoles": true,
-    "hasPolicies": true,
-    "hasPermissions": true,
-    "rolesCount": 11,
-    "tenantsCount": 3,
-    "policiesCount": 4,
-    "permissionsCount": 20
-  },
-  "executionTimeMs": 45
-}
-```
-
-### 5. **Listar Todas as Redes**
+### 3. **Listar Todas as Redes**
 ```http
 GET /api/setup/networks
 ```
@@ -145,126 +83,52 @@ GET /api/setup/networks
 ]
 ```
 
-### 6. **Setup Completo de Rede**
-```http
-POST /api/setup/network/complete
-```
-
-**Descrição**: Cria uma rede completa com landlord, roles padrões e filial inicial.
-
-**Request Body**:
-```json
-{
-  "networkName": "Academia Central",
-  "networkDescription": "Rede de academias de artes marciais",
-  "firstTenantName": "Academia Centro",
-  "networkConfig": {
-    "type": "martial_arts_academy",
-    "business_model": "franchise",
-    "default_currency": "BRL"
-  },
-  "tenantConfig": {
-    "address": "Rua das Flores, 123",
-    "phone": "(11) 99999-9999"
-  }
-}
-```
-
-**Response**:
-```json
-{
-  "landlord": {
-    "id": "uuid-do-landlord",
-    "name": "Academia Central",
-    "tenantsCount": 1,
-    "rolesCount": 11
-  },
-  "firstTenant": {
-    "id": "uuid-do-tenant",
-    "name": "Academia Centro"
-  },
-  "rolesCreated": 11,
-  "policiesCreated": 4,
-  "permissionsCreated": 20,
-  "totalExecutionTime": 1250
-}
-```
-
 ## 🎯 Casos de Uso Típicos
 
-### 📋 **CENÁRIO 1: Novo Cliente Adquire o SaaS**
+### 📋 **CENÁRIO 1: Provisionar uma rede recém-criada**
 
-1. **Criar Rede Completa**:
+Supondo que o landlord já foi cadastrado por outro fluxo (ex.: dashboard administrativo), utilize os endpoints de setup para deixá-lo pronto para uso.
+
+1. **Configurar roles padrões**:
 ```bash
-curl -X POST http://localhost:8080/api/setup/network/complete \
+curl -X POST http://localhost:8080/api/setup/network/{landlordId}/roles
+```
+
+2. **Adicionar a primeira filial**:
+```bash
+curl -X POST http://localhost:8080/api/setup/network/{landlordId}/tenant \
   -H "Content-Type: application/json" \
   -d '{
-    "networkName": "Academia do João",
-    "networkDescription": "Rede de academias do João Silva",
-    "firstTenantName": "Matriz Centro",
-    "networkConfig": {
-      "type": "martial_arts_academy",
-      "business_model": "franchise"
+    "name": "Matriz Centro",
+    "config": {
+      "address": "Av. Principal, 100",
+      "phone": "(11) 88888-8888"
     }
   }'
 ```
 
-2. **Adicionar Filiais**:
+### 📋 **CENÁRIO 2: Expandir uma rede existente com novas filiais**
+
+Repita a chamada de criação de tenant para cada nova unidade que o cliente abrir.
+
 ```bash
 curl -X POST http://localhost:8080/api/setup/network/{landlordId}/tenant \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Filial Zona Sul",
     "config": {
-      "address": "Av. Paulista, 1000",
-      "phone": "(11) 88888-8888"
+      "address": "Rua das Flores, 123",
+      "phone": "(11) 97777-7777"
     }
   }'
 ```
 
-### 📋 **CENÁRIO 2: Cliente Existente Adiciona Nova Rede**
+### 📋 **CENÁRIO 3: Auditar redes cadastradas**
 
-1. **Criar Nova Rede**:
+Recupere todas as redes e seus agregados atuais para relatórios rápidos ou integrações.
+
 ```bash
-curl -X POST http://localhost:8080/api/setup/network \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Segunda Rede do Cliente",
-    "description": "Nova rede de academias"
-  }'
-```
-
-2. **Verificar Status**:
-```bash
-curl -X GET http://localhost:8080/api/setup/network/{landlordId}/status
-```
-
-### 📋 **CENÁRIO 3: Migração de Dados**
-
-1. **Criar Rede**:
-```bash
-curl -X POST http://localhost:8080/api/setup/network \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Academia Migrada",
-    "description": "Academia migrada do sistema antigo"
-  }'
-```
-
-2. **Configurar Roles**:
-```bash
-curl -X POST http://localhost:8080/api/setup/network/{landlordId}/roles
-```
-
-3. **Adicionar Filiais**:
-```bash
-# Para cada filial existente
-curl -X POST http://localhost:8080/api/setup/network/{landlordId}/tenant \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Nome da Filial",
-    "config": { ... }
-  }'
+curl -X GET http://localhost:8080/api/setup/networks
 ```
 
 ## 🔐 Roles Criados Automaticamente

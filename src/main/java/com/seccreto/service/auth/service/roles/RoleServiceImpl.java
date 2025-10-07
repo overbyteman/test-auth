@@ -1,5 +1,9 @@
 package com.seccreto.service.auth.service.roles;
 
+import com.seccreto.service.auth.api.dto.common.Pagination;
+import com.seccreto.service.auth.api.dto.common.SearchQuery;
+import com.seccreto.service.auth.api.dto.roles.RoleResponse;
+import com.seccreto.service.auth.api.mapper.roles.RoleMapper;
 import com.seccreto.service.auth.model.landlords.Landlord;
 import com.seccreto.service.auth.model.roles.Role;
 import com.seccreto.service.auth.repository.roles.RoleRepository;
@@ -8,6 +12,10 @@ import com.seccreto.service.auth.service.exception.ConflictException;
 import com.seccreto.service.auth.service.exception.ResourceNotFoundException;
 import io.micrometer.core.annotation.Timed;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,7 +75,7 @@ public class RoleServiceImpl implements RoleService {
     public Optional<Role> findRoleById(UUID landlordId, UUID id) {
         validateLandlordId(landlordId);
         validateId(id);
-        return roleRepository.findById(id)
+        return roleRepository.findByIdWithTenant(id)
                 .filter(role -> role.getLandlord() != null && landlordId.equals(role.getLandlord().getId()));
     }
 
@@ -144,6 +152,34 @@ public class RoleServiceImpl implements RoleService {
             return List.of();
         }
         return roleRepository.search(landlordId, query.trim());
+    }
+
+    @Override
+    public Pagination<RoleResponse> searchRoles(UUID landlordId, SearchQuery searchQuery) {
+        validateLandlordId(landlordId);
+
+        try {
+            Pageable pageable = PageRequest.of(
+                searchQuery.page() - 1,
+                searchQuery.perPage(),
+                Sort.by(Sort.Direction.fromString(searchQuery.direction()), searchQuery.sort())
+            );
+
+            Page<Role> rolePage = roleRepository.search(landlordId, searchQuery.terms(), pageable);
+
+            List<RoleResponse> roleResponses = rolePage.getContent().stream()
+                .map(RoleMapper::toResponse)
+                .collect(Collectors.toList());
+
+            return new Pagination<>(
+                searchQuery.page(),
+                searchQuery.perPage(),
+                rolePage.getTotalElements(),
+                roleResponses
+            );
+        } catch (Exception e) {
+            return new Pagination<>(searchQuery.page(), searchQuery.perPage(), 0, List.of());
+        }
     }
 
     @Override

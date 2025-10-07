@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * Endpoints baseados em casos de uso reais de administração de tenants.
  */
 @RestController
-@RequestMapping("/api/tenant-management")
+@RequestMapping("/api/tenants")
 @Tag(name = "Gestão de Tenants", description = "Endpoints semânticos para administração de tenants")
 public class TenantManagementController {
 
@@ -46,7 +46,7 @@ public class TenantManagementController {
 
     /**
      * CASO DE USO: Administrador cria novo tenant
-     * Endpoint semântico: POST /api/tenant-management/tenants
+    * Endpoint semântico: POST /api/tenants
      */
     @Operation(
         summary = "Criar novo tenant", 
@@ -59,7 +59,7 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @PostMapping("/tenants")
+    @PostMapping
     @RequireRole({"SUPER_ADMIN", "ADMIN"})
     @RequirePermission("create:tenants")
     public ResponseEntity<TenantResponse> createTenant(@Valid @RequestBody TenantRequest request) {
@@ -73,7 +73,7 @@ public class TenantManagementController {
 
     /**
      * CASO DE USO: Administrador lista todos os tenants
-     * Endpoint semântico: GET /api/tenant-management/tenants
+    * Endpoint semântico: GET /api/tenants
      */
     @Operation(
         summary = "Listar todos os tenants", 
@@ -84,7 +84,7 @@ public class TenantManagementController {
                 content = @Content(schema = @Schema(implementation = TenantResponse.class))),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @GetMapping("/tenants")
+    @GetMapping
     @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
     @RequirePermission("read:tenants")
     public ResponseEntity<List<TenantResponse>> getAllTenants() {
@@ -96,7 +96,7 @@ public class TenantManagementController {
 
     /**
      * CASO DE USO: Administrador obtém detalhes de um tenant
-     * Endpoint semântico: GET /api/tenant-management/tenants/{id}
+    * Endpoint semântico: GET /api/tenants/{id}
      */
     @Operation(
         summary = "Obter detalhes do tenant", 
@@ -108,7 +108,7 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "404", description = "Tenant não encontrado"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @GetMapping("/tenants/{id}")
+    @GetMapping("/{id}")
     @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
     @RequirePermission("read:tenants")
     public ResponseEntity<TenantResponse> getTenantDetails(
@@ -121,7 +121,7 @@ public class TenantManagementController {
 
     /**
      * CASO DE USO: Administrador atualiza configurações do tenant
-     * Endpoint semântico: PUT /api/tenant-management/tenants/{id}
+    * Endpoint semântico: PUT /api/tenants/{id}
      */
     @Operation(
         summary = "Atualizar tenant", 
@@ -134,7 +134,7 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @PatchMapping("/tenants/{id}")
+    @PutMapping("/{id}")
     @RequireRole({"SUPER_ADMIN", "ADMIN"})
     @RequirePermission("update:tenants")
     public ResponseEntity<TenantResponse> updateTenant(
@@ -146,7 +146,7 @@ public class TenantManagementController {
 
     /**
      * CASO DE USO: Administrador desativa tenant
-     * Endpoint semântico: DELETE /api/tenant-management/tenants/{id}
+    * Endpoint semântico: DELETE /api/tenants/{id}
      */
     @Operation(
         summary = "Desativar tenant", 
@@ -157,7 +157,7 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "404", description = "Tenant não encontrado"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @DeleteMapping("/tenants/{id}")
+    @DeleteMapping("/{id}")
     @RequireRole({"SUPER_ADMIN", "ADMIN"})
     @RequirePermission("delete:tenants")
     public ResponseEntity<Void> deactivateTenant(
@@ -168,7 +168,7 @@ public class TenantManagementController {
 
     /**
      * CASO DE USO: Administrador reativa tenant
-     * Endpoint semântico: POST /api/tenant-management/tenants/{id}/activate
+    * Endpoint semântico: POST /api/tenants/{id}/activate
      */
     @Operation(
         summary = "Reativar tenant", 
@@ -180,7 +180,7 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "404", description = "Tenant não encontrado"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @PostMapping("/tenants/{id}/activate")
+    @PostMapping("/{id}/activate")
     @RequireRole({"SUPER_ADMIN", "ADMIN"})
     @RequirePermission("update:tenants")
     public ResponseEntity<TenantResponse> activateTenant(
@@ -192,7 +192,7 @@ public class TenantManagementController {
 
     /**
      * CASO DE USO: Administrador busca tenants por nome
-     * Endpoint semântico: GET /api/tenant-management/tenants/search
+    * Endpoint semântico: GET /api/tenants/search
      */
     @Operation(
         summary = "Buscar tenants", 
@@ -204,7 +204,7 @@ public class TenantManagementController {
         @ApiResponse(responseCode = "400", description = "Parâmetro de busca inválido"),
         @ApiResponse(responseCode = "403", description = "Permissões insuficientes")
     })
-    @GetMapping("/tenants/search")
+    @GetMapping("/search")
     @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
     @RequirePermission("read:tenants")
     public ResponseEntity<SearchResponse<TenantResponse>> searchTenants(
@@ -224,26 +224,4 @@ public class TenantManagementController {
         return ResponseEntity.ok(SearchResponse.of(pagination, executionTime));
     }
 
-    /**
-     * CASO DE USO: Sistema verifica saúde da gestão de tenants
-     * Endpoint semântico: GET /api/tenant-management/health
-     */
-    @Operation(
-        summary = "Verificar saúde da gestão de tenants", 
-        description = "Retorna status do sistema de gestão de tenants"
-    )
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Sistema funcionando normalmente")
-    })
-    @GetMapping("/health")
-    @RequireRole({"SUPER_ADMIN", "ADMIN"})
-    @RequirePermission("read:tenants")
-    public ResponseEntity<Object> getTenantManagementHealth() {
-        return ResponseEntity.ok(new Object() {
-            public final String status = "healthy";
-            public final String service = "tenant-management";
-            public final Long totalTenants = tenantService.countTenants();
-            public final Long activeTenants = 0L; // TODO: Implement countActiveTenants method
-        });
-    }
 }

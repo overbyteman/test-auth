@@ -3,8 +3,12 @@ package com.seccreto.service.auth.controller.users;
 import com.seccreto.service.auth.api.dto.common.Pagination;
 import com.seccreto.service.auth.api.dto.common.SearchQuery;
 import com.seccreto.service.auth.api.dto.common.SearchResponse;
+import com.seccreto.service.auth.api.dto.users.AssignedPermissionDetail;
+import com.seccreto.service.auth.api.dto.users.AssignedRoleDetail;
+import com.seccreto.service.auth.api.dto.users.UserAssignmentResponse;
 import com.seccreto.service.auth.api.dto.users.UserRequest;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
+import com.seccreto.service.auth.api.dto.users.UserRoleAssignmentRequest;
 import com.seccreto.service.auth.api.mapper.users.UserMapper;
 import com.seccreto.service.auth.config.RequireOwnershipOrRole;
 import com.seccreto.service.auth.config.RequirePermission;
@@ -12,6 +16,8 @@ import com.seccreto.service.auth.config.RequireRole;
 import com.seccreto.service.auth.config.RequireSelfOnly;
 import com.seccreto.service.auth.model.users.User;
 import com.seccreto.service.auth.service.users.UserService;
+import com.seccreto.service.auth.service.users.assignments.UserAssignmentService;
+import com.seccreto.service.auth.service.users_tenants_permissions.UsersTenantsPermissionsService;
 import com.seccreto.service.auth.service.users_tenants_roles.UsersTenantsRolesService;
 import com.seccreto.service.auth.service.sessions.SessionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +33,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,16 +48,22 @@ import java.util.stream.Collectors;
 @Tag(name = "Gestão de Usuários", description = "API consolidada para gerenciamento completo de usuários")
 public class UserController {
 
-    private final UserService userService;
-    private final UsersTenantsRolesService usersTenantsRolesService;
-    private final SessionService sessionService;
+        private final UserService userService;
+        private final UsersTenantsRolesService usersTenantsRolesService;
+        private final UsersTenantsPermissionsService usersTenantsPermissionsService;
+        private final SessionService sessionService;
+        private final UserAssignmentService userAssignmentService;
 
-    public UserController(UserService userService, 
-                         UsersTenantsRolesService usersTenantsRolesService,
-                         SessionService sessionService) {
-        this.userService = userService;
-        this.usersTenantsRolesService = usersTenantsRolesService;
-        this.sessionService = sessionService;
+        public UserController(UserService userService,
+                                                  UsersTenantsRolesService usersTenantsRolesService,
+                                                  UsersTenantsPermissionsService usersTenantsPermissionsService,
+                                                  SessionService sessionService,
+                                                  UserAssignmentService userAssignmentService) {
+                this.userService = userService;
+                this.usersTenantsRolesService = usersTenantsRolesService;
+                this.usersTenantsPermissionsService = usersTenantsPermissionsService;
+                this.sessionService = sessionService;
+                this.userAssignmentService = userAssignmentService;
     }
 
     // ===== OPERAÇÕES BÁSICAS CRUD =====
@@ -134,7 +148,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos")
     })
-    @PatchMapping("/{id}")
+        @PutMapping("/{id}")
     @RequireOwnershipOrRole({"SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF"})
     public ResponseEntity<UserResponse> updateUser(
             @Parameter(description = "ID do usuário") @PathVariable UUID id,
@@ -176,6 +190,31 @@ public class UserController {
 
 
     // ===== OPERAÇÕES DE GESTÃO AVANÇADA =====
+
+    /**
+     * Atribui roles a um usuário em um tenant, propagando as permissões correspondentes.
+     */
+    @Operation(summary = "Atribuir roles a usuário",
+            description = "Atribui roles a um usuário em um tenant específico e propaga as permissões dos roles.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Roles atribuídos com sucesso",
+                    content = @Content(schema = @Schema(implementation = UserAssignmentResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Usuário ou tenant não encontrado"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos")
+    })
+    @PostMapping("/{id}/tenants/{tenantId}/roles")
+    @RequireRole({"SUPER_ADMIN", "ADMIN", "MANAGER"})
+    @RequirePermission("manage:users")
+    public ResponseEntity<UserAssignmentResponse> assignRolesToUser(
+            @Parameter(description = "ID do usuário") @PathVariable UUID id,
+            @Parameter(description = "ID do tenant") @PathVariable UUID tenantId,
+            @Valid @RequestBody UserRoleAssignmentRequest request) {
+
+        UserAssignmentService.AssignmentResult result = userAssignmentService.assignRoles(id, tenantId, request.getRoleIds());
+        UserAssignmentResponse response = buildAssignmentResponse(result,
+                "Roles atribuídos com sucesso e permissões propagadas.");
+        return ResponseEntity.ok(response);
+    }
 
 
 
@@ -227,12 +266,12 @@ public class UserController {
             @Parameter(description = "ID do usuário") @RequestParam UUID userId,
             @Parameter(description = "Token de verificação") @RequestParam String token) {
         User verifiedUser = userService.verifyEmail(userId, token);
-        return ResponseEntity.ok(new Object() {
-            public final UUID userId = verifiedUser.getId();
-            public final String email = verifiedUser.getEmail();
-            public final boolean verified = true;
-            public final String verifiedAt = verifiedUser.getEmailVerifiedAt().toString();
-        });
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("userId", verifiedUser.getId());
+                payload.put("email", verifiedUser.getEmail());
+                payload.put("verified", true);
+                payload.put("verifiedAt", verifiedUser.getEmailVerifiedAt() != null ? verifiedUser.getEmailVerifiedAt().toString() : null);
+                return ResponseEntity.ok(payload);
     }
 
     /**
@@ -248,12 +287,12 @@ public class UserController {
     public ResponseEntity<Object> resendVerificationEmail(
             @Parameter(description = "ID do usuário") @PathVariable UUID id) {
         User user = userService.resendVerificationEmail(id);
-        return ResponseEntity.ok(new Object() {
-            public final UUID userId = user.getId();
-            public final String email = user.getEmail();
-            public final boolean tokenSent = true;
-            public final String message = "Token de verificação reenviado para " + user.getEmail();
-        });
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("userId", user.getId());
+                payload.put("email", user.getEmail());
+                payload.put("tokenSent", true);
+                payload.put("message", "Token de verificação reenviado para " + user.getEmail());
+                return ResponseEntity.ok(payload);
     }
 
 
@@ -271,17 +310,93 @@ public class UserController {
     @RequirePermission("read:sessions")
     public ResponseEntity<List<Object>> getUserSessions(
             @Parameter(description = "ID do usuário") @PathVariable UUID id) {
-        List<Object> sessions = sessionService.findActiveSessionsByUser(id).stream()
-                .map(session -> new Object() {
-                    public final UUID sessionId = session.getId();
-                    public final String ipAddress = session.getIpAddress().getHostAddress();
-                    public final String userAgent = session.getUserAgent();
-                    public final String createdAt = session.getCreatedAt().toString();
-                    public final String expiresAt = session.getExpiresAt().toString();
-                })
-                .collect(Collectors.toList());
+                List<Object> sessions = sessionService.findActiveSessionsByUser(id).stream()
+                                .map(session -> {
+                                        Map<String, Object> payload = new LinkedHashMap<>();
+                                        payload.put("sessionId", session.getId());
+                                        payload.put("ipAddress", session.getIpAddress().getHostAddress());
+                                        payload.put("userAgent", session.getUserAgent());
+                                        payload.put("createdAt", session.getCreatedAt().toString());
+                                        payload.put("expiresAt", session.getExpiresAt().toString());
+                                        return (Object) payload;
+                                })
+                                .collect(Collectors.toList());
         return ResponseEntity.ok(sessions);
     }
+
+        private UserAssignmentResponse buildAssignmentResponse(UserAssignmentService.AssignmentResult result, String message) {
+                List<AssignedRoleDetail> roleDetails = usersTenantsRolesService.getUserTenantRolesDetails(result.userId(), result.tenantId()).stream()
+                                .map(this::mapRoleDetail)
+                                .collect(Collectors.toList());
+
+                List<AssignedPermissionDetail> permissionDetails = usersTenantsPermissionsService.getUserTenantPermissionsDetails(result.userId(), result.tenantId()).stream()
+                                .map(this::mapPermissionDetail)
+                                .collect(Collectors.toList());
+
+                long totalRoles = usersTenantsRolesService.countRolesByUserAndTenant(result.userId(), result.tenantId());
+                long totalPermissions = usersTenantsPermissionsService.countPermissionsByUserAndTenant(result.userId(), result.tenantId());
+
+                return UserAssignmentResponse.builder()
+                                .userId(result.userId())
+                                .tenantId(result.tenantId())
+                                .requestedRoleIds(safeCopy(result.requestedRoleIds()))
+                                .newlyAssignedRoleIds(safeCopy(result.newlyAssignedRoleIds()))
+                                .alreadyAssignedRoleIds(safeCopy(result.alreadyAssignedRoleIds()))
+                                .requestedPermissionIds(safeCopy(result.requestedPermissionIds()))
+                                .newlyAssignedPermissionIds(safeCopy(result.newlyAssignedPermissionIds()))
+                                .alreadyAssignedPermissionIds(safeCopy(result.alreadyAssignedPermissionIds()))
+                                .propagatedPermissionIds(safeCopy(result.propagatedPermissionIds()))
+                                .tenantRoles(roleDetails)
+                                .tenantPermissions(permissionDetails)
+                                .totalRolesForUserInTenant(totalRoles)
+                                .totalDirectPermissionsForUserInTenant(totalPermissions)
+                                .message(message)
+                                .build();
+        }
+
+        private AssignedRoleDetail mapRoleDetail(Object rawDetail) {
+                if (rawDetail instanceof Map<?, ?> map) {
+                        return AssignedRoleDetail.builder()
+                                        .id(toUuid(map.get("id")))
+                                        .name(toStringOrNull(map.get("name")))
+                                        .description(toStringOrNull(map.get("description")))
+                                        .build();
+                }
+                return AssignedRoleDetail.builder().build();
+        }
+
+        private AssignedPermissionDetail mapPermissionDetail(Object rawDetail) {
+                if (rawDetail instanceof Map<?, ?> map) {
+                        return AssignedPermissionDetail.builder()
+                                        .id(toUuid(map.get("id")))
+                                        .action(toStringOrNull(map.get("action")))
+                                        .resource(toStringOrNull(map.get("resource")))
+                                        .build();
+                }
+                return AssignedPermissionDetail.builder().build();
+        }
+
+        private List<UUID> safeCopy(List<UUID> source) {
+                return source == null ? List.of() : List.copyOf(source);
+        }
+
+        private UUID toUuid(Object value) {
+                if (value instanceof UUID uuid) {
+                        return uuid;
+                }
+                if (value instanceof String str) {
+                        try {
+                                return UUID.fromString(str);
+                        } catch (IllegalArgumentException ignored) {
+                                return null;
+                        }
+                }
+                return null;
+        }
+
+        private String toStringOrNull(Object value) {
+                return value == null ? null : value.toString();
+        }
 
     // ===== ESTATÍSTICAS =====
 

@@ -55,17 +55,20 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     /**
      * Lista roles por tenant (usa índice FK tenant_id)
      */
-       List<Role> findByLandlord(Landlord landlord);
+        @EntityGraph(attributePaths = {"landlord"})
+        List<Role> findByLandlord(Landlord landlord);
 
     /**
      * Lista roles por tenant ID (usa índice FK tenant_id)
      */
-       List<Role> findByLandlordId(UUID landlordId);
+        @EntityGraph(attributePaths = {"landlord"})
+        List<Role> findByLandlordId(UUID landlordId);
 
        /**
         * Busca case-insensitive dentro de um tenant específico (usa índice funcional se criado)
         */
-       List<Role> findByNameContainingIgnoreCaseAndLandlordId(String name, UUID landlordId);
+        @EntityGraph(attributePaths = {"landlord"})
+        List<Role> findByNameContainingIgnoreCaseAndLandlordId(String name, UUID landlordId);
 
     // ========================================
     // QUERIES OTIMIZADAS COM ENTITYGRAPH (evita N+1)
@@ -103,6 +106,7 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     /**
      * Busca full-text em nome e descrição (usa índices se existirem)
      */
+    @EntityGraph(attributePaths = {"landlord"})
     @Query("SELECT r FROM Role r WHERE r.landlord.id = :landlordId AND (" +
            "LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(r.description) LIKE LOWER(CONCAT('%', :query, '%')))")
@@ -111,6 +115,7 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     /**
      * Busca paginada (usa índices + LIMIT/OFFSET otimizado)
      */
+    @EntityGraph(attributePaths = {"landlord"})
     @Query("SELECT r FROM Role r WHERE r.landlord.id = :landlordId AND (" +
            "LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(r.description) LIKE LOWER(CONCAT('%', :query, '%')))")

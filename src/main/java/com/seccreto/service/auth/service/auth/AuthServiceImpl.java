@@ -6,6 +6,7 @@ import com.seccreto.service.auth.api.dto.auth.RolePermissionsResponse;
 import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
 import com.seccreto.service.auth.api.dto.auth.RefreshTokenResponse;
+import com.seccreto.service.auth.api.dto.roles.MyRolesResponse;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.model.users.User;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.InetAddress;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -122,8 +124,6 @@ public class AuthServiceImpl implements AuthService {
             permissions = List.of("read:profile");
         }
         
-        List<RolePermissionsResponse> roleResponses = toRoleResponses(tenantAccess, roles, permissions);
-
         String accessToken = jwtService.generateAccessToken(
             user.getId(), session.getId(), null, roles, permissions, tenantClaims
         );
@@ -145,7 +145,6 @@ public class AuthServiceImpl implements AuthService {
     .landlordId(primaryTenant != null ? primaryTenant.landlordId() : null)
     .landlordName(primaryTenant != null ? primaryTenant.landlordName() : null)
                 .loginTime(LocalDateTime.now())
-                .roles(List.copyOf(roleResponses))
                 .build();
     }
 
@@ -615,6 +614,90 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public List<MyRolesResponse> getCurrentUserRoles(String token, UUID tenantId) {
+        if (token == null || token.trim().isEmpty()) {
+            throw new ValidationException("Token é obrigatório");
+        }
+
+        String cleanToken = token.startsWith("Bearer ") ? token.substring(7) : token;
+        JwtService.JwtValidationResult result = jwtService.validateToken(cleanToken);
+
+        if (!result.valid()) {
+            String reason = result.reason() != null && !result.reason().isBlank()
+                    ? result.reason()
+                    : "Token inválido";
+            throw new ValidationException(reason);
+        }
+
+        List<JwtService.TenantAccessClaim> tenantAccess = result.tenantAccess();
+        if (tenantAccess == null || tenantAccess.isEmpty()) {
+            LinkedHashSet<String> roleSet = new LinkedHashSet<>();
+            if (result.roles() != null) {
+                roleSet.addAll(result.roles());
+            }
+            LinkedHashSet<String> permissionSet = new LinkedHashSet<>();
+            if (result.permissions() != null) {
+                permissionSet.addAll(result.permissions());
+            }
+
+            return List.of(MyRolesResponse.builder()
+                    .landlordId(null)
+                    .landlordName(null)
+                    .tenantId(result.tenantId())
+                    .tenantName(null)
+                    .roles(List.copyOf(roleSet))
+                    .permissions(List.copyOf(permissionSet))
+                    .build());
+        }
+
+    List<MyRolesResponse> responses = tenantAccess.stream()
+        .filter(access -> tenantId == null
+            || (access.tenantId() != null && access.tenantId().equals(tenantId)))
+                .map(access -> {
+                    LinkedHashSet<String> roleSet = new LinkedHashSet<>();
+                    if (access.roles() != null) {
+                        roleSet.addAll(access.roles());
+                    }
+                    LinkedHashSet<String> permissionSet = new LinkedHashSet<>();
+                    if (access.permissions() != null) {
+                        permissionSet.addAll(access.permissions());
+                    }
+
+                    return MyRolesResponse.builder()
+                            .landlordId(access.landlordId())
+                            .landlordName(access.landlordName())
+                            .tenantId(access.tenantId())
+                            .tenantName(access.tenantName())
+                            .roles(List.copyOf(roleSet))
+                            .permissions(List.copyOf(permissionSet))
+                            .build();
+                })
+                .toList();
+
+    if (!responses.isEmpty() || tenantId != null) {
+            return responses;
+        }
+
+        LinkedHashSet<String> roleSet = new LinkedHashSet<>();
+        if (result.roles() != null) {
+            roleSet.addAll(result.roles());
+        }
+        LinkedHashSet<String> permissionSet = new LinkedHashSet<>();
+        if (result.permissions() != null) {
+            permissionSet.addAll(result.permissions());
+        }
+
+        return List.of(MyRolesResponse.builder()
+                .landlordId(null)
+                .landlordName(null)
+                .tenantId(result.tenantId())
+                .tenantName(null)
+                .roles(List.copyOf(roleSet))
+                .permissions(List.copyOf(permissionSet))
+                .build());
+    }
+
+    @Override
     public void changePassword(String token, String currentPassword, String newPassword) {
         ValidateTokenResponse tokenResponse = validateAccessToken(token);
         if (!tokenResponse.getValid()) {
@@ -644,8 +727,8 @@ public class AuthServiceImpl implements AuthService {
             throw new ValidationException("Não é possível redefinir senha para usuário inativo");
         }
         
-        // Gerar token seguro de reset
-        String resetToken = passwordResetService.generateResetToken(user.getId());
+    // Gerar token seguro de reset
+    passwordResetService.generateResetToken(user.getId());
         
         // TODO: Implement email sending logic with the reset token
         // The token should be sent via secure email with expiration time

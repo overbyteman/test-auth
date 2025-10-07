@@ -32,7 +32,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,7 +60,7 @@ class TenantManagementControllerTest {
         Tenant tenant = sampleTenant(true);
         when(tenantService.listAllTenants()).thenReturn(List.of(tenant));
 
-        mockMvc.perform(get("/api/tenant-management/tenants"))
+        mockMvc.perform(get("/api/tenants"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(tenant.getId().toString()))
                 .andExpect(jsonPath("$[0].name").value(tenant.getName()))
@@ -82,7 +82,7 @@ class TenantManagementControllerTest {
         when(tenantService.createTenant(eq(tenant.getName()), any(), eq(tenant.getLandlord().getId())))
                 .thenReturn(tenant);
 
-        mockMvc.perform(post("/api/tenant-management/tenants")
+        mockMvc.perform(post("/api/tenants")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -100,7 +100,7 @@ class TenantManagementControllerTest {
         tenant.activate();
         when(tenantService.activateTenant(tenant.getId())).thenReturn(tenant);
 
-        mockMvc.perform(post("/api/tenant-management/tenants/{id}/activate", tenant.getId()))
+        mockMvc.perform(post("/api/tenants/{id}/activate", tenant.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(tenant.getId().toString()))
                 .andExpect(jsonPath("$.active").value(true));
@@ -113,7 +113,7 @@ class TenantManagementControllerTest {
                 Tenant tenant = sampleTenant(true);
                 when(tenantService.findTenantById(tenant.getId())).thenReturn(java.util.Optional.of(tenant));
 
-                mockMvc.perform(get("/api/tenant-management/tenants/{id}", tenant.getId()))
+                mockMvc.perform(get("/api/tenants/{id}", tenant.getId()))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.id").value(tenant.getId().toString()))
                                 .andExpect(jsonPath("$.landlordName").value(tenant.getLandlord().getName()));
@@ -126,7 +126,7 @@ class TenantManagementControllerTest {
                 UUID tenantId = UUID.randomUUID();
                 when(tenantService.findTenantById(tenantId)).thenReturn(java.util.Optional.empty());
 
-                mockMvc.perform(get("/api/tenant-management/tenants/{id}", tenantId))
+                mockMvc.perform(get("/api/tenants/{id}", tenantId))
                                 .andExpect(status().isNotFound());
 
                 verify(tenantService).findTenantById(tenantId);
@@ -136,7 +136,7 @@ class TenantManagementControllerTest {
     void shouldDeactivateTenant() throws Exception {
         Tenant tenant = sampleTenant(true);
 
-        mockMvc.perform(delete("/api/tenant-management/tenants/{id}", tenant.getId()))
+        mockMvc.perform(delete("/api/tenants/{id}", tenant.getId()))
                 .andExpect(status().isNoContent());
 
         verify(tenantService).deactivateTenant(tenant.getId());
@@ -158,7 +158,7 @@ class TenantManagementControllerTest {
         Pagination<TenantResponse> pagination = new Pagination<>(1, 10, 1, List.of(tenantResponse));
         when(tenantService.searchTenants(any(SearchQuery.class))).thenReturn(pagination);
 
-        mockMvc.perform(get("/api/tenant-management/tenants/search")
+        mockMvc.perform(get("/api/tenants/search")
                         .param("page", "1")
                         .param("perPage", "10")
                         .param("terms", "Academia")
@@ -184,26 +184,13 @@ class TenantManagementControllerTest {
         when(tenantService.updateTenant(eq(tenant.getId()), eq("Academia Atualizada"), any(), eq(tenant.getLandlord().getId())))
                 .thenReturn(tenant);
 
-        mockMvc.perform(patch("/api/tenant-management/tenants/{id}", tenant.getId())
+        mockMvc.perform(put("/api/tenants/{id}", tenant.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Academia Atualizada"));
 
         verify(tenantService).updateTenant(eq(tenant.getId()), eq("Academia Atualizada"), any(), eq(tenant.getLandlord().getId()));
-    }
-
-    @Test
-    void shouldReturnHealthStatus() throws Exception {
-        when(tenantService.countTenants()).thenReturn(5L);
-
-        mockMvc.perform(get("/api/tenant-management/health"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("healthy"))
-                .andExpect(jsonPath("$.service").value("tenant-management"))
-                .andExpect(jsonPath("$.totalTenants").value(5));
-
-        verify(tenantService).countTenants();
     }
 
     private Tenant sampleTenant(boolean active) {

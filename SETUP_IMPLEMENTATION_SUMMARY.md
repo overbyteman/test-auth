@@ -3,19 +3,14 @@
 ## ✅ O que foi implementado
 
 ### 1. **Controller de Setup** (`SetupController.java`)
-- ✅ Endpoint para criar nova rede: `POST /api/setup/network`
 - ✅ Endpoint para adicionar filial: `POST /api/setup/network/{landlordId}/tenant`
 - ✅ Endpoint para configurar roles: `POST /api/setup/network/{landlordId}/roles`
-- ✅ Endpoint para verificar status: `GET /api/setup/network/{landlordId}/status`
 - ✅ Endpoint para listar redes: `GET /api/setup/networks`
-- ✅ Endpoint para setup completo: `POST /api/setup/network/complete`
 
 ### 2. **Serviço de Setup** (`SetupService.java`)
-- ✅ Método para criar rede com roles padrões
 - ✅ Método para adicionar filial à rede
 - ✅ Método para configurar roles padrões
-- ✅ Método para verificar status da rede
-- ✅ Método para setup completo
+- ✅ Sincronização automática de policies, permissions e roles padrões
 
 ### 3. **Serviços de Landlord** (`LandlordService.java`, `LandlordServiceImpl.java`)
 - ✅ Interface e implementação do serviço de landlord
@@ -96,12 +91,9 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
 │  🎯 CONTROLLER LAYER                                                │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
 │  │ SetupController                                                 │ │
-│  │ • POST /api/setup/network                                       │ │
 │  │ • POST /api/setup/network/{id}/tenant                          │ │
 │  │ • POST /api/setup/network/{id}/roles                           │ │
-│  │ • GET /api/setup/network/{id}/status                           │ │
 │  │ • GET /api/setup/networks                                       │ │
-│  │ • POST /api/setup/network/complete                              │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 
@@ -109,11 +101,11 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
 │  🔧 SERVICE LAYER                                                   │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
 │  │ SetupService                                                    │ │
-│  │ • createNetworkWithRoles()                                      │ │
 │  │ • addTenantToNetwork()                                          │ │
 │  │ • setupDefaultRolesForLandlord()                                │ │
-│  │ • getNetworkStatus()                                            │ │
-│  │ • createCompleteNetwork()                                       │ │
+│  │ • synchronizeDefaultPolicies()                                  │ │
+│  │ • synchronizeDefaultPermissions()                               │ │
+│  │ • synchronizeDefaultRoles()                                     │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
 │  │ LandlordService                                                 │ │
@@ -140,7 +132,7 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
 
 ### ✅ **Para o SaaS**
 - Onboarding automatizado de novos clientes
-- Setup completo em uma única chamada
+- Provisionamento guiado com etapas explícitas
 - Padronização de roles e permissões
 - Facilidade para escalar o negócio
 
@@ -158,18 +150,9 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
 
 ## 🚀 Como Usar (Após Correções)
 
-### 1. **Criar Nova Rede**
+### 1. **Configurar Roles Padrões para o Landlord**
 ```bash
-curl -X POST http://localhost:8080/api/setup/network \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Academia Central",
-    "description": "Rede de academias de artes marciais",
-    "config": {
-      "type": "martial_arts_academy",
-      "business_model": "franchise"
-    }
-  }'
+curl -X POST http://localhost:8080/api/setup/network/{landlordId}/roles
 ```
 
 ### 2. **Adicionar Filial**
@@ -185,15 +168,9 @@ curl -X POST http://localhost:8080/api/setup/network/{landlordId}/tenant \
   }'
 ```
 
-### 3. **Setup Completo**
+### 3. **Listar Redes Cadastradas**
 ```bash
-curl -X POST http://localhost:8080/api/setup/network/complete \
-  -H "Content-Type: application/json" \
-  -d '{
-    "networkName": "Academia Central",
-    "networkDescription": "Rede de academias",
-    "firstTenantName": "Matriz Centro"
-  }'
+curl -X GET http://localhost:8080/api/setup/networks
 ```
 
 ## 📋 Status Atual

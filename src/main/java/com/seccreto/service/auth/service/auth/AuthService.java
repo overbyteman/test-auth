@@ -5,12 +5,12 @@ import com.seccreto.service.auth.api.dto.auth.RegisterResponse;
 import com.seccreto.service.auth.api.dto.auth.UserProfileResponse;
 import com.seccreto.service.auth.api.dto.auth.ValidateTokenResponse;
 import com.seccreto.service.auth.api.dto.auth.RefreshTokenResponse;
+import com.seccreto.service.auth.api.dto.roles.MyRolesResponse;
 import com.seccreto.service.auth.api.dto.users.UserResponse;
 import com.seccreto.service.auth.model.sessions.Session;
 import com.seccreto.service.auth.model.users.User;
 
 import java.net.InetAddress;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +29,7 @@ public interface AuthService {
     ValidateTokenResponse validateAccessToken(String token);
     UserResponse getCurrentUserProfile(String token);
     UserProfileResponse getCurrentUserCompleteProfile(String token);
+    List<MyRolesResponse> getCurrentUserRoles(String token, UUID tenantId);
     void changePassword(String token, String currentPassword, String newPassword);
     void sendPasswordRecoveryEmail(String email);
     void resetPassword(String token, String newPassword);

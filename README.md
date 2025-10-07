@@ -190,9 +190,15 @@ Content-Type: application/json
   "userId": "550e8400-e29b-41d4-a716-446655440000",
   "userName": "João Silva",
   "userEmail": "usuario@empresa.com",
+  "tenantId": "de305d54-75b4-431b-adb2-eb6b9e546014",
+  "tenantName": "Matriz Centro",
+  "landlordId": "11111111-1111-1111-1111-111111111111",
+  "landlordName": "Academia Central",
   "loginTime": "2025-10-02T15:30:45"
 }
 ```
+
+> ℹ️ **Observação:** Roles e permissões foram removidas da resposta de login. Utilize o endpoint [`GET /api/roles/me`](#-roles-e-permissões) para consultar os acessos atuais diretamente a partir do token JWT.
 
 #### Registro
 ```http
@@ -255,6 +261,21 @@ Content-Type: application/json
 }
 ```
 
+#### Atribuir Roles a Usuário
+```http
+POST /api/users/{userId}/tenants/{tenantId}/roles
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "roleIds": [
+    "2b7a73fa-0c8f-4cd3-8f6b-712d6e56cb73"
+  ]
+}
+```
+
+> ✅ Ao atribuir roles, todas as permissões dos roles são propagadas automaticamente para o usuário no tenant informado.
+
 ### 🏢 Gestão de Tenants
 
 #### Listar Tenants
@@ -284,7 +305,92 @@ Content-Type: application/json
 ```http
 GET /api/roles
 Authorization: Bearer {accessToken}
+Query: landlordId={landlordId}
 ```
+
+#### Criar Role
+```http
+POST /api/roles
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "code": "manager",
+  "landlordId": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Manager",
+  "description": "Responsável pela operação diária"
+}
+```
+
+#### Atualizar Role
+```http
+PUT /api/roles/{roleId}
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "landlordId": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Manager",
+  "description": "Atualização da função"
+}
+```
+
+#### Remover Role
+```http
+DELETE /api/roles/{roleId}?landlordId={landlordId}
+Authorization: Bearer {accessToken}
+```
+
+#### Buscar Roles
+```http
+GET /api/roles/search?landlordId={landlordId}&page=1&perPage=10&terms=manager&sort=name&direction=asc
+Authorization: Bearer {accessToken}
+```
+
+**Resposta (SearchResponse):**
+```json
+{
+  "pagination": {
+    "currentPage": 1,
+    "perPage": 10,
+    "total": 1,
+    "items": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "code": "manager",
+        "name": "Manager",
+        "description": "Responsável pela operação diária",
+        "landlordId": "550e8400-e29b-41d4-a716-446655440000",
+        "landlordName": "Acme Holdings"
+      }
+    ]
+  },
+  "executionTimeMs": 42,
+  "itemsCount": 1
+}
+```
+
+#### Minhas Roles (token atual)
+```http
+GET /api/roles/me?tenantId={tenantId}
+Authorization: Bearer {accessToken}
+```
+
+**Resposta:**
+```json
+[
+  {
+    "landlordId": "11111111-1111-1111-1111-111111111111",
+    "landlordName": "Academia Central",
+    "tenantId": "de305d54-75b4-431b-adb2-eb6b9e546014",
+    "tenantName": "Matriz Centro",
+    "roles": ["ADMIN", "MANAGER"],
+    "permissions": ["manage:users", "read:dashboard"]
+  }
+]
+```
+
+> 💡 Passe o parâmetro `tenantId` apenas quando quiser filtrar um tenant específico. Sem o filtro, o endpoint retorna todas as combinações landlord/tenant presentes no token JWT.
 
 #### Associar Role a Usuário
 ```http
